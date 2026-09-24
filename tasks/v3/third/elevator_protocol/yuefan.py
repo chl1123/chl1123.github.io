@@ -9,6 +9,7 @@ from syspy.script_data import ScriptData
 from syspy.comms.lora_comm import (
     LoraFrame,
     LoraMatchSpec,
+    LoraOperation,
     LoraRpcTransport,
     LoraTransportError,
 )
@@ -258,7 +259,7 @@ class YuefanElevatorProtocol(ElevatorProtocol):
         command: int,
         data: bytes,
         control_state: str,
-        operation: str,
+        operation: LoraOperation,
     ) -> ElevatorProtocolResult:
         request = LoraFrame(
             command=command,
@@ -300,7 +301,7 @@ class YuefanElevatorProtocol(ElevatorProtocol):
 
     def query_status(self) -> ElevatorProtocolResult:
         return self._request(
-            self.CMD_QUERY, self._data(0, 0), "UNKNOWN", "QUERY"
+            self.CMD_QUERY, self._data(0, 0), "UNKNOWN", LoraOperation.QUERY
         )
 
     def call(self, floor: int, active_time: int) -> ElevatorProtocolResult:
@@ -310,7 +311,7 @@ class YuefanElevatorProtocol(ElevatorProtocol):
             self.CMD_CONTROL,
             self._data(floor, active_time),
             "OWNED_BY_SELF",
-            "CONTROL",
+            LoraOperation.CONTROL,
         )
 
     def keep_alive(self, floor: int, active_time: int) -> ElevatorProtocolResult:
@@ -320,12 +321,12 @@ class YuefanElevatorProtocol(ElevatorProtocol):
             self.CMD_CONTROL,
             self._data(floor, active_time),
             "OWNED_BY_SELF",
-            "KEEP_ALIVE",
+            LoraOperation.KEEP_ALIVE,
         )
 
     def release(self, active_time: int) -> ElevatorProtocolResult:
         return self._request(
-            self.CMD_END, self._data(0, active_time), "FREE", "RELEASE"
+            self.CMD_END, self._data(0, active_time), "FREE", LoraOperation.RELEASE
         )
 
     def is_target_ready(self, result: ElevatorProtocolResult, target_floor: int) -> bool:

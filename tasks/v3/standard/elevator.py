@@ -1855,7 +1855,7 @@ class ElevatorBezierAction(ActionBase):
                 "startDistance": round(self._policy_start_distance, 4),
                 "defaults": dict(self._policy_defaults),
                 "values": dict(policy),
-            }, name="elevator.policy")
+            }, output_console = False, name="elevator.policy")
             self._last_policy_log_progress = progress
 
     def _clear_policy(self):
@@ -2240,6 +2240,32 @@ class ElevatorEntryAction(ActionBase):
         )
         return True
 
+    def _enter_retry_wait(self, now):
+        """Release the source-floor lease before the quiet retry interval.
+        """
+        self.lease.mark_outside()
+        try:
+            self.lease.release_unconditionally("entry retry wait")
+        except Exception as error:
+            self.fail_reason = str(error)
+            self.error_code = "ElevatorReleaseFailed"
+            self.action_status = ActionStatus.FAILED
+            Trace.log({
+                "event": "entryRetryReleaseFailed",
+                "attempt": self._attempt,
+                "error": str(error),
+            }, name="elevator.err")
+            return self.action_status
+        self._clear_block_status()
+        self._phase = EntryMotionPhase.WAITING_RETRY_MOTION
+        self._retry_started = now
+        Trace.log({
+            "event": "entryRetryWaitingAfterRelease",
+            "attempt": self._attempt,
+            "retryMotionTimeout": ConfigParams.entry_retry_motion_timeout,
+        }, name="elevator.entry")
+        return self.action_status
+
     def _blocked(self):
         try:
             return bool(NavStatus.getBlock())
@@ -2540,10 +2566,7 @@ class ElevatorEntryAction(ActionBase):
             self._clear_block_status()
             return self._start_source_retry(now)
         else:
-            self.lease.mark_outside()
-            self._clear_block_status()
-            self._phase = EntryMotionPhase.WAITING_RETRY_MOTION
-            self._retry_started = now
+            return self._enter_retry_wait(now)
         return self.action_status
 
     def run(self, ctx=None):

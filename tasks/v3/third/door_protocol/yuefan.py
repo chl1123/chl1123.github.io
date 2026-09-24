@@ -9,6 +9,7 @@ from syspy.script_data import ScriptData
 from syspy.comms.lora_comm import (
     LoraFrame,
     LoraMatchSpec,
+    LoraOperation,
     LoraRpcTransport,
     LoraTransportError,
 )
@@ -263,7 +264,7 @@ class YuefanDoorProtocol(DoorProtocol):
         return int(open_mode)
 
     def _request(self, command: int, data: bytes, control_state: str,
-                 instance_args=None, operation="CONTROL") -> DoorProtocolResult:
+                 instance_args=None, operation=LoraOperation.CONTROL) -> DoorProtocolResult:
         address, channel = self._resolve_instance(instance_args)
         request = LoraFrame(
             command=command,
@@ -302,7 +303,7 @@ class YuefanDoorProtocol(DoorProtocol):
 
     def query_status(self) -> DoorProtocolResult:
         return self._request(
-            self.CMD_QUERY, self._common_data(), "UNKNOWN", operation="QUERY"
+            self.CMD_QUERY, self._common_data(), "UNKNOWN", operation=LoraOperation.QUERY
         )
 
     def acquire_control(self, instance_args=None, active_time=30) -> DoorProtocolResult:
@@ -337,7 +338,7 @@ class YuefanDoorProtocol(DoorProtocol):
             active_time = instance_args
             instance_args = {}
         return self._request_open(
-            source_side, instance_args, active_time, "CONTROL"
+            source_side, instance_args, active_time, LoraOperation.CONTROL
         )
 
     def keep_alive(self, source_side=None, instance_args=None, active_time=None,
@@ -348,7 +349,7 @@ class YuefanDoorProtocol(DoorProtocol):
             active_time = instance_args
             instance_args = {}
         return self._request_open(
-            source_side, instance_args, active_time, "KEEP_ALIVE"
+            source_side, instance_args, active_time, LoraOperation.KEEP_ALIVE
         )
 
     def release(self, instance_args=None) -> DoorProtocolResult:
@@ -357,7 +358,7 @@ class YuefanDoorProtocol(DoorProtocol):
             self._common_data(instance_args),
             "FREE",
             instance_args,
-            operation="RELEASE",
+            operation=LoraOperation.RELEASE,
         )
 
 

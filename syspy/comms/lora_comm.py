@@ -1,14 +1,19 @@
 import json
+import logging
 import os
+import queue
 import struct
 import subprocess
 import threading
 import time
 import uuid
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable, List, Optional
 
 import serial
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -98,9 +103,53 @@ class LoraResponseTimeout(LoraTransportError):
     pass
 
 
+class LoraOperation(str, Enum):
+    """Behav LoRa 事务的调度类型。"""
+
+    QUERY = "QUERY"
+    CONTROL = "CONTROL"
+    KEEP_ALIVE = "KEEP_ALIVE"
+    RELEASE = "RELEASE"
+
+
+@dataclass(frozen=True)
+class LoraReceivedFrame:
+    """Behav RX topic 发布的一帧 LoRa 主动上报数据。
+
+    字段：
+        frame: 解码后的 LoRa 帧。
+        device: 发布该事件的逻辑 LoRa 设备名。
+        sequence: Behav 为当前设备世代分配的单调递增事件序号。
+        device_generation: LoRa 设备配置世代；串口绑定重配后会变化。
+        received_monotonic_ms: Behav 收到帧时的单调时钟毫秒值，仅用于诊断，
+            不能直接与墙上时钟时间戳比较。
+    """
+
+    frame: LoraFrame
+    device: Optional[str] = None
+    sequence: Optional[int] = None
+    device_generation: Optional[int] = None
+    received_monotonic_ms: Optional[int] = None
+
+
 @dataclass(frozen=True)
 class LoraMatchSpec:
-    """Serializable response matcher shared by direct and RPC transports."""
+    """直连和 RPC transport 共用的可序列化响应匹配条件。
+
+    字段：
+        command: 期望的 LoRa 命令字；为 ``None`` 时不校验。
+        destination: 期望的帧目的模块地址。
+        source: 期望的帧源模块地址。
+        address: 厂家协议存放在 ``data[1:3]`` 中的目标地址。
+        channel: 厂家协议存放在 ``data[3]`` 中的目标信道；必须与
+            ``address`` 同时设置。
+        data_equals: 帧 data 区域需要匹配的前缀。
+        data_mask: 应用于 ``data_equals`` 的可选字节掩码；为空时每个字节
+            均按 ``0xFF`` 比较。
+        operation: 事务调度类型，必须使用 :class:`LoraOperation`。
+        operation_key: 稳定的逻辑操作键，Behav 可用它合并同类排队请求，
+            避免状态轮询积压。
+    """
 
     command: Optional[int] = None
     destination: Optional[int] = None
@@ -109,10 +158,12 @@ class LoraMatchSpec:
     channel: Optional[int] = None
     data_equals: bytes = b""
     data_mask: bytes = b""
-    operation: str = "QUERY"
+    operation: LoraOperation = LoraOperation.QUERY
     operation_key: str = ""
 
     def __post_init__(self):
+        if not isinstance(self.operation, LoraOperation):
+            raise TypeError("operation must be a LoraOperation")
         if (self.address is None) != (self.channel is None):
             raise ValueError("address and channel must be provided together")
         if self.data_mask and len(self.data_mask) != len(self.data_equals):
@@ -154,6 +205,59 @@ class LoraMatchSpec:
         return result
 
 
+@dataclass(frozen=True)
+class LoraRxFilter:
+    """过滤包含两个厂家 endpoint 的 RX topic 主动上报帧。
+
+    悦帆呼叫器在 ``data[1:4]`` 中携带呼叫器 endpoint，在 ``data[4:7]``
+    中携带目标机器人 endpoint。该过滤器与 :class:`LoraMatchSpec` 分开：
+    后者面向请求/响应协议，通用 ``address/channel`` 只匹配 ``data[1:4]``。
+    """
+
+    command: Optional[int] = None
+    destination: Optional[int] = None
+    source: Optional[int] = None
+    caller_address: Optional[int] = None
+    caller_channel: Optional[int] = None
+    robot_address: Optional[int] = None
+    robot_channel: Optional[int] = None
+
+    def __call__(self, frame: LoraFrame) -> bool:
+        if self.command is not None and frame.command != self.command:
+            return False
+        if self.destination is not None and frame.destination != self.destination:
+            return False
+        if self.source is not None and frame.source != self.source:
+            return False
+        if len(frame.data) < 7:
+            return False
+        if self.caller_address is not None:
+            if struct.unpack("<H", frame.data[1:3])[0] != self.caller_address:
+                return False
+        if self.caller_channel is not None and frame.data[3] != self.caller_channel:
+            return False
+        if self.robot_address is not None:
+            if struct.unpack("<H", frame.data[4:6])[0] != self.robot_address:
+                return False
+        if self.robot_channel is not None and frame.data[6] != self.robot_channel:
+            return False
+        return True
+
+    def to_topic_dict(self):
+        """返回可用于 topic 注册或诊断日志的 JSON 安全字典。"""
+        return {
+            key: value for key, value in {
+                "command": self.command,
+                "destination": self.destination,
+                "source": self.source,
+                "callerAddress": self.caller_address,
+                "callerChannel": self.caller_channel,
+                "robotAddress": self.robot_address,
+                "robotChannel": self.robot_channel,
+            }.items() if value is not None
+        }
+
+
 class LoraSerialTransport:
     def __init__(
         self,
@@ -186,7 +290,7 @@ class LoraSerialTransport:
         try:
             self._frame_logger(direction, raw)
         except Exception:
-            # Diagnostics must never change the protocol request path.
+            # 诊断日志不得影响协议请求链路。
             pass
 
     def open(self) -> None:
@@ -265,7 +369,7 @@ class LoraSerialTransport:
 
 
 class LoraRpcTransport:
-    """LoRa transaction transport backed by the BehavFactory eCAL service."""
+    """基于 BehavFactory eCAL service 和 RX topic 的 LoRa transport。"""
 
     _PENDING_STATUSES = frozenset(("QUEUED", "RUNNING"))
 
@@ -385,6 +489,220 @@ class LoraRpcTransport:
     def close(self):
         self.cancel()
 
+    def _submit_and_wait(self, submit_method, payload, matcher, timeout_label):
+        request_id = str(payload["requestId"])
+        with self._lock:
+            self._active_request_id = request_id
+            terminal = False
+            submitted = False
+            try:
+                submitted = True
+                request_json = json.dumps(payload, separators=(",", ":"))
+                submission = None
+                for attempt in range(self.submission_retries):
+                    submission = self._call(submit_method, request_json)
+                    if submission is None:
+                        submission = self._call(
+                            "getLoraResultByClient", request_id
+                        )
+                    if submission is None:
+                        if attempt + 1 < self.submission_retries:
+                            self._sleep(self.poll_interval)
+                            continue
+                        break
+                    submission = self._require_response(
+                        submit_method, submission
+                    )
+                    if (
+                        str(submission.get("status")) == "NOT_FOUND"
+                        and attempt + 1 < self.submission_retries
+                    ):
+                        self._sleep(self.poll_interval)
+                        continue
+                    break
+                submission = self._require_response(
+                    submit_method, submission
+                )
+                if submission.get("done"):
+                    terminal = True
+                    return self._decode_terminal(submission, matcher), submission
+                if (
+                    not submission.get("ok")
+                    or submission.get("status") not in self._PENDING_STATUSES
+                ):
+                    terminal = True
+                    self._raise_terminal(submission)
+
+                total_timeout_ms = int(payload["totalTimeoutMs"])
+                deadline = self._clock() + total_timeout_ms / 1000.0 + 2.0
+                not_found_retries = self.submission_retries
+                while self._clock() < deadline:
+                    response = self._call(
+                        "getLoraResultByClient", request_id
+                    )
+                    if response is None:
+                        self._sleep(self.poll_interval)
+                        continue
+                    response = self._require_response(
+                        "getLoraResultByClient", response
+                    )
+                    status = str(response.get("status") or "")
+                    if status == "NOT_FOUND" and not_found_retries > 0:
+                        not_found_retries -= 1
+                        self._sleep(self.poll_interval)
+                        continue
+                    if status in self._PENDING_STATUSES and not response.get("done"):
+                        self._sleep(self.poll_interval)
+                        continue
+                    terminal = True
+                    return self._decode_terminal(response, matcher), response
+                raise LoraResponseTimeout(
+                    "LoRa RPC {} timeout for request {}".format(
+                        timeout_label, request_id
+                    )
+                )
+            finally:
+                if submitted and not terminal:
+                    try:
+                        self.cancel(request_id)
+                    except Exception:
+                        pass
+                self._active_request_id = None
+
+    def subscribe_rx(
+        self,
+        *,
+        client_id: str,
+        filter: Callable[[LoraFrame], bool],
+        stop_event,
+        topic: str = "/rbk/behav/lora/rx",
+        timeout: float = 1.0,
+        after_generation: Optional[int] = None,
+        after_sequence: Optional[int] = None,
+    ):
+        """订阅 Behav RX topic，并持续产出属于当前客户端的主动上报帧。
+
+        该接口只持有 eCAL subscriber，不提交 RPC 读请求，也不占用串口
+        worker。串口始终由 BehavFactory 独占管理。
+
+        参数：
+            client_id: 稳定的逻辑客户端标识，仅用于日志与游标诊断，不是
+                安全凭证，也不会写入 LoRa 帧。
+            filter: 帧过滤器；呼叫器应使用 :class:`LoraRxFilter`，同时匹配
+                命令字、模块地址、呼叫器 endpoint 和机器人 endpoint。
+            stop_event: 提供 ``is_set()`` 的生命周期停止事件。
+            topic: RX topic 名称，当前固定为 ``/rbk/behav/lora/rx``。
+            timeout: 等待本地事件队列的超时时间，用于及时响应停止事件。
+            after_generation: 已持久化的上一设备配置世代，必须与
+                ``after_sequence`` 同时设置。
+            after_sequence: 已持久化的上一事件序号，用于过滤同一设备世代
+                内的重复事件；topic 当前不提供历史帧补拉。
+
+        返回：
+            持续产出 :class:`LoraReceivedFrame` 的生成器。
+        """
+        if not isinstance(client_id, str) or not client_id.strip():
+            raise ValueError("client_id must be a non-empty string")
+        if not callable(filter):
+            raise TypeError("RX topic filter must be callable")
+        if not callable(getattr(stop_event, "is_set", None)):
+            raise TypeError("stop_event must provide is_set()")
+        if timeout <= 0:
+            raise ValueError("RX topic timeout must be positive")
+        if (after_generation is None) != (after_sequence is None):
+            raise ValueError(
+                "after_generation and after_sequence must be provided together"
+            )
+        expected_topic = getattr(
+            self._rpc, "LORA_RX_TOPIC_NAME", "/rbk/behav/lora/rx"
+        )
+        if topic != expected_topic:
+            raise ValueError(
+                "unsupported LoRa RX topic: {}; expected {}".format(
+                    topic, expected_topic
+                )
+            )
+        events = queue.Queue(maxsize=256)
+
+        def on_payload(payload):
+            if payload.get("version") != 1:
+                return
+            if payload.get("event") != "rx":
+                return
+            if payload.get("device") != self.device:
+                return
+            try:
+                raw = bytes.fromhex(payload.get("frameHex") or "")
+                frame = LoraFrameCodec.decode(raw)
+            except (TypeError, ValueError):
+                return
+            event = LoraReceivedFrame(
+                frame=frame,
+                device=payload.get("device"),
+                sequence=payload.get("sequence"),
+                device_generation=payload.get("deviceGeneration"),
+                received_monotonic_ms=payload.get("receivedMonotonicMs"),
+            )
+            matched = filter(frame)
+            try:
+                events.put_nowait((event, matched))
+            except queue.Full:
+                try:
+                    events.get_nowait()
+                    events.put_nowait((event, matched))
+                    log.warning(
+                        "LoRa RX 本地队列已满，丢弃客户端 %s 的最旧事件",
+                        client_id,
+                    )
+                except queue.Empty:
+                    pass
+
+        subscriber = self._rpc.subscribe_lora_rx(on_payload)
+        if subscriber is None:
+            raise LoraTransportError("BehavFactory LoRa RX topic is unavailable")
+        cursor = after_sequence
+        generation = after_generation
+        try:
+            while not stop_event.is_set():
+                try:
+                    result, matched = events.get(
+                        timeout=max(0.01, float(timeout))
+                    )
+                except queue.Empty:
+                    continue
+                if result.device_generation is not None:
+                    if generation is None:
+                        generation = result.device_generation
+                    elif generation != result.device_generation:
+                        cursor = None
+                        generation = result.device_generation
+                if (
+                    cursor is not None
+                    and result.sequence is not None
+                    and generation == result.device_generation
+                    and result.sequence <= cursor
+                ):
+                    continue
+                if result.sequence is not None:
+                    if (
+                        cursor is not None
+                        and generation == result.device_generation
+                        and result.sequence > cursor + 1
+                    ):
+                        log.warning(
+                            "LoRa RX 序号跳变：client=%s，上一序号=%s，当前序号=%s",
+                            client_id,
+                            cursor,
+                            result.sequence,
+                        )
+                    if cursor is None or result.sequence > cursor:
+                        cursor = result.sequence
+                if not matched:
+                    continue
+                yield result
+        finally:
+            self._rpc.unsubscribe_lora_rx(subscriber)
+
     def transact(self, request: LoraFrame, matcher: Callable[[LoraFrame], bool]):
         if not isinstance(matcher, LoraMatchSpec):
             raise TypeError("RPC LoRa transactions require LoraMatchSpec")
@@ -409,7 +727,7 @@ class LoraRpcTransport:
             "version": 1,
             "requestId": request_id,
             "device": self.device,
-            "operation": matcher.operation or "QUERY",
+            "operation": matcher.operation.value,
             "requestFrameHex": raw_request.hex(),
             "match": matcher.to_rpc_dict(),
             "responseTimeoutMs": response_timeout_ms,
@@ -422,86 +740,8 @@ class LoraRpcTransport:
         if matcher.operation_key:
             payload["operationKey"] = matcher.operation_key
 
-        with self._lock:
-            self._active_request_id = request_id
-            terminal = False
-            submitted = False
-            self._log_frame("TX", raw_request)
-            try:
-                submitted = True
-                request_json = json.dumps(payload, separators=(",", ":"))
-                submission = None
-                for attempt in range(self.submission_retries):
-                    submission = self._call(
-                        "loraTransactRequest", request_json
-                    )
-                    if submission is None:
-                        # The one-second eCAL response may be lost after
-                        # Behav has already accepted the request. Resolve by
-                        # the stable client ID instead of creating a second
-                        # logical request.
-                        submission = self._call(
-                            "getLoraResultByClient", request_id
-                        )
-                    if submission is None:
-                        if attempt + 1 < self.submission_retries:
-                            self._sleep(self.poll_interval)
-                            continue
-                        break
-                    submission = self._require_response(
-                        "loraTransactRequest", submission
-                    )
-                    # A just-accepted request can briefly be absent from the
-                    # client index while the manager publishes it. Re-submit
-                    # with the same client ID; Behav deduplicates an existing
-                    # request and creates no duplicate wire transaction.
-                    if (
-                        str(submission.get("status")) == "NOT_FOUND"
-                        and attempt + 1 < self.submission_retries
-                    ):
-                        self._sleep(self.poll_interval)
-                        continue
-                    break
-                submission = self._require_response(
-                    "loraTransactRequest", submission
-                )
-                if submission.get("done"):
-                    terminal = True
-                    return self._decode_terminal(submission, matcher)
-                if (
-                    not submission.get("ok")
-                    or submission.get("status") not in self._PENDING_STATUSES
-                ):
-                    terminal = True
-                    self._raise_terminal(submission)
-
-                deadline = self._clock() + total_timeout_ms / 1000.0 + 2.0
-                not_found_retries = self.submission_retries
-                while self._clock() < deadline:
-                    response = self._call("getLoraResultByClient", request_id)
-                    if response is None:
-                        self._sleep(self.poll_interval)
-                        continue
-                    response = self._require_response(
-                        "getLoraResultByClient", response
-                    )
-                    status = str(response.get("status") or "")
-                    if status == "NOT_FOUND" and not_found_retries > 0:
-                        not_found_retries -= 1
-                        self._sleep(self.poll_interval)
-                        continue
-                    if status in self._PENDING_STATUSES and not response.get("done"):
-                        self._sleep(self.poll_interval)
-                        continue
-                    terminal = True
-                    return self._decode_terminal(response, matcher)
-                raise LoraResponseTimeout(
-                    "LoRa RPC result timeout for request {}".format(request_id)
-                )
-            finally:
-                if submitted and not terminal:
-                    try:
-                        self.cancel(request_id)
-                    except Exception:
-                        pass
-                self._active_request_id = None
+        self._log_frame("TX", raw_request)
+        frame, _response = self._submit_and_wait(
+            "loraTransactRequest", payload, matcher, "result"
+        )
+        return frame

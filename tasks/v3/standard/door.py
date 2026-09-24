@@ -198,7 +198,7 @@ class InputParams:
                             with builder.CHILD(key="name", name="Protocol script", desc="Protocol implementation script"):
                                 builder.TYPE(ParamType.BIND_TYPE)
                                 builder.BINDTYPE(
-                                    BindType.script("tasks:third:door_protocol")
+                                    BindType.script("tasks/third/door_protocol")
                                 )
                                 builder.DEFAULTVALUE(
                                     "tasks/third/door_protocol/{}.py".format(protocol_name)

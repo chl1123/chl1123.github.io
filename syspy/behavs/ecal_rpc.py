@@ -21,6 +21,7 @@ class EcalRpc(object):
 
     SERVICE_NAME = "BehavFactory"
     LED_TOPIC_NAME = "/rbk/behav/action/led"
+    LORA_RX_TOPIC_NAME = "/rbk/behav/lora/rx"
 
     def __init__(self):
         self._ecal = None
@@ -28,6 +29,7 @@ class EcalRpc(object):
         self._ecal_initialized_here = False
         self._client = None
         self._topic_send = None
+        self._lora_rx_subscribers = []
         self._running = True
 
     @staticmethod
@@ -141,6 +143,89 @@ class EcalRpc(object):
             log.warning("LED topic publish failed: %s", exc)
             return False
 
+    @staticmethod
+    def _decode_string_topic_payload(*args):
+        message = args[1] if len(args) >= 2 else (args[0] if args else "")
+        text = getattr(message, "message", message)
+        try:
+            payload = json.loads(text)
+        except (TypeError, ValueError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def subscribe_lora_rx(self, callback):
+        """Subscribe to the shared unsolicited LoRa RX stream.
+
+        The returned handle must be passed to ``unsubscribe_lora_rx``.  The
+        subscriber is retained by this object so callback lifetime is tied to
+        the eCAL client, not to a temporary local variable.
+        """
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        if not self.ensure_ecal():
+            return None
+        try:
+            from ecal.msg.string.core import Subscriber as StringSubscriber
+
+            sub_cfg = self._ecal.SubscriberConfiguration()
+            sub_cfg.layer.shm.enable = True
+            sub_cfg.layer.udp.enable = False
+            sub_cfg.layer.tcp.enable = False
+            subscriber = StringSubscriber(self.LORA_RX_TOPIC_NAME, sub_cfg)
+
+            def on_message(*args):
+                payload = self._decode_string_topic_payload(*args)
+                if payload is None:
+                    return
+                try:
+                    callback(payload)
+                except Exception:
+                    log.exception("LoRa RX topic callback failed")
+
+            subscriber.set_receive_callback(on_message)
+            self._lora_rx_subscribers.append(subscriber)
+            return subscriber
+        except Exception as exc:
+            log.warning("LoRa RX topic subscriber init failed: %s", exc)
+            return None
+
+    def unsubscribe_lora_rx(self, handle):
+        if handle is None:
+            return
+        try:
+            handle.remove_receive_callback()
+        except Exception:
+            pass
+        try:
+            self._lora_rx_subscribers.remove(handle)
+        except ValueError:
+            pass
+
+    def lora_rx_publisher_count(self, discovery_timeout=3.0):
+        """等待 eCAL 发现完成后，返回 LoRa RX topic 的发布者数量。"""
+        if not self.ensure_ecal():
+            return None
+        try:
+            from ecal.msg.string.core import Subscriber as StringSubscriber
+
+            sub_cfg = self._ecal.SubscriberConfiguration()
+            sub_cfg.layer.shm.enable = True
+            sub_cfg.layer.udp.enable = False
+            sub_cfg.layer.tcp.enable = False
+            subscriber = StringSubscriber(self.LORA_RX_TOPIC_NAME, sub_cfg)
+            try:
+                deadline = time.monotonic() + max(0.0, discovery_timeout)
+                while True:
+                    count = int(subscriber.get_publisher_count())
+                    if count or time.monotonic() >= deadline:
+                        return count
+                    time.sleep(max(0.0, min(0.1, deadline - time.monotonic())))
+            finally:
+                subscriber.remove_receive_callback()
+        except Exception as exc:
+            log.warning("LoRa RX topic publisher query failed: %s", exc)
+            return None
+
     def is_running(self):
         return self._running
 
@@ -148,6 +233,8 @@ class EcalRpc(object):
         self._running = False
         self._client = None
         self._topic_send = None
+        for subscriber in list(self._lora_rx_subscribers):
+            self.unsubscribe_lora_rx(subscriber)
         try:
             if (
                 self._ecal_initialized_here
