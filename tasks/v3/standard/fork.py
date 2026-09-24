@@ -777,12 +777,12 @@ class ConfigParams:
                     with builder.CHILD(key="upMaxSpeedWithGoods", name=_TR("Up Max Speed With Goods"),
                                        desc=_TR("Maximum fork lift speed with goods")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=-1, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="downMaxSpeedWithGoods", name=_TR("Down Max Speed With Goods"),
                                        desc=_TR("Maximum fork lower speed with goods")):
                         builder.TYPE(ParamType.FLOAT)
-                        builder.DEFAULTVALUE(0.06, min_value=-1, max_value=0.5)
+                        builder.DEFAULTVALUE(-1, min_value=-1, max_value=0.5)
                         builder.UNIT("m/s")
                     with builder.CHILD(key="backLaserEnableHeight", name=_TR("Back Laser Enable Height"),
                                        desc=_TR("Fork height at which the rear laser becomes active")):

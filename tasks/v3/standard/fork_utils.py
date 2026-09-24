@@ -3571,11 +3571,14 @@ def _fork_current_position(action):
 
 
 def _fork_close_dos(action):
-    if action.motor_name == _config().fork_motor_name:
-        if _config().upDo:
-            Do.setDo(_config().upDo, not _config().upDoStatus)
-        if _config().downDo:
-            Do.setDo(_config().downDo, not _config().downDoStatus)
+    if action.motor_name != _config().fork_motor_name:
+        return
+    # Only restore the DO used by this movement direction.  Restoring both
+    # channels makes the up/down pump valves switch together at every finish.
+    if action.delta > EPS and _config().upDo:
+        Do.setDo(_config().upDo, not _config().upDoStatus)
+    elif action.delta < -EPS and _config().downDo:
+        Do.setDo(_config().downDo, not _config().downDoStatus)
 
 
 def _fork_check_back_laser_collision(action):

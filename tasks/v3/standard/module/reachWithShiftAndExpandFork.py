@@ -83,6 +83,7 @@ class ReachExpandGoPathWithContactDi(GoPathWithContactDi):
             reach_phase_config=None,
             obs_dist_compensation: float = 0.0,
             distance_check_length: float = 0.0,
+            recfile: str = "",
     ):
         super().__init__(
             contact_dis,
@@ -94,6 +95,7 @@ class ReachExpandGoPathWithContactDi(GoPathWithContactDi):
             operation_type=operation_type,
             reach_phase_config=reach_phase_config,
             obs_dist_compensation=obs_dist_compensation,
+            recfile=recfile,
         )
         self.distance_check_length = max(0.0, float(distance_check_length or 0.0))
         self.distance_check_enabled = (
@@ -639,6 +641,7 @@ class ReachWithShiftAndExpandFork(ReachFork):
             operation_type,
             obs_dist_compensation=self._reach_obs_stop_compensation(),
             distance_check_length=ConfigParams.loadObsStopDist if operation_type == "load" else 0.0,
+            recfile=self.recfile,
         )
 
     def _build_path_first_load_actions(self, rec_world_pos, method, args):
@@ -680,6 +683,7 @@ class ReachWithShiftAndExpandFork(ReachFork):
                     "sync_tolerance": ConfigParams.reachMotorSyncTolerance,
                 },
                 distance_check_length=ConfigParams.loadObsStopDist,
+                recfile=self.recfile,
             ),
         ]
 

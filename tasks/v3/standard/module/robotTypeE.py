@@ -1537,6 +1537,7 @@ class RobotTypeE(ReachFork):
                     "max_speed": ConfigParams.reachMotorMaxSpeed,
                     "sync_tolerance": ConfigParams.reachMotorSyncTolerance,
                 },
+                recfile=self.recfile,
             ),
         ]
 
@@ -1587,6 +1588,7 @@ class RobotTypeE(ReachFork):
                     "max_speed": ConfigParams.reachMotorMaxSpeed,
                     "sync_tolerance": ConfigParams.reachMotorSyncTolerance,
                 },
+                recfile=self.recfile,
             ))
             return actions
         actions.extend([
@@ -1599,6 +1601,7 @@ class RobotTypeE(ReachFork):
                 {},
                 self.check_di,
                 "load",
+                recfile=self.recfile,
             ),
         ])
         return actions
@@ -1648,6 +1651,7 @@ class RobotTypeE(ReachFork):
                 {},
                 False,
                 "unload",
+                recfile=self.recfile,
             ),
             self._build_unload_prepare_lift_action(self.start_height),
             TypeEChassisWithReachAction(
@@ -1675,6 +1679,7 @@ class RobotTypeE(ReachFork):
                 {},
                 False,
                 "unload",
+                recfile=self.recfile,
             ),
             self._build_unload_prepare_lift_action(self.start_height),
             TypeEChassisWithReachAction(
