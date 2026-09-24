@@ -1,0 +1,3622 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Syspy是仙工智能提供的一套基于Python的机器人SDK">
+      
+      
+      
+        <link rel="canonical" href="https://chl1123.github.io/guide/spec/parameter_naming.html">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/img/icon-blue-seer-en-cn.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.12">
+    
+    
+      
+        <title>参数命名与层级规范 - SRC Script</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.2afb09e1.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="../../assets/external/unpkg.com/iframe-worker/shim.js"></script>
+      
+    
+    
+      
+        
+        
+        
+        <link rel="stylesheet" href="../../assets/external/fonts.googleapis.com/css.49ea35f2.css">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/css/termynal.css">
+    
+      <link rel="stylesheet" href="../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-YNEVN69SC3"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-YNEVN69SC3",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-YNEVN69SC3",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../index.html" title="SRC Script" class="md-header__button md-logo" aria-label="SRC Script" data-md-component="logo">
+      
+  <img src="../../assets/img/icon-white-seer-en.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SRC Script
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              参数命名与层级规范
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://cnb.cool/seer-robotics/robokit/rbk3/scripts/-/tree/release" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    robokit/scripts
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  手册
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/v3/message/index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  消息
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../faq.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  常见问题
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../index.html" title="SRC Script" class="md-nav__button md-logo" aria-label="SRC Script" data-md-component="logo">
+      
+  <img src="../../assets/img/icon-white-seer-en.png" alt="logo">
+
+    </a>
+    SRC Script
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://cnb.cool/seer-robotics/robokit/rbk3/scripts/-/tree/release" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    robokit/scripts
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    手册
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            手册
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    简介
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    安装
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    使用
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本开发教程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basic.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    基础
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    规范
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            规范
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    日志记录规范
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rbk2py.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    RBK 插件 RPC 接口接入规范
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_8" id="__nav_2_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    开发指南
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_8">
+            <span class="md-nav__icon md-icon"></span>
+            开发指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/action_task.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ActionTask 开发指南
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/charger.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    充电桩
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/controller.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    控制器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dio.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    数字输入/输出
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/loc.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    定位
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/navigation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/odometer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    里程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    地图
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    库位
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/battery.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电池
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sound.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    音频
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/distance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    距离传感器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/magnetic.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    磁传感器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/laser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    激光
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/led.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    灯光
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/motor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电机
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/code_scanner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    扫码器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/recognize.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    识别
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rfid.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    射频识别
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/script_data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本数据
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_21" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_21" id="__nav_3_21_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    通用库
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_21">
+            <span class="md-nav__icon md-icon"></span>
+            通用库
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/abnormal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    异常
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/action_task.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    动作任务
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/can_frame.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/module.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本模块
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/net_protocol.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    网络协议
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/plyvel_db.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    leveldb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/robot.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    机器人
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/trace.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    trace
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/v3/message/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    消息
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            消息
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_motorinfos_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电机消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_battery_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电池消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_localization_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    定位消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_navigation_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_movetask_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航任务消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_rfid_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    射频识别消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_laser_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    激光消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_distancesensor_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    距离传感器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_codescanner_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    扫码器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_magnetic_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    磁传感器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_controller_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    控制器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_odometer_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    里程消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_header_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    消息头
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_dmx512_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    灯光消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_depthcamera_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    相机消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_io_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    输入/输出消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/CanFrame_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_sound_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    音频消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_bin_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    库位消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_script_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    常见问题
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      一、通用原则
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="一、通用原则">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1 参数可见性
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2 参数不得重复
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.3 参数必须有明确归属
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.4 模型参数优先
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-keyname-desc" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.5 key、name 和 desc
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      二、小驼峰规范
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="二、小驼峰规范">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 基本格式
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 单词边界
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3 连续大写字母
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.4 数字前缀
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.5 小驼峰检查步骤
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keyname-desc" class="md-nav__link">
+    <span class="md-ellipsis">
+      三、key、name 与 desc 命名
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="三、key、name 与 desc 命名">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1 key
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2 name
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-desc" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.3 desc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-maxspeed" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.4 maxSpeed 示例
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      四、任务参数与配置参数
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="四、任务参数与配置参数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 任务参数
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 配置参数
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 调试参数和低频参数
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 配置和任务参数冲突
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      五、通用参数与非通用参数
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="五、通用参数与非通用参数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-operation" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.1 通用 operation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      5.2 非通用参数
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      六、参数顺序与层级
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      七、品牌和型号字段
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="七、品牌和型号字段">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.1 品牌
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      7.2 型号
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      八、安装位置
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      九、国际化
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="九、国际化">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-name-desc" class="md-nav__link">
+    <span class="md-ellipsis">
+      9.1 name 和 desc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92" class="md-nav__link">
+    <span class="md-ellipsis">
+      9.2 错误描述
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93" class="md-nav__link">
+    <span class="md-ellipsis">
+      9.3 翻译字符串约束
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      十、与日志规范的关系
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      十一、完整示例
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      十一、评审清单
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="十一、评审清单">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.1 key
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.2 name
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113-desc" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.3 desc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.4 分类和层级
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#115" class="md-nav__link">
+    <span class="md-ellipsis">
+      11.5 协议
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      十一、错误与正确示例汇总
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="_1">参数命名与层级规范<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>适用范围：脚本任务参数、脚本配置参数、设备与模型参数、Proto 消息与字段、NetProtocol API 请求与响应字段。</p>
+<p>本规范中的 key 用于程序内部；name 和 desc 面向 Roboshop 等用户界面。</p>
+</blockquote>
+<hr />
+<h2 id="_2">一、通用原则<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 参数可见性<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<ol>
+<li>关闭 debug 开关时，禁止显示调试参数和低频参数。</li>
+<li>开启 debug 开关后，才允许显示调试参数和低频参数。</li>
+<li>debug 开关本身属于配置参数，推荐使用：</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td>isDebug</td>
+</tr>
+<tr>
+<td>name</td>
+<td>Is Debug</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 参数不得重复<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
+<p>配置参数和任务参数的字段不得重复。</p>
+<p>同一字段同时具备配置属性和任务属性时，只保留在配置参数中，不得在两个区域重复展示。</p>
+<h3 id="13">1.3 参数必须有明确归属<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>参数类型</th>
+<th>定义</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务参数</td>
+<td>每次任务可能不同，由任务指令决定</td>
+<td>operation、取货高度、放货高度</td>
+</tr>
+<tr>
+<td>配置参数</td>
+<td>与现场环境或机器人配置相关，实施完成后通常不再频繁修改</td>
+<td>速度限制、传感器阈值、通信地址</td>
+</tr>
+<tr>
+<td>调试/低频参数</td>
+<td>只用于问题定位、测试或极少调整</td>
+<td>getLM、laserAreaDeduction</td>
+</tr>
+<tr>
+<td>模型派生参数</td>
+<td>已存在于模型文件或设备模型中，脚本只读取，不让用户重复配置</td>
+<td>背篓数量、设备模块 ID</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14">1.4 模型参数优先<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
+<p>已经能够从模型文件、设备模型或其他正式配置源读取的值，不得再次暴露为脚本参数。</p>
+<p>示例：</p>
+<ol>
+<li>背篓数量应从设备模型中的对应模块配置读取，不应让用户在脚本参数中重复填写。</li>
+<li>手指 DO、DI 已能通过设备配置实现时，脚本中不应再次提供同义配置项。</li>
+</ol>
+<h3 id="15-keyname-desc">1.5 key、name 和 desc<a class="headerlink" href="#15-keyname-desc" title="Permanent link">&para;</a></h3>
+<p>所有参数必须遵循：</p>
+<ol>
+<li>key 遵循小驼峰规范。</li>
+<li>name 遵循英文界面名称规范。</li>
+<li>desc 使用完整、可理解的英文说明。</li>
+<li>name 和 desc 需要支持国际化翻译。</li>
+</ol>
+<hr />
+<h2 id="_3">二、小驼峰规范<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 基本格式<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p>小驼峰（lower camel case）要求：</p>
+<ol>
+<li>首字母必须小写。</li>
+<li>后续每个单词的首字母大写。</li>
+<li>不得使用下划线、连字符或空格。</li>
+<li>key 必须是连续的 ASCII 字母和数字组合。</li>
+<li>key 应表达明确语义，不使用拼音或难以理解的临时缩写。</li>
+</ol>
+<p>错误与正确示例：</p>
+<table>
+<thead>
+<tr>
+<th>错误写法</th>
+<th>正确写法</th>
+<th>问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UserName</td>
+<td>userName</td>
+<td>首字母不应大写</td>
+</tr>
+<tr>
+<td>user_name</td>
+<td>userName</td>
+<td>不应使用下划线</td>
+</tr>
+<tr>
+<td>User-Name</td>
+<td>userName</td>
+<td>不应使用连字符</td>
+</tr>
+<tr>
+<td>user name</td>
+<td>userName</td>
+<td>不应使用空格</td>
+</tr>
+<tr>
+<td>USERNAME</td>
+<td>userName</td>
+<td>不应使用全大写单词</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22">2.2 单词边界<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p>多个英文单词组成 key 时：</p>
+<ol>
+<li>第一个单词全部按普通小写单词处理。</li>
+<li>第二个及后续单词首字母大写。</li>
+<li>不保留原始名称中的分隔符。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>原始词组</th>
+<th>正确 key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user name</td>
+<td>userName</td>
+</tr>
+<tr>
+<td>minimum angle</td>
+<td>minimumAngle</td>
+</tr>
+<tr>
+<td>maximum moving speed</td>
+<td>maximumMovingSpeed</td>
+</tr>
+<tr>
+<td>device model</td>
+<td>deviceModel</td>
+</tr>
+<tr>
+<td>install position</td>
+<td>installPosition</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23">2.3 连续大写字母<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<p>全大写缩写词或专有名词，例如 USA、ID、HTML、XML，应视为一个语义单元。</p>
+<p>转换规则：</p>
+<ol>
+<li>缩写位于 key 开头时，全部转为小写。</li>
+<li>缩写位于 key 中间或末尾时，转为首字母大写、其余字母小写。</li>
+<li>不在 key 中保留连续全大写形式。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>错误写法</th>
+<th>正确写法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USA</td>
+<td>usa</td>
+</tr>
+<tr>
+<td>xxxUSA</td>
+<td>xxxUsa</td>
+</tr>
+<tr>
+<td>parseHTML</td>
+<td>parseHtml</td>
+</tr>
+<tr>
+<td>XMLParser</td>
+<td>xmlParser</td>
+</tr>
+<tr>
+<td>deviceID</td>
+<td>deviceId</td>
+</tr>
+<tr>
+<td>IDList</td>
+<td>idList</td>
+</tr>
+</tbody>
+</table>
+<p>说明：本规则只约束内部 key。对外显示的 name 可以保留用户熟悉的缩写，例如 Device ID、HTML Parser、IMU Status。</p>
+<h3 id="24">2.4 数字前缀<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<p>当参数以“数字 + 字母组合”开头，例如 2d、3D、4K，并紧接一个大写单词时：</p>
+<ol>
+<li>将数字前缀移动到核心单词末尾。</li>
+<li>字母部分统一转为小写。</li>
+<li>最终结果仍遵循小驼峰。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>错误写法</th>
+<th>正确写法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2dLaser</td>
+<td>laser2d</td>
+</tr>
+<tr>
+<td>3DCamera</td>
+<td>camera3d</td>
+</tr>
+<tr>
+<td>4KVideo</td>
+<td>video4k</td>
+</tr>
+</tbody>
+</table>
+<p>对应的对外 name 可以使用行业常见格式：</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>laser2d</td>
+<td>2D Laser</td>
+</tr>
+<tr>
+<td>camera3d</td>
+<td>3D Camera</td>
+</tr>
+<tr>
+<td>video4k</td>
+<td>4K Video</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25">2.5 小驼峰检查步骤<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
+<p>提交参数前依次检查：</p>
+<ol>
+<li>key 是否以小写字母开头。</li>
+<li>key 是否包含下划线、连字符或空格。</li>
+<li>是否存在连续大写缩写。</li>
+<li>数字前缀是否已经移动到核心单词末尾。</li>
+<li>key 是否能让其他开发者直接理解。</li>
+<li>同一概念在不同模块中是否使用了相同 key。</li>
+</ol>
+<hr />
+<h2 id="keyname-desc">三、key、name 与 desc 命名<a class="headerlink" href="#keyname-desc" title="Permanent link">&para;</a></h2>
+<h3 id="31-key">3.1 key<a class="headerlink" href="#31-key" title="Permanent link">&para;</a></h3>
+<p>key 是程序内部使用的稳定标识。</p>
+<p>要求：</p>
+<ol>
+<li>必须遵循小驼峰。</li>
+<li>使用准确、完整的英文语义。</li>
+<li>同一个概念在不同模块中使用相同 key。</li>
+<li>不包含界面展示文字、单位或中文。</li>
+<li>key 一旦对外发布，不得因界面文案调整而随意改变。</li>
+</ol>
+<p>示例：</p>
+<table>
+<thead>
+<tr>
+<th>含义</th>
+<th>key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最小检测角度</td>
+<td>minAngle</td>
+</tr>
+<tr>
+<td>最大移动速度</td>
+<td>maxSpeed</td>
+</tr>
+<tr>
+<td>设备品牌</td>
+<td>deviceBrand</td>
+</tr>
+<tr>
+<td>设备型号</td>
+<td>deviceModel</td>
+</tr>
+<tr>
+<td>是否开启调试</td>
+<td>isDebug</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-name">3.2 name<a class="headerlink" href="#32-name" title="Permanent link">&para;</a></h3>
+<p>name 是用户主要看到的界面名称，也是多语言翻译的索引来源。</p>
+<p>要求：</p>
+<ol>
+<li>使用可理解的英文短语。</li>
+<li>每个普通单词首字母大写，即 Title Case。</li>
+<li>不直接把 key 机械拆词后作为 name；需要表达真实业务含义。</li>
+<li>常见专有名词和缩写可以保持行业通用大写形式，例如 ID、IMU、GNSS、TCP、IP。</li>
+<li>name 中不加入结尾句号。</li>
+<li>同级参数使用一致的语言风格。</li>
+</ol>
+<p>示例：</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>不推荐 name</th>
+<th>推荐 name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>minAngle</td>
+<td>Min Angle</td>
+<td>Minimum Detection Angle</td>
+</tr>
+<tr>
+<td>maxSpeed</td>
+<td>Max Speed</td>
+<td>Maximum Moving Speed</td>
+</tr>
+<tr>
+<td>deviceBrand</td>
+<td>Brand</td>
+<td>Device Brand</td>
+</tr>
+<tr>
+<td>deviceModel</td>
+<td>Model</td>
+<td>Device Model</td>
+</tr>
+<tr>
+<td>laser2d</td>
+<td>Laser 2d</td>
+<td>2D Laser</td>
+</tr>
+</tbody>
+</table>
+<p>“所有单词字母大写”在本规范中指每个普通单词首字母大写，不是将整段文字写成全大写。</p>
+<h3 id="33-desc">3.3 desc<a class="headerlink" href="#33-desc" title="Permanent link">&para;</a></h3>
+<p>desc 是参数的详细英文说明，必须让不了解代码的用户也能理解参数用途。</p>
+<p>desc 应按需要包含：</p>
+<ol>
+<li>用途：场景、作用对象、原因、目的和使用方法。</li>
+<li>依赖关系：依赖哪些设备、模型或其他参数。</li>
+<li>推荐配置：适用场景和建议值。</li>
+<li>风险提示：配置过大、过小或错误时的风险。</li>
+<li>关联参数：与当前参数共同生效的其他参数。</li>
+</ol>
+<p>除“用途”外，其余部分在没有相关内容时可以省略。</p>
+<p>desc 要求：</p>
+<ol>
+<li>使用完整英文句子。</li>
+<li>首字母大写并使用正确标点。</li>
+<li>不重复 name，而是解释 name 无法承载的信息。</li>
+<li>不使用只有代码作者才能理解的缩写。</li>
+<li>不写“设置此参数”之类没有业务信息的空泛描述。</li>
+</ol>
+<h3 id="34-maxspeed">3.4 maxSpeed 示例<a class="headerlink" href="#34-maxspeed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td>maxSpeed</td>
+</tr>
+<tr>
+<td>name</td>
+<td>Maximum Moving Speed</td>
+</tr>
+<tr>
+<td>desc</td>
+<td>Limits the maximum linear speed of the robot to prevent localization loss or collisions caused by overspeed. Increase this value only in simple environments where safety has been verified. An excessively high value may reduce motion stability and increase stopping distance.</td>
+</tr>
+</tbody>
+</table>
+<p>如果需要显式表达结构，可以在设计评审材料中拆分为：</p>
+<ol>
+<li>用途：限制机器人直线运动最大速度，避免超速导致定位丢失或碰撞。</li>
+<li>依赖关系：受底盘能力、定位质量和安全区域配置约束。</li>
+<li>推荐配置：仅在环境简单且完成安全验证后提高。</li>
+<li>风险提示：过高会降低运动稳定性并增加制动距离。</li>
+<li>关联参数：加速度、减速度、旋转速度等运动参数。</li>
+</ol>
+<p>最终写入 desc 时应整理为自然、连贯的英文句子，而不是简单拼接标签。</p>
+<hr />
+<h2 id="_4">四、任务参数与配置参数<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 任务参数<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<p>每次任务可能变化、由任务目标决定的字段放在任务参数中。</p>
+<p>典型示例：</p>
+<ul>
+<li>operation</li>
+<li>startHeight</li>
+<li>endHeight</li>
+<li>recognize</li>
+<li>取货高度</li>
+<li>放货高度</li>
+</ul>
+<h3 id="42">4.2 配置参数<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<p>与现场环境、机器人设备或实施配置相关，现场实施完成后通常无需频繁修改的字段放在配置参数中。</p>
+<p>典型示例：</p>
+<ul>
+<li>最大速度</li>
+<li>传感器检测阈值</li>
+<li>通信地址</li>
+<li>机构动作限制</li>
+</ul>
+<h3 id="43">4.3 调试参数和低频参数<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<p>配置参数区域应提供 debug 开关。</p>
+<p>关闭 debug：</p>
+<ul>
+<li>不显示调试参数。</li>
+<li>不显示低频参数。</li>
+<li>不显示仅供研发定位问题的内部参数。</li>
+</ul>
+<p>开启 debug：</p>
+<ul>
+<li>显示调试参数和低频参数。</li>
+<li>参数仍须提供规范的 key、name 和 desc。</li>
+</ul>
+<p>例如 getLM、laserAreaDeduction 等参数，未开启 debug 时禁止显示。</p>
+<h3 id="44">4.4 配置和任务参数冲突<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
+<p>如果一个字段已经作为配置参数存在，不得再作为任务参数重复出现。</p>
+<p>处理顺序：</p>
+<ol>
+<li>确认字段是否随每次任务变化。</li>
+<li>确认字段是否由现场配置决定。</li>
+<li>两者冲突时保留在配置参数。</li>
+<li>调用方通过配置读取，不在任务请求中重复传递。</li>
+</ol>
+<hr />
+<h2 id="_5">五、通用参数与非通用参数<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h3 id="51-operation">5.1 通用 operation<a class="headerlink" href="#51-operation" title="Permanent link">&para;</a></h3>
+<p>相同业务含义应使用统一 operation，不在不同机构中创建同义名称。</p>
+<p>推荐层级：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1"></a><a href="#__codelineno-0-1"><span class="linenos" data-linenos=" 1 "></span></a>operation
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2"></a><a href="#__codelineno-0-2"><span class="linenos" data-linenos=" 2 "></span></a>├── load
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3"></a><a href="#__codelineno-0-3"><span class="linenos" data-linenos=" 3 "></span></a>│   ├── startHeight
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4"></a><a href="#__codelineno-0-4"><span class="linenos" data-linenos=" 4 "></span></a>│   ├── endHeight
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5"></a><a href="#__codelineno-0-5"><span class="linenos" data-linenos=" 5 "></span></a>│   └── recognize
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6"></a><a href="#__codelineno-0-6"><span class="linenos" data-linenos=" 6 "></span></a>├── unload
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7"></a><a href="#__codelineno-0-7"><span class="linenos" data-linenos=" 7 "></span></a>│   ├── startHeight
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8"></a><a href="#__codelineno-0-8"><span class="linenos" data-linenos=" 8 "></span></a>│   ├── endHeight
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9"></a><a href="#__codelineno-0-9"><span class="linenos" data-linenos=" 9 "></span></a>│   └── recognize
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10"></a><a href="#__codelineno-0-10"><span class="linenos" data-linenos="10 "></span></a>├── zero
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11"></a><a href="#__codelineno-0-11"><span class="linenos" data-linenos="11 "></span></a>└── calib
+</span></code></pre></div>
+<p>统一示例：</p>
+<table>
+<thead>
+<tr>
+<th>原写法</th>
+<th>统一值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JackLoad</td>
+<td>load</td>
+</tr>
+<tr>
+<td>JackUnload</td>
+<td>unload</td>
+</tr>
+<tr>
+<td>isRecognize</td>
+<td>recognize</td>
+</tr>
+</tbody>
+</table>
+<p>operation 的枚举值同样使用小驼峰；单个普通单词全部小写。</p>
+<h3 id="52">5.2 非通用参数<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<p>参数只适用于某一机构且无法抽象为通用含义时，使用：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1"></a><a href="#__codelineno-1-1"><span class="linenos" data-linenos="1 "></span></a>机构标识 + 参数功能标识
+</span></code></pre></div>
+<p>示例：</p>
+<ul>
+<li>jackUpReachDi</li>
+<li>jackDownReachDi</li>
+</ul>
+<p>要求：</p>
+<ol>
+<li>机构标识放在开头。</li>
+<li>参数功能必须完整、可区分。</li>
+<li>整体仍遵循小驼峰。</li>
+<li>不为了缩短 key 而使用无法理解的字母组合。</li>
+</ol>
+<hr />
+<h2 id="_6">六、参数顺序与层级<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>参数界面按以下顺序组织：</p>
+<ol>
+<li>安装位置：Install Position。</li>
+<li>品牌和型号：Device Brand、Device Model。</li>
+<li>通信参数：Communication Parameters。</li>
+<li>功能参数。</li>
+<li>其他参数，例如 External Encoder。</li>
+</ol>
+<p>同一个参数组中：</p>
+<ol>
+<li>基础身份信息在前。</li>
+<li>必填参数在可选参数前。</li>
+<li>常用参数在调试、低频参数前。</li>
+<li>debug 关闭时，调试和低频参数整体隐藏，不留空组。</li>
+</ol>
+<hr />
+<h2 id="_7">七、品牌和型号字段<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 品牌<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td>deviceBrand</td>
+</tr>
+<tr>
+<td>name</td>
+<td>Device Brand</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 型号<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td>deviceModel</td>
+</tr>
+<tr>
+<td>name</td>
+<td>Device Model</td>
+</tr>
+</tbody>
+</table>
+<p>禁止在不同设备中分别使用 brand、manufacturer、modelName 等同义字段代替标准字段。确有不同业务语义时，应在评审中说明。</p>
+<hr />
+<h2 id="_8">八、安装位置<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>安装位置参数组的 name：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1"></a><a href="#__codelineno-2-1"><span class="linenos" data-linenos="1 "></span></a>Install Position
+</span></code></pre></div>
+<p>组内字段：</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x</td>
+<td>X</td>
+</tr>
+<tr>
+<td>y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>z</td>
+<td>Z</td>
+</tr>
+<tr>
+<td>roll</td>
+<td>Roll</td>
+</tr>
+<tr>
+<td>pitch</td>
+<td>Pitch</td>
+</tr>
+<tr>
+<td>yaw</td>
+<td>Yaw</td>
+</tr>
+</tbody>
+</table>
+<p>要求：</p>
+<ol>
+<li>key 使用小写。</li>
+<li>name 使用行业通用坐标名称。</li>
+<li>单位必须在参数类型或 desc 中明确。</li>
+<li>Roll、Pitch、Yaw 的坐标系和旋转方向必须在 desc 中解释。</li>
+</ol>
+<hr />
+<h2 id="_9">九、国际化<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<h3 id="91-name-desc">9.1 name 和 desc<a class="headerlink" href="#91-name-desc" title="Permanent link">&para;</a></h3>
+<p>所有面向用户显示的 name 和 desc 都应通过翻译接口处理。</p>
+<p>示例：</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1"></a><a href="#__codelineno-3-1"><span class="linenos" data-linenos=" 1 "></span></a><span class="kn">from</span><span class="w"> </span><span class="nn">syspy</span><span class="w"> </span><span class="kn">import</span> <span class="n">_TR</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2"></a><a href="#__codelineno-3-2"><span class="linenos" data-linenos=" 2 "></span></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3"></a><a href="#__codelineno-3-3"><span class="linenos" data-linenos=" 3 "></span></a><span class="k">with</span> <span class="n">builder</span><span class="o">.</span><span class="n">CHILD</span><span class="p">(</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4"></a><a href="#__codelineno-3-4"><span class="linenos" data-linenos=" 4 "></span></a>    <span class="n">key</span><span class="o">=</span><span class="s2">"isDebug"</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5"></a><a href="#__codelineno-3-5"><span class="linenos" data-linenos=" 5 "></span></a>    <span class="n">name</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span><span class="s2">"Is Debug"</span><span class="p">),</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6"></a><a href="#__codelineno-3-6"><span class="linenos" data-linenos=" 6 "></span></a>    <span class="n">desc</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7"></a><a href="#__codelineno-3-7"><span class="linenos" data-linenos=" 7 "></span></a>        <span class="s2">"Controls whether debug and low-frequency parameters are visible."</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8"></a><a href="#__codelineno-3-8"><span class="linenos" data-linenos=" 8 "></span></a>    <span class="p">),</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9"></a><a href="#__codelineno-3-9"><span class="linenos" data-linenos=" 9 "></span></a><span class="p">):</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10"></a><a href="#__codelineno-3-10"><span class="linenos" data-linenos="10 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">TYPE</span><span class="p">(</span><span class="n">ParamType</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11"></a><a href="#__codelineno-3-11"><span class="linenos" data-linenos="11 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">DEFAULTVALUE</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="92">9.2 错误描述<a class="headerlink" href="#92" title="Permanent link">&para;</a></h3>
+<p>脚本设置的用户可见错误描述也应使用翻译接口。</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1"></a><a href="#__codelineno-4-1"><span class="linenos" data-linenos="1 "></span></a><span class="kn">from</span><span class="w"> </span><span class="nn">syspy</span><span class="w"> </span><span class="kn">import</span> <span class="n">Navigation</span><span class="p">,</span> <span class="n">_TR</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2"></a><a href="#__codelineno-4-2"><span class="linenos" data-linenos="2 "></span></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3"></a><a href="#__codelineno-4-3"><span class="linenos" data-linenos="3 "></span></a><span class="n">Navigation</span><span class="o">.</span><span class="n">setTaskError</span><span class="p">(</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4"></a><a href="#__codelineno-4-4"><span class="linenos" data-linenos="4 "></span></a>    <span class="s2">"ModbusConnectFail"</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5"></a><a href="#__codelineno-4-5"><span class="linenos" data-linenos="5 "></span></a>    <span class="n">_TR</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Modbus TCP connection failed: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6"></a><a href="#__codelineno-4-6"><span class="linenos" data-linenos="6 "></span></a><span class="p">)</span>
+</span></code></pre></div>
+<p>错误 key 不是参数 key，可遵循项目现有错误码约定；错误描述必须是完整、可理解的英文句子。</p>
+<h3 id="93">9.3 翻译字符串约束<a class="headerlink" href="#93" title="Permanent link">&para;</a></h3>
+<ol>
+<li>_TR 中使用稳定英文原文。</li>
+<li>动态值使用格式化占位，保持出现顺序稳定。</li>
+<li>中文翻译使用相同编号的占位符。</li>
+<li>避免在一个 _TR 字符串中使用分号；现有提取流程可能按分号截断字符串。</li>
+<li>name 使用英文短语，desc 和错误描述使用完整英文句子。</li>
+</ol>
+<hr />
+<h2 id="_10">十、与日志规范的关系<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<p>参数 key、name、desc 遵循本文档。</p>
+<p>Trace.log 的通道名、日志字段和日志显示描述遵循：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1"></a><a href="#__codelineno-5-1"><span class="linenos" data-linenos="1 "></span></a>docs/guide/spec/logging.md
+</span></code></pre></div>
+<p>不要把参数界面 name 的 Title Case 规则直接用于日志字典 key。日志结构化字段仍应使用小驼峰。</p>
+<hr />
+<h2 id="_11">十一、完整示例<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1"></a><a href="#__codelineno-6-1"><span class="linenos" data-linenos=" 1 "></span></a><span class="kn">from</span><span class="w"> </span><span class="nn">syspy</span><span class="w"> </span><span class="kn">import</span> <span class="n">_TR</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2"></a><a href="#__codelineno-6-2"><span class="linenos" data-linenos=" 2 "></span></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3"></a><a href="#__codelineno-6-3"><span class="linenos" data-linenos=" 3 "></span></a><span class="k">with</span> <span class="n">builder</span><span class="o">.</span><span class="n">CHILD</span><span class="p">(</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4"></a><a href="#__codelineno-6-4"><span class="linenos" data-linenos=" 4 "></span></a>    <span class="n">key</span><span class="o">=</span><span class="s2">"deviceBrand"</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5"></a><a href="#__codelineno-6-5"><span class="linenos" data-linenos=" 5 "></span></a>    <span class="n">name</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span><span class="s2">"Device Brand"</span><span class="p">),</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6"></a><a href="#__codelineno-6-6"><span class="linenos" data-linenos=" 6 "></span></a>    <span class="n">desc</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7"></a><a href="#__codelineno-6-7"><span class="linenos" data-linenos=" 7 "></span></a>        <span class="s2">"Specifies the manufacturer of the connected device."</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8"></a><a href="#__codelineno-6-8"><span class="linenos" data-linenos=" 8 "></span></a>    <span class="p">),</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9"></a><a href="#__codelineno-6-9"><span class="linenos" data-linenos=" 9 "></span></a><span class="p">):</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10"></a><a href="#__codelineno-6-10"><span class="linenos" data-linenos="10 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">TYPE</span><span class="p">(</span><span class="n">ParamType</span><span class="o">.</span><span class="n">STRING</span><span class="p">)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11"></a><a href="#__codelineno-6-11"><span class="linenos" data-linenos="11 "></span></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12"></a><a href="#__codelineno-6-12"><span class="linenos" data-linenos="12 "></span></a><span class="k">with</span> <span class="n">builder</span><span class="o">.</span><span class="n">CHILD</span><span class="p">(</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13"></a><a href="#__codelineno-6-13"><span class="linenos" data-linenos="13 "></span></a>    <span class="n">key</span><span class="o">=</span><span class="s2">"deviceModel"</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14"></a><a href="#__codelineno-6-14"><span class="linenos" data-linenos="14 "></span></a>    <span class="n">name</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span><span class="s2">"Device Model"</span><span class="p">),</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15"></a><a href="#__codelineno-6-15"><span class="linenos" data-linenos="15 "></span></a>    <span class="n">desc</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16"></a><a href="#__codelineno-6-16"><span class="linenos" data-linenos="16 "></span></a>        <span class="s2">"Specifies the model of the connected device. Select a model "</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17"></a><a href="#__codelineno-6-17"><span class="linenos" data-linenos="17 "></span></a>        <span class="s2">"that is supported by the configured device brand."</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18"></a><a href="#__codelineno-6-18"><span class="linenos" data-linenos="18 "></span></a>    <span class="p">),</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19"></a><a href="#__codelineno-6-19"><span class="linenos" data-linenos="19 "></span></a><span class="p">):</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20"></a><a href="#__codelineno-6-20"><span class="linenos" data-linenos="20 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">TYPE</span><span class="p">(</span><span class="n">ParamType</span><span class="o">.</span><span class="n">STRING</span><span class="p">)</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21"></a><a href="#__codelineno-6-21"><span class="linenos" data-linenos="21 "></span></a>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22"></a><a href="#__codelineno-6-22"><span class="linenos" data-linenos="22 "></span></a><span class="k">with</span> <span class="n">builder</span><span class="o">.</span><span class="n">CHILD</span><span class="p">(</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23"></a><a href="#__codelineno-6-23"><span class="linenos" data-linenos="23 "></span></a>    <span class="n">key</span><span class="o">=</span><span class="s2">"maxSpeed"</span><span class="p">,</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24"></a><a href="#__codelineno-6-24"><span class="linenos" data-linenos="24 "></span></a>    <span class="n">name</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span><span class="s2">"Maximum Moving Speed"</span><span class="p">),</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25"></a><a href="#__codelineno-6-25"><span class="linenos" data-linenos="25 "></span></a>    <span class="n">desc</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span>
+</span><span id="__span-6-26"><a id="__codelineno-6-26" name="__codelineno-6-26"></a><a href="#__codelineno-6-26"><span class="linenos" data-linenos="26 "></span></a>        <span class="s2">"Limits the maximum linear speed of the robot to prevent "</span>
+</span><span id="__span-6-27"><a id="__codelineno-6-27" name="__codelineno-6-27"></a><a href="#__codelineno-6-27"><span class="linenos" data-linenos="27 "></span></a>        <span class="s2">"localization loss or collisions caused by overspeed. "</span>
+</span><span id="__span-6-28"><a id="__codelineno-6-28" name="__codelineno-6-28"></a><a href="#__codelineno-6-28"><span class="linenos" data-linenos="28 "></span></a>        <span class="s2">"Increase this value only after the operating environment "</span>
+</span><span id="__span-6-29"><a id="__codelineno-6-29" name="__codelineno-6-29"></a><a href="#__codelineno-6-29"><span class="linenos" data-linenos="29 "></span></a>        <span class="s2">"has passed a safety assessment."</span>
+</span><span id="__span-6-30"><a id="__codelineno-6-30" name="__codelineno-6-30"></a><a href="#__codelineno-6-30"><span class="linenos" data-linenos="30 "></span></a>    <span class="p">),</span>
+</span><span id="__span-6-31"><a id="__codelineno-6-31" name="__codelineno-6-31"></a><a href="#__codelineno-6-31"><span class="linenos" data-linenos="31 "></span></a><span class="p">):</span>
+</span><span id="__span-6-32"><a id="__codelineno-6-32" name="__codelineno-6-32"></a><a href="#__codelineno-6-32"><span class="linenos" data-linenos="32 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">TYPE</span><span class="p">(</span><span class="n">ParamType</span><span class="o">.</span><span class="n">DOUBLE</span><span class="p">)</span>
+</span><span id="__span-6-33"><a id="__codelineno-6-33" name="__codelineno-6-33"></a><a href="#__codelineno-6-33"><span class="linenos" data-linenos="33 "></span></a>
+</span><span id="__span-6-34"><a id="__codelineno-6-34" name="__codelineno-6-34"></a><a href="#__codelineno-6-34"><span class="linenos" data-linenos="34 "></span></a><span class="k">with</span> <span class="n">builder</span><span class="o">.</span><span class="n">CHILD</span><span class="p">(</span>
+</span><span id="__span-6-35"><a id="__codelineno-6-35" name="__codelineno-6-35"></a><a href="#__codelineno-6-35"><span class="linenos" data-linenos="35 "></span></a>    <span class="n">key</span><span class="o">=</span><span class="s2">"isDebug"</span><span class="p">,</span>
+</span><span id="__span-6-36"><a id="__codelineno-6-36" name="__codelineno-6-36"></a><a href="#__codelineno-6-36"><span class="linenos" data-linenos="36 "></span></a>    <span class="n">name</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span><span class="s2">"Is Debug"</span><span class="p">),</span>
+</span><span id="__span-6-37"><a id="__codelineno-6-37" name="__codelineno-6-37"></a><a href="#__codelineno-6-37"><span class="linenos" data-linenos="37 "></span></a>    <span class="n">desc</span><span class="o">=</span><span class="n">_TR</span><span class="p">(</span>
+</span><span id="__span-6-38"><a id="__codelineno-6-38" name="__codelineno-6-38"></a><a href="#__codelineno-6-38"><span class="linenos" data-linenos="38 "></span></a>        <span class="s2">"Controls whether debug and low-frequency parameters are visible."</span>
+</span><span id="__span-6-39"><a id="__codelineno-6-39" name="__codelineno-6-39"></a><a href="#__codelineno-6-39"><span class="linenos" data-linenos="39 "></span></a>    <span class="p">),</span>
+</span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40"></a><a href="#__codelineno-6-40"><span class="linenos" data-linenos="40 "></span></a><span class="p">):</span>
+</span><span id="__span-6-41"><a id="__codelineno-6-41" name="__codelineno-6-41"></a><a href="#__codelineno-6-41"><span class="linenos" data-linenos="41 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">TYPE</span><span class="p">(</span><span class="n">ParamType</span><span class="o">.</span><span class="n">BOOL</span><span class="p">)</span>
+</span><span id="__span-6-42"><a id="__codelineno-6-42" name="__codelineno-6-42"></a><a href="#__codelineno-6-42"><span class="linenos" data-linenos="42 "></span></a>    <span class="n">builder</span><span class="o">.</span><span class="n">DEFAULTVALUE</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<hr />
+<h2 id="_12">十一、评审清单<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h2>
+<h3 id="111-key">11.1 key<a class="headerlink" href="#111-key" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 首字母为小写。</li>
+<li>[ ] 使用小驼峰。</li>
+<li>[ ] 不含下划线、连字符和空格。</li>
+<li>[ ] 缩写词已按位置正确转换。</li>
+<li>[ ] 数字前缀已移动到核心单词末尾。</li>
+<li>[ ] 语义明确，不使用拼音或临时缩写。</li>
+<li>[ ] 同义参数没有重复 key。</li>
+</ul>
+<h3 id="112-name">11.2 name<a class="headerlink" href="#112-name" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 使用可理解的英文短语。</li>
+<li>[ ] 普通单词使用 Title Case。</li>
+<li>[ ] 常见专有缩写保持行业写法。</li>
+<li>[ ] name 表达业务语义，不是 key 的机械拆分。</li>
+<li>[ ] 已使用 _TR。</li>
+</ul>
+<h3 id="113-desc">11.3 desc<a class="headerlink" href="#113-desc" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 使用完整英文句子。</li>
+<li>[ ] 说明使用场景、作用对象、原因和目的。</li>
+<li>[ ] 必要时说明依赖、推荐配置、风险和关联参数。</li>
+<li>[ ] 没有仅重复 name。</li>
+<li>[ ] 没有难以理解的缩写。</li>
+<li>[ ] 已使用 _TR。</li>
+<li>[ ] 避免使用会影响翻译提取的分号。</li>
+</ul>
+<h3 id="114">11.4 分类和层级<a class="headerlink" href="#114" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 任务参数和配置参数没有重复。</li>
+<li>[ ] 模型可派生参数没有重复暴露给用户。</li>
+<li>[ ] debug 关闭时调试和低频参数不可见。</li>
+<li>[ ] 参数顺序符合安装位置、品牌型号、通信、功能、其他参数的顺序。</li>
+<li>[ ] 品牌和型号使用 deviceBrand、deviceModel。</li>
+<li>[ ] 安装位置使用 X、Y、Z、Roll、Pitch、Yaw。</li>
+</ul>
+<h3 id="115">11.5 协议<a class="headerlink" href="#115" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] Proto 文件名保持 message_xxx.proto。</li>
+<li>[ ] Proto message、字段和枚举遵循小驼峰。</li>
+<li>[ ] NetProtocol 请求和响应字段遵循小驼峰。</li>
+<li>[ ] 嵌套 message 和 repeated 字段符合相同规则。</li>
+</ul>
+<hr />
+<h2 id="_13">十一、错误与正确示例汇总<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>错误</th>
+<th>正确</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>普通 key</td>
+<td>UserName</td>
+<td>userName</td>
+</tr>
+<tr>
+<td>下划线</td>
+<td>user_name</td>
+<td>userName</td>
+</tr>
+<tr>
+<td>连字符</td>
+<td>User-Name</td>
+<td>userName</td>
+</tr>
+<tr>
+<td>开头缩写</td>
+<td>XMLParser</td>
+<td>xmlParser</td>
+</tr>
+<tr>
+<td>末尾缩写</td>
+<td>parseHTML</td>
+<td>parseHtml</td>
+</tr>
+<tr>
+<td>ID 缩写</td>
+<td>deviceID</td>
+<td>deviceId</td>
+</tr>
+<tr>
+<td>数字前缀</td>
+<td>2dLaser</td>
+<td>laser2d</td>
+</tr>
+<tr>
+<td>数字前缀</td>
+<td>3DCamera</td>
+<td>camera3d</td>
+</tr>
+<tr>
+<td>品牌 key</td>
+<td>brand</td>
+<td>deviceBrand</td>
+</tr>
+<tr>
+<td>型号 key</td>
+<td>modelName</td>
+<td>deviceModel</td>
+</tr>
+<tr>
+<td>name 过度简写</td>
+<td>Min Angle</td>
+<td>Minimum Detection Angle</td>
+</tr>
+<tr>
+<td>Proto message</td>
+<td>Message_Bin</td>
+<td>msgBin</td>
+</tr>
+<tr>
+<td>Proto 字段</td>
+<td>dis_connect</td>
+<td>disConnect</td>
+</tr>
+<tr>
+<td>API 字段</td>
+<td>map_name</td>
+<td>mapName</td>
+</tr>
+<tr>
+<td>安装位置拼写</td>
+<td>Picth</td>
+<td>Pitch</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  <form class="md-feedback" name="feedback" hidden>
+    <fieldset>
+      <legend class="md-feedback__title">
+        Was this page helpful?
+      </legend>
+      <div class="md-feedback__inner">
+        <div class="md-feedback__list">
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="This page was helpful" data-md-value="1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8 8 8 0 0 0 8-8m2 0a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2a10 10 0 0 1 10 10M10 9.5c0 .8-.7 1.5-1.5 1.5S7 10.3 7 9.5 7.7 8 8.5 8s1.5.7 1.5 1.5m7 0c0 .8-.7 1.5-1.5 1.5S14 10.3 14 9.5 14.7 8 15.5 8s1.5.7 1.5 1.5m-5 7.73c-1.75 0-3.29-.73-4.19-1.81L9.23 14c.45.72 1.52 1.23 2.77 1.23s2.32-.51 2.77-1.23l1.42 1.42c-.9 1.08-2.44 1.81-4.19 1.81"/></svg>
+            </button>
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="This page could be improved" data-md-value="0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8 8 8 0 0 0 8-8m2 0a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2a10 10 0 0 1 10 10m-6.5-4c.8 0 1.5.7 1.5 1.5s-.7 1.5-1.5 1.5-1.5-.7-1.5-1.5.7-1.5 1.5-1.5M10 9.5c0 .8-.7 1.5-1.5 1.5S7 10.3 7 9.5 7.7 8 8.5 8s1.5.7 1.5 1.5m2 4.5c1.75 0 3.29.72 4.19 1.81l-1.42 1.42C14.32 16.5 13.25 16 12 16s-2.32.5-2.77 1.23l-1.42-1.42C8.71 14.72 10.25 14 12 14"/></svg>
+            </button>
+          
+        </div>
+        <div class="md-feedback__note">
+          
+            <div data-md-value="1" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks for your feedback!
+            </div>
+          
+            <div data-md-value="0" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks for your feedback!
+            </div>
+          
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+    <div class="md-copyright__highlight">
+        <a href="https://seer-robotics.ai/" target="_blank">&copy; 2026 SEER</a>
+        <!--        Syspy python SDK is owned by <a href="https://seer-robotics.ai/" target="_blank">@SEER</a> and is-->
+        <!--        registered-->
+        <!--        in the CHN and across other regions-->
+    </div>
+    
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+        Material for MkDocs
+    </a>
+    
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "content.code.copy", "content.code.select", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.tabs.sections", "navigation.tabs.sticky", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c8b220af.min.js"></script>
+      
+        <script src="../../assets/js/termynal.js"></script>
+      
+        <script src="../../assets/js/custom.js"></script>
+      
+    
+  </body>
+</html>

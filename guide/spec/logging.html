@@ -1,0 +1,4204 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Syspy是仙工智能提供的一套基于Python的机器人SDK">
+      
+      
+      
+        <link rel="canonical" href="https://chl1123.github.io/guide/spec/logging.html">
+      
+      
+        <link rel="prev" href="../basic.html">
+      
+      
+        <link rel="next" href="rbk2py.html">
+      
+      
+      <link rel="icon" href="../../assets/img/icon-blue-seer-en-cn.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.12">
+    
+    
+      
+        <title>日志记录规范 - SRC Script</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.2afb09e1.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="../../assets/external/unpkg.com/iframe-worker/shim.js"></script>
+      
+    
+    
+      
+        
+        
+        
+        <link rel="stylesheet" href="../../assets/external/fonts.googleapis.com/css.49ea35f2.css">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/css/termynal.css">
+    
+      <link rel="stylesheet" href="../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-YNEVN69SC3"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-YNEVN69SC3",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-YNEVN69SC3",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#module" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../index.html" title="SRC Script" class="md-header__button md-logo" aria-label="SRC Script" data-md-component="logo">
+      
+  <img src="../../assets/img/icon-white-seer-en.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SRC Script
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              日志记录规范
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://cnb.cool/seer-robotics/robokit/rbk3/scripts/-/tree/release" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    robokit/scripts
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  手册
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/v3/message/index.html" class="md-tabs__link">
+          
+  
+  
+    
+  
+  消息
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../faq.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  常见问题
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../index.html" title="SRC Script" class="md-nav__button md-logo" aria-label="SRC Script" data-md-component="logo">
+      
+  <img src="../../assets/img/icon-white-seer-en.png" alt="logo">
+
+    </a>
+    SRC Script
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://cnb.cool/seer-robotics/robokit/rbk3/scripts/-/tree/release" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    robokit/scripts
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    首页
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    手册
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            手册
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    简介
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    安装
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    使用
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本开发教程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basic.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    基础
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    规范
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            规范
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    日志记录规范
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="logging.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    日志记录规范
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      版本与兼容性
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. 公共日志接口
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 公共日志接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1 日志类别
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-tracelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2 Trace.log 公共约束
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.3 通道命名
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.4 事件记录原则
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. 数值时序规范
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. 数值时序规范">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 字段规则
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 推荐任务快照字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3 各车型数值通道与字段
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-modulereportinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Module.reportInfo 与调试输出
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Module.reportInfo 与调试输出">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-modulereportinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1 Module.reportInfo
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-print" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2 print()
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Action 队列对外协议
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Action 队列对外协议">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 协议速览
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 通道与父子任务关联
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 完整事件流示例
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 JSON 层级与类型记法
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 通用字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.6 各事件字段
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.6 各事件字段">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#taskbuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskBuild
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskextend" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskExtend
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionstatechanged" class="md-nav__link">
+    <span class="md-ellipsis">
+      actionStateChanged
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskfinished" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskFinished
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskfailed" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskFailed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-blockingtype" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.7 blockingType 语义
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.8 状态字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.9 生命周期不变量
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. 日志分级
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. 适配检查清单
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 适配检查清单">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      通道
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      生命周期
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      其他日志
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="rbk2py.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    RBK 插件 RPC 接口接入规范
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_8" id="__nav_2_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    开发指南
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_8">
+            <span class="md-nav__icon md-icon"></span>
+            开发指南
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/action_task.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ActionTask 开发指南
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/charger.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    充电桩
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/controller.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    控制器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dio.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    数字输入/输出
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/loc.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    定位
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/navigation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/odometer.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    里程
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/map.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    地图
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    库位
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/battery.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电池
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sound.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    音频
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/distance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    距离传感器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/magnetic.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    磁传感器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/laser.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    激光
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/led.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    灯光
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/motor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电机
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/code_scanner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    扫码器
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/recognize.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    识别
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rfid.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    射频识别
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/script_data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本数据
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_21" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_21" id="__nav_3_21_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    通用库
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_21">
+            <span class="md-nav__icon md-icon"></span>
+            通用库
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/abnormal.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    异常
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/action_task.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    动作任务
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/can_frame.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/module.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本模块
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/net_protocol.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    网络协议
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/plyvel_db.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    leveldb
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/robot.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    机器人
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lib/trace.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    trace
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/v3/message/index.html" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    消息
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            消息
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_motorinfos_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电机消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_battery_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    电池消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_localization_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    定位消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_navigation_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_movetask_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    导航任务消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_rfid_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    射频识别消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_laser_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    激光消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_distancesensor_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    距离传感器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_codescanner_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    扫码器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_magnetic_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    磁传感器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_controller_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    控制器消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_odometer_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    里程消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_header_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    消息头
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_dmx512_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    灯光消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_depthcamera_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    相机消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_io_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    输入/输出消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/CanFrame_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_sound_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    音频消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_bin_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    库位消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/v3/message/message_script_pb2.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    脚本消息
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    常见问题
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      版本与兼容性
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. 公共日志接口
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 公共日志接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1 日志类别
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-tracelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2 Trace.log 公共约束
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.3 通道命名
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.4 事件记录原则
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. 数值时序规范
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. 数值时序规范">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.1 字段规则
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.2 推荐任务快照字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      2.3 各车型数值通道与字段
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-modulereportinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Module.reportInfo 与调试输出
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Module.reportInfo 与调试输出">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-modulereportinfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.1 Module.reportInfo
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-print" class="md-nav__link">
+    <span class="md-ellipsis">
+      3.2 print()
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Action 队列对外协议
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Action 队列对外协议">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.1 协议速览
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.2 通道与父子任务关联
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.3 完整事件流示例
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.4 JSON 层级与类型记法
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.5 通用字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.6 各事件字段
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.6 各事件字段">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#taskbuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskBuild
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskextend" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskExtend
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actionstatechanged" class="md-nav__link">
+    <span class="md-ellipsis">
+      actionStateChanged
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskfinished" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskFinished
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskfailed" class="md-nav__link">
+    <span class="md-ellipsis">
+      taskFailed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-blockingtype" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.7 blockingType 语义
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.8 状态字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49" class="md-nav__link">
+    <span class="md-ellipsis">
+      4.9 生命周期不变量
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. 日志分级
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. 适配检查清单
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 适配检查清单">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      通道
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      生命周期
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      其他日志
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="module">Module 日志记录规范<a class="headerlink" href="#module" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>适用范围：标准车型脚本（顶升车、料箱车、叉车、清洁车等）的公共日志约束，以及 MF（MoveFactory）与脚本之间的 Action 队列日志协议。</p>
+</blockquote>
+<p>本文定义可被其他模块、语言和日志分析器直接消费的约束。<code>ActionTask</code>、<code>ActionBase</code>、MF logger 等实现细节不属于本文；脚本实现见 <a href="../development/action_task.html">ActionTask 开发指南</a>，MF 实现请参考 MoveFactory 仓库中的 <code>docs/04-task-reference.md</code> 和 <code>docs/08-development-guide.md</code>。</p>
+<h2 id="_1">版本与兼容性<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>状态</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v4</td>
+<td>当前</td>
+<td>Action 队列统一使用 <code>taskActions</code> 通道（MF）或 <code>{xxx}.taskActions</code> 通道（脚本）；通过 <code>event</code> 区分五类当前事件。</td>
+</tr>
+<tr>
+<td>v3</td>
+<td>已废弃</td>
+<td><code>Trace.chart</code> 迁移到 <code>Trace.log</code>。</td>
+</tr>
+<tr>
+<td>v2</td>
+<td>已废弃</td>
+<td>旧版 Action 队列字段和并行模型。</td>
+</tr>
+<tr>
+<td>v1</td>
+<td>已废弃</td>
+<td>旧版顺序队列事件和整型动作索引。</td>
+</tr>
+</tbody>
+</table>
+<p>当前协议只保证 v4 名称和字段。新代码不得写入旧名称，也不要求当前适配器兼容旧日志中的 <code>&lt;module&gt;.action</code>、<code>actionFinished</code>、<code>queueBuild</code>、<code>queueExtend</code> 或 <code>queueDone</code>。</p>
+<h2 id="1">1. 公共日志接口<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 日志类别<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>是否落盘</th>
+<th>是否上报调度</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>结构化运行日志</td>
+<td>是</td>
+<td>否</td>
+<td>事件、状态变化、异常和可检索上下文。</td>
+</tr>
+<tr>
+<td>数值时序日志</td>
+<td>是</td>
+<td>否</td>
+<td>高度、速度、电流等随时间变化的数据。</td>
+</tr>
+<tr>
+<td><code>Module.reportInfo</code></td>
+<td>否</td>
+<td>是</td>
+<td>调度和 Roboshop 使用的实时业务状态。</td>
+</tr>
+<tr>
+<td><code>print()</code></td>
+<td>否</td>
+<td>否</td>
+<td>仅限受控调试输出，生产代码不得直接使用。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-tracelog">1.2 <code>Trace.log</code> 公共约束<a class="headerlink" href="#12-tracelog" title="Permanent link">&para;</a></h3>
+<p><code>Trace.log</code> 接受字符串或结构化对象，并将记录写入指定 <code>name</code> 通道。</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1"></a><a href="#__codelineno-0-1"><span class="linenos" data-linenos="1 "></span></a>Trace.log(msg, output_console=True, output_time=False, *, name="", debug=False)
+</span></code></pre></div>
+<p><code>name</code> 和 <code>debug</code> 是关键字参数；新代码必须显式传入稳定的 <code>name</code>，不得依赖默认裸通道 <code>log</code>。</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>msg</code></td>
+<td>字符串用于人读事件描述；对象用于结构化事件或数值时序。字符串记录在日志中表现为 <code>{"log":"..."}</code>。</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>必须显式指定；必须是稳定、可枚举的业务通道名，不得包含动态 <code>taskId</code>、<code>actionId</code> 或时间戳。</td>
+</tr>
+<tr>
+<td><code>output_console</code></td>
+<td>普通事件可保留默认值；高频数值时序应关闭终端输出。</td>
+</tr>
+<tr>
+<td><code>output_time</code></td>
+<td>默认关闭；仅在需要终端二次对时时临时开启。</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>仅用于生产环境默认沉默的诊断数据；必须事件不得依赖 debug 模式才能落盘。</td>
+</tr>
+</tbody>
+</table>
+<p>同一逻辑通道的记录必须始终使用相同 <code>name</code>。不得依赖默认裸通道 <code>log</code>，不得把同一事件同时写成字符串和结构化对象。</p>
+<p>字符串消息在结构化日志中表现为 <code>{"log":"..."}</code>；结构化对象按字段原样记录。数值时序不得用字符串拼接 <code>key=value</code> 代替。</p>
+<p><code>Trace.chart</code> 已废弃。数值和图表数据统一使用 <code>Trace.log(dict, output_console=False, name="...")</code>；新代码不得使用 <code>Trace.chart</code>。</p>
+<p><code>debug=True</code> 的记录可在非 debug 运行模式下被抑制；它只适合高频或低优先级诊断数据。必须记录的业务事件必须使用常规日志，并且同一逻辑通道不要混用两种模式。</p>
+<p>常见写法：</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1"></a><a href="#__codelineno-1-1"><span class="linenos" data-linenos="1 "></span></a><span class="n">Trace</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"status IDLE -&gt; RUNNING"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"jack"</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2"></a><a href="#__codelineno-1-2"><span class="linenos" data-linenos="2 "></span></a><span class="n">Trace</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">"event"</span><span class="p">:</span> <span class="s2">"motorTimeout"</span><span class="p">,</span> <span class="s2">"motorId"</span><span class="p">:</span> <span class="s2">"lift"</span><span class="p">,</span> <span class="s2">"elapsedMs"</span><span class="p">:</span> <span class="mi">1200</span><span class="p">},</span> <span class="n">name</span><span class="o">=</span><span class="s2">"jack.err"</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3"></a><a href="#__codelineno-1-3"><span class="linenos" data-linenos="3 "></span></a><span class="n">Trace</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">"jackHeight"</span><span class="p">:</span> <span class="mf">1.25</span><span class="p">,</span> <span class="s2">"jackTarget"</span><span class="p">:</span> <span class="mf">1.30</span><span class="p">},</span> <span class="n">output_console</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"jack.motor"</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="13">1.3 通道命名<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
+<p>普通业务日志按“模块.子主题”组织：</p>
+<table>
+<thead>
+<tr>
+<th>通道</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;module&gt;</code></td>
+<td>模块主流程、状态机和任务级文本事件。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.rec</code></td>
+<td>识别启动、识别结果和识别失败。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.motor</code></td>
+<td>机构、电机和执行反馈。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.nav</code></td>
+<td>导航、路径、避障和到达。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.cfg</code></td>
+<td>配置加载和参数变更。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.err</code></td>
+<td>异常、超时和超限。</td>
+</tr>
+<tr>
+<td><code>&lt;module&gt;.task</code></td>
+<td>任务级数值快照。</td>
+</tr>
+</tbody>
+</table>
+<p>车型前缀使用稳定短名：<code>jack</code>（顶升车）、<code>ctu</code>（料箱车）、<code>fork</code>（叉车）、<code>clean</code>（清洁车）等。</p>
+<p>Action 队列使用 §4 规定的专用通道，不得使用 <code>&lt;module&gt;.action</code>。</p>
+<h3 id="14">1.4 事件记录原则<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>只记录状态变化、关键决策、关键动作完成、异常和配置结果。</li>
+<li>同一执行路径中的同一事件只记录一次；状态未变化时不得重复记录。</li>
+<li>循环内不得无条件写文本日志；高频变化改用数值时序通道。</li>
+<li>异常记录应包含足以定位问题的上下文，但不得直接塞入完整点云、容器列表或其他大对象。</li>
+<li>异常在同一层级只记录一次；上层可以引用错误标识，不要重复打印同一堆栈或同一原因。</li>
+</ul>
+<p>必须记录的事件包括：</p>
+<table>
+<thead>
+<tr>
+<th>事件类别</th>
+<th>推荐通道</th>
+<th>记录内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务开始 / 结束</td>
+<td><code>&lt;module&gt;</code></td>
+<td>任务标识、动作类型和最终结果。</td>
+</tr>
+<tr>
+<td>状态机切换</td>
+<td><code>&lt;module&gt;</code></td>
+<td>旧状态和新状态。</td>
+</tr>
+<tr>
+<td>关键动作完成</td>
+<td><code>&lt;module&gt;.motor</code> / <code>&lt;module&gt;.nav</code></td>
+<td>目标值、实际值和耗时。</td>
+</tr>
+<tr>
+<td>异常 / 超时 / 超限</td>
+<td><code>&lt;module&gt;.err</code></td>
+<td>错误上下文、重试次数和错误码。</td>
+</tr>
+<tr>
+<td>配置加载 / 变更</td>
+<td><code>&lt;module&gt;.cfg</code></td>
+<td>配置结果和关键参数摘要。</td>
+</tr>
+<tr>
+<td>重试 / 恢复 / 急停恢复</td>
+<td><code>&lt;module&gt;</code></td>
+<td>触发原因、尝试次数和恢复结果。</td>
+</tr>
+</tbody>
+</table>
+<p>禁止记录的内容包括：循环内每次迭代的重复状态、无变化的轮询结果、用文本记录的高频数值序列，以及与上一条完全相同的信息。</p>
+<h2 id="2">2. 数值时序规范<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<p>数值时序使用结构化对象写入 <code>&lt;module&gt;.task</code>、<code>&lt;module&gt;.motor</code> 或 <code>&lt;module&gt;.nav</code> 等稳定通道。</p>
+<h3 id="21">2.1 字段规则<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<ul>
+<li>同一 <code>name</code> 下，同一 key 的类型必须稳定；不得在整数、浮点数、布尔值和字符串之间切换。</li>
+<li>数值字段使用 <code>int</code> 或 <code>float</code>；状态开关使用 JSON 布尔值；需要嵌套时使用本节定义的命名对象类型。</li>
+<li>同一 payload 中的字段可以按场景增减，但已出现的 key 必须保持类型稳定。</li>
+<li>缺省字段表示该时刻没有上报该指标，不得被解释为状态变化；图表消费者按约定将缺省数值显示为 <code>0</code>。</li>
+<li>高频时序必须关闭终端输出，并建议集中在主循环的固定位置上报。</li>
+<li>数值通道不得承载 Action 事件；Action 事件统一走 §4 的 <code>taskActions</code> 通道。</li>
+</ul>
+<p>数值字段只允许 <code>int</code>、<code>float</code>、JSON 布尔值和命名嵌套对象；禁止 <code>str</code>、<code>None</code>、<code>list</code> 和不可序列化对象。同一 key 一旦使用某种类型，整个通道生命周期内不得切换类型。</p>
+<h3 id="22">2.2 推荐任务快照字段<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p>脚本或模块需要提供队列数值快照时，使用 <code>&lt;module&gt;.task</code> 通道。字段均为整数，缺省字段不得被解释为新的状态。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scriptStatus</code></td>
+<td>脚本状态值。</td>
+</tr>
+<tr>
+<td><code>total</code></td>
+<td>当前任务动作总数。</td>
+</tr>
+<tr>
+<td><code>runningCount</code></td>
+<td>当前运行中的动作数量。</td>
+</tr>
+<tr>
+<td><code>waitingCount</code></td>
+<td>已入队但尚未启动的动作数量。</td>
+</tr>
+<tr>
+<td><code>finishedCount</code></td>
+<td>已完成动作数量。</td>
+</tr>
+<tr>
+<td><code>failedCount</code></td>
+<td>已失败动作数量。</td>
+</tr>
+<tr>
+<td><code>suspendedCount</code></td>
+<td>已暂停动作数量。</td>
+</tr>
+</tbody>
+</table>
+<p>这些字段描述当前快照，不替代 <code>taskBuild</code>、<code>actionStateChanged</code> 或终态事件。</p>
+<h3 id="23">2.3 各车型数值通道与字段<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<p>以下字段是标准车型的公共数值上报约束。字段可缺省时，消费者按 §2.1 处理；字段一旦出现，类型必须保持稳定。</p>
+<table>
+<thead>
+<tr>
+<th>车型</th>
+<th><code>name</code></th>
+<th>字段</th>
+<th>类型</th>
+<th>可缺省</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顶升车 <code>jack</code></td>
+<td><code>jack.task</code></td>
+<td><code>scriptStatus</code>、<code>total</code>、<code>runningCount</code>、<code>waitingCount</code>、<code>finishedCount</code>、<code>failedCount</code>、<code>suspendedCount</code></td>
+<td>int</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>jack.motor</code></td>
+<td><code>jackHeight</code>、<code>jackTarget</code>、<code>jackInPlace</code></td>
+<td>float / float / bool</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>jack.motor</code></td>
+<td><code>jackMotorCurrent</code></td>
+<td>float</td>
+<td>是</td>
+</tr>
+<tr>
+<td>料箱车 <code>ctu</code></td>
+<td><code>ctu.task</code></td>
+<td><code>scriptStatus</code>、<code>total</code>、<code>runningCount</code>、<code>waitingCount</code>、<code>finishedCount</code>、<code>failedCount</code>、<code>suspendedCount</code></td>
+<td>int</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>ctu.motor</code></td>
+<td><code>ctuHeight</code>、<code>ctuTarget</code></td>
+<td>float</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>ctu.motor</code></td>
+<td><code>ctuInPlace</code>、<code>containerCount</code></td>
+<td>bool / int</td>
+<td>否</td>
+</tr>
+<tr>
+<td>叉车 <code>fork</code></td>
+<td><code>fork.task</code></td>
+<td><code>scriptStatus</code>、<code>total</code>、<code>runningCount</code>、<code>waitingCount</code>、<code>finishedCount</code>、<code>failedCount</code>、<code>suspendedCount</code></td>
+<td>int</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>fork.motor</code></td>
+<td><code>forkHeight</code>、<code>forkTarget</code>、<code>forkMileage</code></td>
+<td>float</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>fork.motor</code></td>
+<td><code>forkInPlace</code></td>
+<td>bool</td>
+<td>否</td>
+</tr>
+<tr>
+<td>清洁车 <code>clean</code></td>
+<td><code>clean.task</code></td>
+<td><code>scriptStatus</code>、<code>cleanState</code>、<code>taskState</code></td>
+<td>int</td>
+<td>否</td>
+</tr>
+<tr>
+<td></td>
+<td><code>clean.motor</code></td>
+<td><code>brushSpeed</code>、<code>waterLevel</code></td>
+<td>float</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>最小任务快照示例：</p>
+<div class="language-json highlight"><span class="filename">JSON</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1"></a><a href="#__codelineno-2-1"><span class="linenos" data-linenos="1 "></span></a><span class="p">{</span><span class="nt">"scriptStatus"</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="nt">"total"</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="nt">"runningCount"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"waitingCount"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"finishedCount"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="nt">"failedCount"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span><span class="nt">"suspendedCount"</span><span class="p">:</span><span class="mi">0</span><span class="p">}</span>
+</span></code></pre></div>
+<h2 id="3-modulereportinfo">3. <code>Module.reportInfo</code> 与调试输出<a class="headerlink" href="#3-modulereportinfo" title="Permanent link">&para;</a></h2>
+<h3 id="31-modulereportinfo">3.1 <code>Module.reportInfo</code><a class="headerlink" href="#31-modulereportinfo" title="Permanent link">&para;</a></h3>
+<p><code>Module.reportInfo</code> 只用于实时业务状态，不写入动作队列日志，也不能替代 <code>Trace.log</code>。</p>
+<ul>
+<li>不打印、不落盘，仅供调度系统和 Roboshop 实时展示。</li>
+<li>同一时刻的相关数据合并为一次上报。</li>
+<li>每次调用都必须携带 <code>containers</code>，包括空载状态。</li>
+<li>在任务状态变更、关键动作完成或需要调度介入的异常发生时上报。</li>
+<li>字段应表达当前业务状态，不要把完整内部对象直接透传。</li>
+</ul>
+<p><code>reportInfo</code> 的公共字段如下；业务可以增加动作相关的 <code>detail</code> 字段，但不得改变字段类型。</p>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>action</code></td>
+<td>string</td>
+<td>否</td>
+<td>当前动作名称。</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td>否</td>
+<td><code>running</code>、<code>finished</code> 或 <code>failed</code>。</td>
+</tr>
+<tr>
+<td><code>progress</code></td>
+<td>float</td>
+<td>否</td>
+<td>当前动作进度，范围 <code>0.0</code> 到 <code>1.0</code>。</td>
+</tr>
+<tr>
+<td><code>detail</code></td>
+<td>ReportDetail</td>
+<td>否</td>
+<td>动作相关的小型结构化摘要。</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>string</td>
+<td>否</td>
+<td>失败或异常描述；仅在需要时提供。</td>
+</tr>
+<tr>
+<td><code>containers</code></td>
+<td>array[ContainerInfo]</td>
+<td>是</td>
+<td>当前所有容器位的载货状态，包括空载位。</td>
+</tr>
+</tbody>
+</table>
+<p><code>ReportDetail</code> 是业务自定义的小型 JSON 对象；其键和值必须保持稳定、可序列化，不得直接透传完整内部对象。</p>
+<p><code>containers</code> 为容器位数组，每个元素是 <code>ContainerInfo</code>：</p>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>containers[].containerId</code></td>
+<td>string</td>
+<td>是</td>
+<td>容器位标识。</td>
+</tr>
+<tr>
+<td><code>containers[].desc</code></td>
+<td>string</td>
+<td>否</td>
+<td>货物描述，通常为空。</td>
+</tr>
+<tr>
+<td><code>containers[].goodsName</code></td>
+<td>string</td>
+<td>否</td>
+<td>货物名称。</td>
+</tr>
+<tr>
+<td><code>containers[].hasGoods</code></td>
+<td>boolean</td>
+<td>是</td>
+<td>当前容器位是否有货。</td>
+</tr>
+</tbody>
+</table>
+<p>车型 <code>containerId</code> 约定：</p>
+<table>
+<thead>
+<tr>
+<th>车型</th>
+<th>约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>料箱车背篓</td>
+<td><code>"0"</code>、<code>"1"</code>、<code>"2"</code>，按背篓位递增。</td>
+</tr>
+<tr>
+<td>料箱车货叉</td>
+<td><code>"999"</code>。</td>
+</tr>
+<tr>
+<td>顶升车、叉车、辊筒车</td>
+<td>通常使用 <code>"0"</code>。</td>
+</tr>
+</tbody>
+</table>
+<p>示例：</p>
+<div class="language-json highlight"><span class="filename">JSON</span><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1"></a><a href="#__codelineno-3-1"><span class="linenos" data-linenos="1 "></span></a><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2"></a><a href="#__codelineno-3-2"><span class="linenos" data-linenos="2 "></span></a><span class="w">  </span><span class="nt">"action"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Pick"</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3"></a><a href="#__codelineno-3-3"><span class="linenos" data-linenos="3 "></span></a><span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"finished"</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4"></a><a href="#__codelineno-3-4"><span class="linenos" data-linenos="4 "></span></a><span class="w">  </span><span class="nt">"progress"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5"></a><a href="#__codelineno-3-5"><span class="linenos" data-linenos="5 "></span></a><span class="w">  </span><span class="nt">"detail"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"distance"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.42</span><span class="p">,</span><span class="w"> </span><span class="nt">"elapsedMs"</span><span class="p">:</span><span class="w"> </span><span class="mi">860</span><span class="p">},</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6"></a><a href="#__codelineno-3-6"><span class="linenos" data-linenos="6 "></span></a><span class="w">  </span><span class="nt">"containers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7"></a><a href="#__codelineno-3-7"><span class="linenos" data-linenos="7 "></span></a><span class="w">    </span><span class="p">{</span><span class="nt">"containerId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="p">,</span><span class="w"> </span><span class="nt">"goodsName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"bin-001"</span><span class="p">,</span><span class="w"> </span><span class="nt">"hasGoods"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8"></a><a href="#__codelineno-3-8"><span class="linenos" data-linenos="8 "></span></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9"></a><a href="#__codelineno-3-9"><span class="linenos" data-linenos="9 "></span></a><span class="p">}</span>
+</span></code></pre></div>
+<p>不要拆分同一时刻的状态字段；错误示例：</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1"></a><a href="#__codelineno-4-1"><span class="linenos" data-linenos="1 "></span></a><span class="n">Module</span><span class="o">.</span><span class="n">reportInfo</span><span class="p">({</span><span class="s2">"goStraightStatus"</span><span class="p">:</span> <span class="s2">"finished"</span><span class="p">})</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2"></a><a href="#__codelineno-4-2"><span class="linenos" data-linenos="2 "></span></a><span class="n">Module</span><span class="o">.</span><span class="n">reportInfo</span><span class="p">({</span><span class="s2">"goDist"</span><span class="p">:</span> <span class="n">dist</span><span class="p">})</span>
+</span></code></pre></div>
+<p>应合并为一次上报，并始终携带 <code>containers</code>：</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1"></a><a href="#__codelineno-5-1"><span class="linenos" data-linenos="1 "></span></a><span class="n">Module</span><span class="o">.</span><span class="n">reportInfo</span><span class="p">({</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2"></a><a href="#__codelineno-5-2"><span class="linenos" data-linenos="2 "></span></a>    <span class="s2">"action"</span><span class="p">:</span> <span class="s2">"GoStraightDist"</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3"></a><a href="#__codelineno-5-3"><span class="linenos" data-linenos="3 "></span></a>    <span class="s2">"status"</span><span class="p">:</span> <span class="s2">"finished"</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4"></a><a href="#__codelineno-5-4"><span class="linenos" data-linenos="4 "></span></a>    <span class="s2">"distance"</span><span class="p">:</span> <span class="n">dist</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5"></a><a href="#__codelineno-5-5"><span class="linenos" data-linenos="5 "></span></a>    <span class="s2">"elapsed"</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6"></a><a href="#__codelineno-5-6"><span class="linenos" data-linenos="6 "></span></a>    <span class="s2">"containers"</span><span class="p">:</span> <span class="n">Container</span><span class="o">.</span><span class="n">getContainers</span><span class="p">(),</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7"></a><a href="#__codelineno-5-7"><span class="linenos" data-linenos="7 "></span></a><span class="p">})</span>
+</span></code></pre></div>
+<p>禁止手工改写容器字段名或只在有货时上报 <code>containers</code>；空载状态也必须上报。</p>
+<h3 id="32-print">3.2 <code>print()</code><a class="headerlink" href="#32-print" title="Permanent link">&para;</a></h3>
+<p>生产代码禁止裸 <code>print()</code>。调试输出必须通过受 debug 开关控制的统一封装，并在提交前清理临时输出。</p>
+<p>推荐使用统一的调试封装，且不得将其当作生产日志：</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1"></a><a href="#__codelineno-6-1"><span class="linenos" data-linenos="1 "></span></a><span class="k">def</span><span class="w"> </span><span class="nf">debug_print</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2"></a><a href="#__codelineno-6-2"><span class="linenos" data-linenos="2 "></span></a>    <span class="k">if</span> <span class="n">ConfigParams</span><span class="o">.</span><span class="n">debug_mode</span><span class="p">:</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3"></a><a href="#__codelineno-6-3"><span class="linenos" data-linenos="3 "></span></a>        <span class="nb">print</span><span class="p">(</span><span class="s2">"[DEBUG]"</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="4-action">4. Action 队列对外协议<a class="headerlink" href="#4-action" title="Permanent link">&para;</a></h2>
+<p>本节是 MF 与脚本之间的公共 wire 契约。适配方只需要依赖通道名、JSON 字段、事件顺序和不变量，不需要知道日志由哪个类或调度循环写出。</p>
+<h3 id="41">4.1 协议速览<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<p><code>TaskStream</code>（队列事件流）是一轮 Action 队列从建立到结束产生的完整日志序列。每条日志记录携带一个 JSON 事件；同一轮的所有事件使用相同的 <code>taskId</code>，并通过 <code>event</code> 表示当前阶段。</p>
+<p>一轮队列的结构是：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1"></a><a href="#__codelineno-7-1"><span class="linenos" data-linenos="1 "></span></a>TaskStream :=
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2"></a><a href="#__codelineno-7-2"><span class="linenos" data-linenos="2 "></span></a>    taskBuild
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3"></a><a href="#__codelineno-7-3"><span class="linenos" data-linenos="3 "></span></a>    (taskExtend | actionStateChanged)*
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4"></a><a href="#__codelineno-7-4"><span class="linenos" data-linenos="4 "></span></a>    (taskFinished | taskFailed)
+</span></code></pre></div>
+<p>含义：</p>
+<ul>
+<li><code>taskBuild</code> 是起点，每轮只能有 1 次。</li>
+<li><code>taskExtend</code> 和 <code>actionStateChanged</code> 是中间事件，出现次数可以为 0 次或多次，二者可以交错出现。</li>
+<li><code>taskFinished</code> 与 <code>taskFailed</code> 是终态事件，只能二选一，并且每轮只能有 1 次。</li>
+<li>终态事件之后不再产生该轮的 Action 事件；重新建队表示开始新的 <code>TaskStream</code>。</li>
+</ul>
+<p>事件树如下：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1"></a><a href="#__codelineno-8-1"><span class="linenos" data-linenos=" 1 "></span></a>TaskStream
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2"></a><a href="#__codelineno-8-2"><span class="linenos" data-linenos=" 2 "></span></a>├─ taskBuild                         1 次
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3"></a><a href="#__codelineno-8-3"><span class="linenos" data-linenos=" 3 "></span></a>│  └─ actions: array[ActionDescriptor]
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4"></a><a href="#__codelineno-8-4"><span class="linenos" data-linenos=" 4 "></span></a>├─ 中间事件                          0..N 次，任意顺序
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5"></a><a href="#__codelineno-8-5"><span class="linenos" data-linenos=" 5 "></span></a>│  ├─ taskExtend
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6"></a><a href="#__codelineno-8-6"><span class="linenos" data-linenos=" 6 "></span></a>│  │  └─ appended: array[ActionDescriptor]
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7"></a><a href="#__codelineno-8-7"><span class="linenos" data-linenos=" 7 "></span></a>│  └─ actionStateChanged
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8"></a><a href="#__codelineno-8-8"><span class="linenos" data-linenos=" 8 "></span></a>│     └─ actionId + status
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9"></a><a href="#__codelineno-8-9"><span class="linenos" data-linenos=" 9 "></span></a>└─ 终态事件                          1 次，二选一
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10"></a><a href="#__codelineno-8-10"><span class="linenos" data-linenos="10 "></span></a>   ├─ taskFinished
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11"></a><a href="#__codelineno-8-11"><span class="linenos" data-linenos="11 "></span></a>   └─ taskFailed
+</span></code></pre></div>
+<p>事件索引：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th><code>event</code></th>
+<th>作用</th>
+<th>主要字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>起点</td>
+<td><code>taskBuild</code></td>
+<td>建立本轮完整的初始动作队列。</td>
+<td><code>actions: array[ActionDescriptor]</code></td>
+</tr>
+<tr>
+<td>中间</td>
+<td><code>taskExtend</code></td>
+<td>向队列尾部追加动作。</td>
+<td><code>appended: array[ActionDescriptor]</code>、<code>total</code></td>
+</tr>
+<tr>
+<td>中间</td>
+<td><code>actionStateChanged</code></td>
+<td>记录一个动作的一次状态转移。</td>
+<td><code>actionId</code>、<code>actionType</code>、<code>status</code></td>
+</tr>
+<tr>
+<td>终态</td>
+<td><code>taskFinished</code></td>
+<td>本轮所有动作成功完成。</td>
+<td><code>total</code>、<code>elapsedMs</code></td>
+</tr>
+<tr>
+<td>终态</td>
+<td><code>taskFailed</code></td>
+<td>本轮因动作失败、取消或外部错误终止。</td>
+<td><code>total</code>、<code>elapsedMs</code>、<code>failedAt</code>、<code>reason</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 通道与父子任务关联<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<p>MF 和脚本分别维护自己的 <code>TaskStream</code>。二者通过 MF 的 <code>RunScript</code> action 关联，而不是共享同一个外层任务 ID：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1"></a><a href="#__codelineno-9-1"><span class="linenos" data-linenos=" 1 "></span></a>MF TaskStream
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2"></a><a href="#__codelineno-9-2"><span class="linenos" data-linenos=" 2 "></span></a>name   = taskActions
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3"></a><a href="#__codelineno-9-3"><span class="linenos" data-linenos=" 3 "></span></a>taskId = MF 外层任务 ID
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4"></a><a href="#__codelineno-9-4"><span class="linenos" data-linenos=" 4 "></span></a>  └─ RunScript.actionId
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5"></a><a href="#__codelineno-9-5"><span class="linenos" data-linenos=" 5 "></span></a>       │
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6"></a><a href="#__codelineno-9-6"><span class="linenos" data-linenos=" 6 "></span></a>       │ 传给脚本后作为脚本 taskId
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7"></a><a href="#__codelineno-9-7"><span class="linenos" data-linenos=" 7 "></span></a>       ▼
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8"></a><a href="#__codelineno-9-8"><span class="linenos" data-linenos=" 8 "></span></a>脚本 TaskStream
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9"></a><a href="#__codelineno-9-9"><span class="linenos" data-linenos=" 9 "></span></a>name   = {xxx}.taskActions，例如 jack.taskActions
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10"></a><a href="#__codelineno-9-10"><span class="linenos" data-linenos="10 "></span></a>taskId = MF RunScript.actionId
+</span></code></pre></div>
+<p>关联规则：</p>
+<ol>
+<li>MF 外层任务 <code>taskId</code> 和脚本队列 <code>taskId</code> 属于不同层级，不得直接当作同一个 ID。</li>
+<li>先在 MF <code>taskActions</code> 中找到 <code>actionType</code> 为 <code>RunScript</code> 的动作，再用该动作的 <code>actionId</code> 匹配脚本通道中的 <code>taskId</code>。</li>
+<li>脚本队列内部的 <code>actionId</code> 只用于定位脚本自己的动作，不能替代 MF 的 <code>RunScript.actionId</code>。</li>
+<li><code>name</code> 只用于选择日志通道，不得拼接动态任务或动作 ID。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>产生日志的模块</th>
+<th>队列日志 <code>name</code></th>
+<th>本层 <code>taskId</code></th>
+<th>本层 <code>actionId</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MF（MoveFactory）</td>
+<td><code>taskActions</code></td>
+<td>MF 任务 ID，string</td>
+<td>MF action ID，string；同一 MF 队列内稳定唯一</td>
+</tr>
+<tr>
+<td>标准脚本</td>
+<td><code>{xxx}.taskActions</code>，例如 <code>jack.taskActions</code></td>
+<td>MF <code>RunScript.actionId</code>，string</td>
+<td>脚本队列内的动作 ID，string；只在本脚本队列内稳定唯一</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43">4.3 完整事件流示例<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<p>下面是一轮脚本 <code>TaskStream</code> 的成功示例。日志筛选 <code>name=jack.taskActions</code> 后，可以按 <code>taskId</code> 看到完整生命周期；中间的 <code>taskExtend</code> 和 <code>actionStateChanged</code> 按实际产生时间交错出现。</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1"></a><a href="#__codelineno-10-1"><span class="linenos" data-linenos="1 "></span></a>{"event":"taskBuild","taskId":"RunScript-abc123","total":2,"actions":[{"actionId":"JackHeight-def456","actionType":"JackHeight","blockingType":"HARD","actionParameters":{"motor":"lift","target":1.25}},{"actionId":"Navigate-ghi789","actionType":"Navigate","blockingType":"SOFT","actionParameters":{"station":"S-01"}}]}
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2"></a><a href="#__codelineno-10-2"><span class="linenos" data-linenos="2 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"JackHeight-def456","actionType":"JackHeight","status":"running"}
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3"></a><a href="#__codelineno-10-3"><span class="linenos" data-linenos="3 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"JackHeight-def456","actionType":"JackHeight","status":"finished","elapsedMs":1200,"resultDescription":{"actualHeight":1.25}}
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4"></a><a href="#__codelineno-10-4"><span class="linenos" data-linenos="4 "></span></a>{"event":"taskExtend","taskId":"RunScript-abc123","appended":[{"actionId":"Place-jkl012","actionType":"Place","blockingType":"NONE","actionParameters":{"containerId":"0"}}],"total":3}
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5"></a><a href="#__codelineno-10-5"><span class="linenos" data-linenos="5 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"Navigate-ghi789","actionType":"Navigate","status":"running"}
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6"></a><a href="#__codelineno-10-6"><span class="linenos" data-linenos="6 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"Navigate-ghi789","actionType":"Navigate","status":"finished","elapsedMs":2500,"resultDescription":{"station":"S-01"}}
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7"></a><a href="#__codelineno-10-7"><span class="linenos" data-linenos="7 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"Place-jkl012","actionType":"Place","status":"running"}
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8"></a><a href="#__codelineno-10-8"><span class="linenos" data-linenos="8 "></span></a>{"event":"actionStateChanged","taskId":"RunScript-abc123","actionId":"Place-jkl012","actionType":"Place","status":"finished","elapsedMs":800}
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9"></a><a href="#__codelineno-10-9"><span class="linenos" data-linenos="9 "></span></a>{"event":"taskFinished","taskId":"RunScript-abc123","total":3,"elapsedMs":4600}
+</span></code></pre></div>
+<p>失败时，最后一条记录使用 <code>taskFailed</code>，并可携带触发失败的动作和终止原因：</p>
+<div class="language-json highlight"><span class="filename">JSON</span><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1"></a><a href="#__codelineno-11-1"><span class="linenos" data-linenos="1 "></span></a><span class="p">{</span><span class="nt">"event"</span><span class="p">:</span><span class="s2">"taskFailed"</span><span class="p">,</span><span class="nt">"taskId"</span><span class="p">:</span><span class="s2">"RunScript-abc123"</span><span class="p">,</span><span class="nt">"total"</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span><span class="nt">"elapsedMs"</span><span class="p">:</span><span class="mi">3200</span><span class="p">,</span><span class="nt">"failedAt"</span><span class="p">:</span><span class="s2">"Navigate-ghi789"</span><span class="p">,</span><span class="nt">"reason"</span><span class="p">:</span><span class="s2">"obstacle"</span><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="44-json">4.4 JSON 层级与类型记法<a class="headerlink" href="#44-json" title="Permanent link">&para;</a></h3>
+<p>字段表使用 JSON 路径描述层级：</p>
+<ul>
+<li><code>taskId</code> 表示事件 JSON 的顶层字段。</li>
+<li><code>actions</code> 表示顶层数组字段；<code>actions[].actionId</code> 表示数组中每个元素的字段。</li>
+<li>类型使用协议中的命名类型，例如 <code>ActionDescriptor</code>、<code>ActionParameters</code> 和 <code>ResultDescription</code>；数组使用 <code>array[类型]</code> 表示。</li>
+</ul>
+<p>协议中复用的嵌套类型如下：</p>
+<table>
+<thead>
+<tr>
+<th>类型名</th>
+<th>使用路径</th>
+<th>字段定义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ActionDescriptor</code></td>
+<td><code>actions[]</code>、<code>appended[]</code></td>
+<td><code>actionId</code>、<code>actionType</code>、<code>blockingType</code>、<code>actionParameters</code> 为必填；<code>actionDescription</code> 可选。</td>
+</tr>
+<tr>
+<td><code>ActionParameters</code></td>
+<td><code>actions[].actionParameters</code>、<code>appended[].actionParameters</code></td>
+<td>动作参数摘要。只保留站点、目标值、数量、方向、超时等小型字段；无参数时为 <code>{}</code>。</td>
+</tr>
+<tr>
+<td><code>ResultDescription</code></td>
+<td><code>resultDescription</code></td>
+<td>动作完成结果摘要，例如实际高度、识别结果摘要或最终位置；无结果时省略。</td>
+</tr>
+</tbody>
+</table>
+<p><code>ActionParameters</code> 和 <code>ResultDescription</code> 的键由具体动作定义，但值必须是可序列化的 JSON 基本值或小型嵌套 JSON；禁止放入完整容器、点云、轨迹或其他大对象。枚举和自定义对象应先转换为协议支持的 JSON 值。</p>
+<h3 id="45">4.5 通用字段<a class="headerlink" href="#45" title="Permanent link">&para;</a></h3>
+<p>以下字段位于五类事件 JSON 的顶层：</p>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>event</code></td>
+<td>string</td>
+<td>是</td>
+<td>当前事件类型，只能取 §4.1 列出的值。</td>
+</tr>
+<tr>
+<td><code>taskId</code></td>
+<td>string</td>
+<td>是</td>
+<td>当前队列任务 ID。同一 <code>TaskStream</code> 从 <code>taskBuild</code> 到终态保持不变。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="46">4.6 各事件字段<a class="headerlink" href="#46" title="Permanent link">&para;</a></h3>
+<p>每类事件都在通用字段之外追加以下顶层字段。数组元素的字段通过 <code>字段[]</code> 路径明确列出，例如 <code>actions[].actionId</code>。</p>
+<h4 id="taskbuild"><code>taskBuild</code><a class="headerlink" href="#taskbuild" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义与约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>初始动作总数。</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td>array[ActionDescriptor]</td>
+<td>是</td>
+<td>完整初始动作列表；数组长度必须等于 <code>total</code>。</td>
+</tr>
+<tr>
+<td><code>actions[].actionId</code></td>
+<td>string</td>
+<td>是</td>
+<td>队列内稳定唯一；分配后不得改变。</td>
+</tr>
+<tr>
+<td><code>actions[].actionType</code></td>
+<td>string</td>
+<td>是</td>
+<td>动作类型或业务名称。</td>
+</tr>
+<tr>
+<td><code>actions[].blockingType</code></td>
+<td>string</td>
+<td>是</td>
+<td>只能是 <code>HARD</code>、<code>SOFT</code> 或 <code>NONE</code>。</td>
+</tr>
+<tr>
+<td><code>actions[].actionParameters</code></td>
+<td>ActionParameters</td>
+<td>是</td>
+<td>关键参数摘要；无参数时为 <code>{}</code>。</td>
+</tr>
+<tr>
+<td><code>actions[].actionDescription</code></td>
+<td>string</td>
+<td>否</td>
+<td>人读补充说明；为空时省略。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="taskextend"><code>taskExtend</code><a class="headerlink" href="#taskextend" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义与约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>appended</code></td>
+<td>array[ActionDescriptor]</td>
+<td>是</td>
+<td>本次追加的动作，只能追加到队列尾部。</td>
+</tr>
+<tr>
+<td><code>appended[].actionId</code></td>
+<td>string</td>
+<td>是</td>
+<td>队列内稳定唯一；不得与已有动作重复。</td>
+</tr>
+<tr>
+<td><code>appended[].actionType</code></td>
+<td>string</td>
+<td>是</td>
+<td>动作类型或业务名称。</td>
+</tr>
+<tr>
+<td><code>appended[].blockingType</code></td>
+<td>string</td>
+<td>是</td>
+<td>只能是 <code>HARD</code>、<code>SOFT</code> 或 <code>NONE</code>。</td>
+</tr>
+<tr>
+<td><code>appended[].actionParameters</code></td>
+<td>ActionParameters</td>
+<td>是</td>
+<td>关键参数摘要；无参数时为 <code>{}</code>。</td>
+</tr>
+<tr>
+<td><code>appended[].actionDescription</code></td>
+<td>string</td>
+<td>否</td>
+<td>人读补充说明；为空时省略。</td>
+</tr>
+<tr>
+<td><code>total</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>追加后的动作总数。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="actionstatechanged"><code>actionStateChanged</code><a class="headerlink" href="#actionstatechanged" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义与约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>actionId</code></td>
+<td>string</td>
+<td>是</td>
+<td>要变更状态的动作 ID，必须已在 <code>taskBuild.actions</code> 或 <code>taskExtend.appended</code> 中声明。</td>
+</tr>
+<tr>
+<td><code>actionType</code></td>
+<td>string</td>
+<td>是</td>
+<td>对应动作的类型或业务名称。</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td>是</td>
+<td>只能是 §4.8 定义的状态值。</td>
+</tr>
+<tr>
+<td><code>elapsedMs</code></td>
+<td>non-negative integer</td>
+<td>否</td>
+<td><code>finished</code> / <code>failed</code> 时表示该动作耗时。</td>
+</tr>
+<tr>
+<td><code>resultDescription</code></td>
+<td>ResultDescription</td>
+<td>否</td>
+<td>只用于 <code>finished</code>；无结果时省略。</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>string</td>
+<td>否</td>
+<td>用于 <code>failed</code> / <code>suspended</code> 的原因说明。</td>
+</tr>
+<tr>
+<td><code>errorCode</code></td>
+<td>string</td>
+<td>否</td>
+<td>用于 <code>failed</code> 的错误码。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="taskfinished"><code>taskFinished</code><a class="headerlink" href="#taskfinished" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义与约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>本轮队列的动作总数。</td>
+</tr>
+<tr>
+<td><code>elapsedMs</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>从 <code>taskBuild</code> 到任务成功完成的耗时。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="taskfailed"><code>taskFailed</code><a class="headerlink" href="#taskfailed" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>JSON 路径</th>
+<th>类型</th>
+<th>必填</th>
+<th>语义与约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>本轮队列的动作总数。</td>
+</tr>
+<tr>
+<td><code>elapsedMs</code></td>
+<td>non-negative integer</td>
+<td>是</td>
+<td>从 <code>taskBuild</code> 到任务失败的耗时。</td>
+</tr>
+<tr>
+<td><code>failedAt</code></td>
+<td>string</td>
+<td>否</td>
+<td>触发失败的 action ID。</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>string</td>
+<td>否</td>
+<td>队列终止原因。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="47-blockingtype">4.7 <code>blockingType</code> 语义<a class="headerlink" href="#47-blockingtype" title="Permanent link">&para;</a></h3>
+<p><code>blockingType</code> 描述动作在本轮队列中的调度关系，不是动作类的固有属性：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HARD</code></td>
+<td>独占队列；只有当前没有 active 动作时才能启动。</td>
+</tr>
+<tr>
+<td><code>SOFT</code></td>
+<td>在没有 <code>HARD</code> 动作阻塞时，可以与其他非 <code>HARD</code> 动作并行。</td>
+</tr>
+<tr>
+<td><code>NONE</code></td>
+<td>在没有 <code>HARD</code> 动作阻塞时，可以并行启动。</td>
+</tr>
+</tbody>
+</table>
+<p>默认值为 <code>HARD</code>。同一个动作类型在不同队列中可以使用不同的 <code>blockingType</code>。</p>
+<h3 id="48">4.8 状态字段<a class="headerlink" href="#48" title="Permanent link">&para;</a></h3>
+<p><code>actionStateChanged.status</code> 使用以下字符串：</p>
+<table>
+<thead>
+<tr>
+<th>status</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init</code></td>
+<td>已加入队列但尚未启动。</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>已启动，业务正在推进。</td>
+</tr>
+<tr>
+<td><code>finished</code></td>
+<td>成功完成。</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>执行失败或被取消。</td>
+</tr>
+<tr>
+<td><code>suspended</code></td>
+<td>暂停中。</td>
+</tr>
+</tbody>
+</table>
+<p>合法状态转移：</p>
+<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1"></a><a href="#__codelineno-12-1"><span class="linenos" data-linenos="1 "></span></a>init      -&gt; running
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2"></a><a href="#__codelineno-12-2"><span class="linenos" data-linenos="2 "></span></a>running   -&gt; finished
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3"></a><a href="#__codelineno-12-3"><span class="linenos" data-linenos="3 "></span></a>running   -&gt; failed
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4"></a><a href="#__codelineno-12-4"><span class="linenos" data-linenos="4 "></span></a>running   &lt;-&gt; suspended
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5"></a><a href="#__codelineno-12-5"><span class="linenos" data-linenos="5 "></span></a>suspended -&gt; failed
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6"></a><a href="#__codelineno-12-6"><span class="linenos" data-linenos="6 "></span></a>init      -&gt; failed
+</span></code></pre></div>
+<p>同一 action 的相同状态不得重复发 <code>actionStateChanged</code>。<code>running</code> 持续期间的数值变化走数值通道，不重复发状态事件。</p>
+<h3 id="49">4.9 生命周期不变量<a class="headerlink" href="#49" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>taskBuild</code> 是一轮 <code>TaskStream</code> 的起点；队列重跑必须重新开始一轮。</li>
+<li>同一轮所有事件的 <code>taskId</code> 完全相同。</li>
+<li>每个 <code>actionId</code> 在所属队列内稳定唯一，状态事件不得引用未出现在 <code>taskBuild</code> 或 <code>taskExtend</code> 中的 ID。</li>
+<li><code>taskExtend</code> 只能出现在 <code>taskBuild</code> 之后，并且只能做尾部追加。</li>
+<li><code>taskExtend</code> 必须先于该次追加动作的任何 <code>actionStateChanged</code>；状态事件不得引用尚未声明的动作。</li>
+<li>每个状态转移最多产生一条 <code>actionStateChanged</code>。</li>
+<li><code>actionStateChanged.actionType</code> 应与动作描述符中的 <code>actionType</code> 保持一致，便于从中途开始读取日志的分析器识别动作。</li>
+<li>失败发生后，其他仍在执行的动作必须被停止或转入失败处理，不能继续产生正常完成事件。</li>
+<li>一轮队列最多产生一个终态事件，且终态之后不得再产生该轮的动作状态事件。</li>
+<li>事件按产生时间顺序落盘；同一队列的分析器应按时间排序处理，不能依赖文件行号以外的实现细节。</li>
+</ul>
+<h2 id="5">5. 日志分级<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p>日志级别由通道和消息语义共同表达：</p>
+<table>
+<thead>
+<tr>
+<th>级别</th>
+<th>约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>INFO</td>
+<td>常规业务事件，使用模块主通道或子主题通道。</td>
+</tr>
+<tr>
+<td>WARN</td>
+<td>可恢复异常或需要关注的偏差；消息中应明确标注告警语义。</td>
+</tr>
+<tr>
+<td>ERROR</td>
+<td>无法正常完成的异常、超时或超限；优先使用 <code>&lt;module&gt;.err</code> 通道。</td>
+</tr>
+</tbody>
+</table>
+<p><code>*.err</code> 通道用于异常事件的筛选和告警对接，不要把正常状态变化写入错误通道。</p>
+<h2 id="6">6. 适配检查清单<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="_2">通道<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] MF 使用 <code>taskActions</code>。</li>
+<li>[ ] 脚本使用 <code>{xxx}.taskActions</code>，<code>xxx</code> 为稳定车型前缀。</li>
+<li>[ ] 不使用 <code>&lt;module&gt;.action</code>，不把 ID 或事件名拼入 <code>name</code>。</li>
+</ul>
+<h3 id="_3">字段<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 每条 Action 事件包含 <code>event</code> 和字符串 <code>taskId</code>。</li>
+<li>[ ] <code>actionId</code> 是字符串，且在所属队列内稳定唯一。</li>
+<li>[ ] <code>status</code> 只使用 <code>init</code> / <code>running</code> / <code>finished</code> / <code>failed</code> / <code>suspended</code>。</li>
+<li>[ ] <code>total</code>、<code>elapsedMs</code> 是非负整数；<code>actions</code> / <code>appended</code> 使用 <code>array[ActionDescriptor]</code>。</li>
+<li>[ ] <code>actions[].actionParameters</code> / <code>appended[].actionParameters</code> 使用 <code>ActionParameters</code>，且是精简摘要，不包含大对象。</li>
+<li>[ ] <code>actionStateChanged.resultDescription</code> 使用 <code>ResultDescription</code>，无结果时省略。</li>
+</ul>
+<h3 id="_4">生命周期<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 每轮有且只有一个 <code>taskBuild</code> 起点。</li>
+<li>[ ] 动态追加只发 <code>taskExtend</code>，且只追加到尾部。</li>
+<li>[ ] 状态只在发生转移时发 <code>actionStateChanged</code>。</li>
+<li>[ ] <code>taskFinished</code> / <code>taskFailed</code> 至多一个，且终态后不再发该轮事件。</li>
+<li>[ ] 脚本 <code>taskId</code> 与 MF <code>RunScript.actionId</code> 一致；MF 外层 <code>taskId</code> 不直接写入脚本队列。</li>
+</ul>
+<h3 id="_5">其他日志<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 每条 <code>Trace.log</code> 都显式使用 <code>name=</code>，不依赖裸 <code>log</code> 通道。</li>
+<li>[ ] 事件文本使用字符串，结构化事件和数值时序使用 JSON 对象；不混用同一事件的两种记录形式。</li>
+<li>[ ] 不使用 <code>Trace.chart</code>；数值时序关闭高频终端输出。</li>
+<li>[ ] <code>debug=True</code> 只用于可按需开启的诊断数据，必须事件不依赖 debug 模式；同一通道不混用 debug 和常规日志。</li>
+<li>[ ] 同一异常在同一层级只记录一次；循环内没有无条件文本日志。</li>
+<li>[ ] 数值时序使用稳定通道，关闭高频终端输出，并保持 key 类型稳定。</li>
+<li>[ ] 数值字段只使用 <code>int</code> / <code>float</code> / <code>bool</code> / 命名嵌套对象，不使用 <code>None</code> / <code>str</code> / <code>list</code>。</li>
+<li>[ ] 每次 <code>Module.reportInfo</code> 都携带 <code>containers</code>。</li>
+<li>[ ] 生产代码没有裸 <code>print()</code>。</li>
+<li>[ ] 新代码不产生 v1/v2/v3 已废弃的通道名或事件名。</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  <form class="md-feedback" name="feedback" hidden>
+    <fieldset>
+      <legend class="md-feedback__title">
+        Was this page helpful?
+      </legend>
+      <div class="md-feedback__inner">
+        <div class="md-feedback__list">
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="This page was helpful" data-md-value="1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8 8 8 0 0 0 8-8m2 0a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2a10 10 0 0 1 10 10M10 9.5c0 .8-.7 1.5-1.5 1.5S7 10.3 7 9.5 7.7 8 8.5 8s1.5.7 1.5 1.5m7 0c0 .8-.7 1.5-1.5 1.5S14 10.3 14 9.5 14.7 8 15.5 8s1.5.7 1.5 1.5m-5 7.73c-1.75 0-3.29-.73-4.19-1.81L9.23 14c.45.72 1.52 1.23 2.77 1.23s2.32-.51 2.77-1.23l1.42 1.42c-.9 1.08-2.44 1.81-4.19 1.81"/></svg>
+            </button>
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="This page could be improved" data-md-value="0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8 8 8 0 0 0 8-8m2 0a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2a10 10 0 0 1 10 10m-6.5-4c.8 0 1.5.7 1.5 1.5s-.7 1.5-1.5 1.5-1.5-.7-1.5-1.5.7-1.5 1.5-1.5M10 9.5c0 .8-.7 1.5-1.5 1.5S7 10.3 7 9.5 7.7 8 8.5 8s1.5.7 1.5 1.5m2 4.5c1.75 0 3.29.72 4.19 1.81l-1.42 1.42C14.32 16.5 13.25 16 12 16s-2.32.5-2.77 1.23l-1.42-1.42C8.71 14.72 10.25 14 12 14"/></svg>
+            </button>
+          
+        </div>
+        <div class="md-feedback__note">
+          
+            <div data-md-value="1" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks for your feedback!
+            </div>
+          
+            <div data-md-value="0" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks for your feedback!
+            </div>
+          
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="页脚" >
+        
+          
+          <a href="../basic.html" class="md-footer__link md-footer__link--prev" aria-label="上一页: 基础">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                上一页
+              </span>
+              <div class="md-ellipsis">
+                基础
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="rbk2py.html" class="md-footer__link md-footer__link--next" aria-label="下一页: RBK 插件 RPC 接口接入规范">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                下一页
+              </span>
+              <div class="md-ellipsis">
+                RBK 插件 RPC 接口接入规范
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+    <div class="md-copyright__highlight">
+        <a href="https://seer-robotics.ai/" target="_blank">&copy; 2026 SEER</a>
+        <!--        Syspy python SDK is owned by <a href="https://seer-robotics.ai/" target="_blank">@SEER</a> and is-->
+        <!--        registered-->
+        <!--        in the CHN and across other regions-->
+    </div>
+    
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+        Material for MkDocs
+    </a>
+    
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "content.code.copy", "content.code.select", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.tabs.sections", "navigation.tabs.sticky", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c8b220af.min.js"></script>
+      
+        <script src="../../assets/js/termynal.js"></script>
+      
+        <script src="../../assets/js/custom.js"></script>
+      
+    
+  </body>
+</html>
