@@ -2,10 +2,34 @@
 # -*- coding: utf-8 -*-
 """LED 灯带控制接口。"""
 
+import os
 from typing import Optional
 
 from syspy import RBK_VERSION
 from syspy.core.rbk_rpc import RBKVersionError
+
+
+def _sim_dmx512_ports():
+    """Return the simulator serial endpoints, in preference order."""
+    env_port = os.getenv("DMX512_SIM_PORT", "").strip()
+    ports = [env_port] if env_port else []
+    ports.extend(("/dev/RS485_0", "/tmp/ttyS8"))
+    return list(dict.fromkeys(port for port in ports if port))
+
+
+def _send_sim_dmx512_payload(payload: bytes) -> bool:
+    """Send a serialized DMX512 message to the simulator when available."""
+    for port in _sim_dmx512_ports():
+        try:
+            fd = os.open(port, os.O_WRONLY | os.O_NONBLOCK)
+            try:
+                os.write(fd, payload)
+            finally:
+                os.close(fd)
+            return True
+        except OSError:
+            continue
+    return False
 
 
 class LedInterface:
@@ -56,7 +80,12 @@ class LedInterface:
         raise RBKVersionError()
 
 
-from syspy.v3.led import LedOutput, LegacyDmxOutput
+from syspy.v3.led import (
+    LedOutput,
+    LegacyDmxOutput,
+    _send_arm_dmx_info,
+    _send_x86_dmx_info,
+)
 
 if RBK_VERSION == 3:
     from syspy.v3.led import LedV3
