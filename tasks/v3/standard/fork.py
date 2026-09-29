@@ -1764,6 +1764,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._init_mileage_state()
         Container.initContainer(0)
         self.reset_task_state()
+        # 任务未启动时外部 bindContainer 回调也会读 recfile，这里先给默认值，
+        # 避免 'recfile' 未初始化（_init_task_runtime_state 只在任务启动时执行）
+        self.recfile = getattr(self, "recfile", "")
 
         # 周期循环日志守卫状态
         self._last_fork_moving_state = None  # 记录上次 fork_is_moving 状态，变化时才打 log
@@ -2464,24 +2467,30 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def _disable_falling_down_detect(self):
         disable_falling_down_detect(self)
 
-    def bindContainer(self, container_id: str, goods_name: str, desc: str) -> bool:
-        # 1. 绑定容器
-        Container.bindContainer(container_id, goods_name, desc)
-        # 2. 设置货物形状
-        goods_shape = [{"x": 1.2 / 2, "y": 1.0 / 2},
-                       {"x": 1.2 / 2, "y": -1.0 / 2},
-                       {"x": -1.2 / 2, "y": -1.0 / 2},
-                       {"x": -1.2 / 2, "y": 1.0 / 2}]
-        if not goods_shape:
+    def bindContainer(self, container_id: str, goods_name: str, desc: str,
+                      recognitionFile: Optional[str] = None) -> bool:
+        # 绑定容器 + 按识别文件设置货物形状，走基类 ModuleBase.bindContainer 的默认实现。
+        # NetProtocol 0210 尚未透传 recognitionFile 时，回退到任务识别文件 recfile。
+        recognitionFile = recognitionFile or getattr(self, "recfile", "")
+        if not recognitionFile:
+            Trace.log("bindContainer recognitionFile missing (NetProtocol did not forward it)", name="fork.err")
             return False
-        goods_point2robot = []
+        return super().bindContainer(container_id, goods_name, desc, recognitionFile)
 
-        for point in goods_shape:
-            point2ap = pos2World([point["x"], point["y"], 0],
-                                 [ConfigParams.module_x - 1.2 / 2, 0, 0])
-            goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
-        Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
-        return True
+        # 旧的固定 1.2 x 1.0 硬编码形状（仅做 pos2World 平移，不含旋转），保留以便回退：
+        # Container.bindContainer(container_id, goods_name, desc)
+        # goods_shape = [{"x": 1.2 / 2, "y": 1.0 / 2},
+        #                {"x": 1.2 / 2, "y": -1.0 / 2},
+        #                {"x": -1.2 / 2, "y": -1.0 / 2},
+        #                {"x": -1.2 / 2, "y": 1.0 / 2}]
+        # goods_point2robot = []
+        #
+        # for point in goods_shape:
+        #     point2ap = pos2World([point["x"], point["y"], 0],
+        #                          [ConfigParams.module_x - 1.2 / 2, 0, 0])
+        #     goods_point2robot.append({"x": point2ap[0], "y": point2ap[1]})
+        # Navigation.setGoodsPolyShape(goods_point2robot, goods_name)
+        # return True
 
     def delete_clear_region(self):
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
