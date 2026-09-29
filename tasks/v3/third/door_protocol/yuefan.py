@@ -16,11 +16,11 @@ from syspy.comms.lora_comm import (
 from syspy.utils.param_server import ParamType
 
 try:
-    from .base import DoorProtocol, DoorProtocolResult, ProtocolRejected, ProtocolUnavailable
+    from . import DoorProtocol, DoorProtocolResult, ProtocolRejected, ProtocolUnavailable
 except (ImportError, ValueError):
     # RBK also starts protocol files directly to generate their input descriptor.
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from third.door_protocol.base import (
+    from third.door_protocol import (
         DoorProtocol,
         DoorProtocolResult,
         ProtocolRejected,

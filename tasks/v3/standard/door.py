@@ -20,7 +20,7 @@ from third import (
     resolve_map_point,
     topology_device_data,
 )
-from third.door_protocol.base import ProtocolRejected, ProtocolUnavailable
+from third.door_protocol import ProtocolRejected, ProtocolUnavailable
 
 
 script_param = ScriptParam(__file__)

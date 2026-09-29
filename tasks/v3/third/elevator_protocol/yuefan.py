@@ -16,11 +16,11 @@ from syspy.comms.lora_comm import (
 from syspy.utils.param_server import ParamType
 
 try:
-    from .base import ElevatorProtocol, ElevatorProtocolResult, ProtocolRejected, ProtocolUnavailable
+    from . import ElevatorProtocol, ElevatorProtocolResult, ProtocolRejected, ProtocolUnavailable
 except (ImportError, ValueError):
     # RBK also starts protocol files directly to generate their input descriptor.
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from third.elevator_protocol.base import (
+    from third.elevator_protocol import (
         ElevatorProtocol,
         ElevatorProtocolResult,
         ProtocolRejected,

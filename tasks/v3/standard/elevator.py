@@ -24,7 +24,7 @@ from third import (
     map_device_data,
     resolve_map_point,
 )
-from third.elevator_protocol.base import ProtocolRejected, ProtocolUnavailable
+from third.elevator_protocol import ProtocolRejected, ProtocolUnavailable
 
 
 script_param = ScriptParam(__file__)
