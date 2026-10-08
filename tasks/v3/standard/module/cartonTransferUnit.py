@@ -88,6 +88,9 @@ def debug_print(*args, **kwargs):
 
 class ConfigParams:
     config = {}
+    moduleMotor = []
+    scriptName = ""
+    module_type = ""
     high = dict()
     low = dict()
     container_count = 0
@@ -149,6 +152,7 @@ class ConfigParams:
         module_type = RobotParam.getDevice("Model-000", "moduleType")
         if not module_type:
             raise ValueError("读取设备模型失败: Model-000.moduleType 为空，请检查设备模型配置！")
+        cls.module_type = module_type
         base = f"moduleType.{module_type}"
 
         cls.lift_motor_name = RobotParam.getDevice("Model-000", f"{base}.liftMotor")
@@ -528,6 +532,41 @@ class ConfigParams:
         cls.light_delay_time = cls.config.get("lightDelayTime")
         cls.motor_settle_delay = cls.config.get("motorSettleDelay", 0)
         cls.auto_pre_advance_time = cls.config.get("autoPreAdvanceTime", 1.0)
+        cls.scriptName = RobotParam.getDevice(
+            "Model-000",
+            f"moduleType.{cls.module_type}.moduleScript",
+        ) or ""
+        cls._build_module_motor()
+
+    @classmethod
+    def _build_module_motor(cls):
+        """构建屏幕接口使用的 moduleMotor 能力与边界信息。"""
+        cls.moduleMotor = [
+            {
+                "type": "lift",
+                "motorKey": cls.lift_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": cls.max_lift_height,
+                "minLength": cls.min_lift_height,
+            },
+            {
+                "type": "stretch",
+                "motorKey": cls.stretch_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": cls.max_stretch_length,
+                "minLength": 0.0,
+            },
+            {
+                "type": "rotate",
+                "motorKey": cls.rotate_motor_name,
+                "jogSupport": True,
+                "currentPosition": 0.0,
+                "maxLength": cls.max_rotate_angle,
+                "minLength": -cls.max_rotate_angle,
+            },
+        ]
 
 
 '''参数创建必须在全局作用域中'''
@@ -3463,9 +3502,24 @@ class ContainerRobot(ModuleBase):
         self.containers = Container.getContainers()
         self.report_info["currentPos"] = module_pos
 
+    def update_screen_motor_report(self):
+        """按 jackWithSpin 格式持续更新屏幕接口的 moduleMotor。"""
+        for motor in ConfigParams.moduleMotor:
+            try:
+                current_position = Motor.getMotorPos(motor["motorKey"])
+                if motor["type"] == "rotate":
+                    current_position = current_position * 180 / math.pi
+                motor["currentPosition"] = round(current_position, 3)
+            except Exception as exc:
+                Trace.log(
+                    f"get motor pos failed motor={motor.get('motorKey')} error={exc}",
+                    name=f"{MOD}.err",
+                )
+
     def tick_report(self):
         """每 tick 调用一次:合并一次 reportInfo(含 containers)+ 集中数值时序(ctu.task / ctu.motor)。"""
         self.update_report_info()
+        self.update_screen_motor_report()
         cur = self.action_task.current
         counts = self.action_task.status_counts()
         containers = self.containers or []
@@ -3478,6 +3532,8 @@ class ContainerRobot(ModuleBase):
             "actionId": cur.action_id if cur else "",
             "actionTotal": self.action_task.total,
             "containers": containers,
+            "moduleMotor": ConfigParams.moduleMotor,
+            "moduleScript": ConfigParams.scriptName,
         })
         Module.reportInfo(self.report_info)
 
