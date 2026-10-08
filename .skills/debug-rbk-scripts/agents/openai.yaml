@@ -1,0 +1,9 @@
+interface:
+  display_name: "RBK Script Debugging"
+  short_description: "先问故障时间，再按 channel 定位 RBK 脚本/RPC/导航/定位/地图/设备问题"
+  default_prompt: "Use $debug-rbk-scripts to diagnose an RBK script, MF/PyIDE RPC chain, navigation, localization, map, or device problem. First ask for the exact fault time and taskId, then filter the trace by channel (rbk.script.utils_rpc, rbk.nav.MoveFactory, rbk.loc.MCLoc, rbk.loc.BlockMapLoader, rbk.device.DSPChassis) and collect source-backed evidence."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "seer_spg_http_api_docs"
+      description: "RBK HTTP OpenAPI documentation"
