@@ -16,16 +16,18 @@ from third import (
     DoorPassContext,
     DoorPhase,
     create_protocol,
-    map_device_data,
+    map_gate_data,
     resolve_map_point,
-    topology_device_data,
 )
 from third.door_protocol import ProtocolRejected, ProtocolUnavailable
 
 
 script_param = ScriptParam(__file__)
 
-_TOPOLOGY_PATH = "/opt/.data/rbk/resources/maps/workspace_topology.json"
+
+def _current_map_name():
+    header = getattr(getattr(Map, "data", None), "header", None)
+    return str(getattr(header, "mapName", "") or "")
 
 
 def _protocol_script_choices():
@@ -637,15 +639,25 @@ class DoorStatePublisher:
 def _resolve_source_side(source_station, point_names, explicit=None):
     if explicit in ("sideA", "sideB"):
         return explicit
-    if point_names is not None:
-        if not isinstance(point_names, (list, tuple)) or len(point_names) != 2:
-            raise ValueError("pointNames must contain exactly two stations")
-        if source_station == point_names[0]:
-            return "sideA"
-        if source_station == point_names[1]:
-            return "sideB"
-        raise ValueError("sourceStation is not one of pointNames")
-    raise ValueError("pointNames/sourceSide is required")
+    if point_names is None:
+        raise ValueError(
+            "gate pointNames is missing: bind two stations to the gate device"
+        )
+    if not isinstance(point_names, (list, tuple)) or len(point_names) != 2:
+        raise ValueError(
+            "gate pointNames must contain exactly two stations, got {}".format(
+                list(point_names) if isinstance(point_names, (list, tuple)) else point_names
+            )
+        )
+    if source_station == point_names[0]:
+        return "sideA"
+    if source_station == point_names[1]:
+        return "sideB"
+    raise ValueError(
+        "sourceStation {!r} is not one of gate pointNames {}".format(
+            source_station, list(point_names)
+        )
+    )
 
 
 def _protocol_instance_args(protocol_site, extra=None):
@@ -853,16 +865,18 @@ class DoorModule(ModuleBase):
             self.set_status(ScriptStatus.FAILED)
             return
         try:
-            protocol_site = map_device_data(
+            protocol_site = map_gate_data(
                 self.args.get("operation.pass.deviceId"),
                 self.args.get("workspace", ""),
             )
-            protocol_data = protocol_site.get("jsonObject") or {}
-            if not protocol_data:
-                protocol_data = topology_device_data(
-                    _TOPOLOGY_PATH, "doorList",
-                    self.args.get("operation.pass.deviceId"),
+            if not protocol_site:
+                raise ValueError(
+                    "gate {} not found in autoGateList of the current map {}".format(
+                        self.args.get("operation.pass.deviceId"),
+                        _current_map_name() or "message",
+                    )
                 )
+            protocol_data = protocol_site.get("jsonObject") or {}
             # ``args`` stays the parsed task input; the resolved pass state
             # lives in DoorPassContext rather than being merged into it.
             self.context = _resolve_pass_context(self.args, protocol_data)

@@ -204,47 +204,53 @@ def load_workspace_topology(path):
     return topology
 
 
-def map_device_data(device_id, workspace=""):
+def _current_map_name():
+    header = getattr(getattr(Map, "data", None), "header", None)
+    return str(getattr(header, "mapName", "") or "")
+
+
+def map_gate_data(device_id, workspace=""):
+    """Resolve one ``autoGateList`` entry for a gate device.
+
+    Gate devices live in the per-map ``0.smap`` ``autoGateList`` rather than in
+    ``workspace_topology.json``, so the lookup is scoped to the gate's map.  The
+    workspace is mapped to its owning map first; without that, a gate on another
+    map would silently resolve to an empty payload.
+    """
     if not device_id:
         return {}
-    try:
+    map_name = ""
+    if workspace:
         try:
-            site = Map.getSiteDataByName(device_id, workspace=workspace)
-        except TypeError:
-            site = Map.getSiteDataByName(device_id)
-        return dict(site or {})
-    except Exception:
-        return {}
-
-
-def topology_device_data(path, key, device_id):
+            map_name = Map.getMapNameByWorkspace(workspace) or ""
+        except Exception:
+            map_name = ""
     try:
-        topology = load_workspace_topology(path)
-    except ValueError:
+        gate = Map.getMapData("autoGateList", device_id, map_name)
+    except TypeError:
+        gate = Map.getMapData("autoGateList", device_id)
+    if not gate:
         return {}
-    for item in topology.get(key, []):
-        if isinstance(item, dict) and item.get("instanceName") == device_id:
-            result = dict(item.get("jsonObject") or {})
-            if item.get("pointNames") is not None:
-                result["pointNames"] = item["pointNames"]
-            return result
-    return {}
+    return dict(gate)
 
 
 def resolve_map_point(reference, field, workspace=""):
     if isinstance(reference, dict):
         point = dict(reference)
     elif isinstance(reference, str) and reference:
-        try:
-            point = Map.getSiteDataByName(reference, workspace=workspace) if workspace else None
-        except TypeError:
+        point = None
+        if workspace:
+            try:
+                point = Map.getSiteDataByName(reference, workspace=workspace)
+            except TypeError:
+                point = None
+        if not point:
+            # ``getSiteDataByName`` only searches the current map, so this is a
+            # best-effort lookup for callers that did not pin a workspace.
             point = Map.getSiteDataByName(reference)
         if not point:
-            point = Map.getSiteDataByName(reference)
-        if not point:
-            header = getattr(getattr(Map, "data", None), "header", None)
-            map_name = getattr(header, "mapName", "")
-            raise ValueError("{} {} is missing from map {}".format(
+            map_name = _current_map_name()
+            raise ValueError("{0} {1} is missing from map {2}".format(
                 field, reference, map_name or "message"
             ))
         point = dict(point)
