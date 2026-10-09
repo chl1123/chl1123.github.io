@@ -216,7 +216,8 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
-    def parseGoodsShape(cls, recognition_file: str) -> List[Dict[str, float]]:
+    def parseGoodsShape(cls, recognition_file: str,
+                        recognition_side: Optional[str] = "B") -> List[Dict[str, float]]:
         """从识别文件中解析货物形状。
 
         读取识别文件 recognition_file（如 xxx.srec）中的
@@ -226,6 +227,7 @@ class NavigationV3(NavigationInterface):
 
         Args:
             recognition_file (str): 识别文件名，如 "xxx.srec"。
+            recognition_side (Optional[str]): A/B/C/D，默认 B；None 保持原坐标。
 
         Returns:
             (List[Dict[str, float]]): ``setGoodsPolyShape`` 需要的点列表；
@@ -268,7 +270,13 @@ class NavigationV3(NavigationInterface):
                     points.append({"x": point["x"], "y": point["y"]})
                 elif isinstance(point, (list, tuple)) and len(point) >= 2:
                     points.append({"x": point[0], "y": point[1]})
-        return points
+        from ..utils.goods_shape import transform_goods_shape
+        try:
+            return transform_goods_shape(points, recognition_side)
+        except (TypeError, ValueError) as e:
+            Trace.log(f"transform goods shape failed recognitionFile={recognition_file} "
+                      f"recognitionSide={recognition_side} error={e}", name="Navigation.err")
+            return []
 
     @classmethod
     @call_service()

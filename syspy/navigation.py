@@ -405,7 +405,8 @@ class NavigationInterface(ABC, Service):
         raise RBKVersionError()
 
     @classmethod
-    def parseGoodsShape(cls, recognition_file: str) -> List[Dict[str, float]]:
+    def parseGoodsShape(cls, recognition_file: str,
+                        recognition_side: Optional[str] = "B") -> List[Dict[str, float]]:
         """从识别文件中解析货物形状。
 
         读取识别文件 recognition_file（如 xxx.srec）中的
@@ -414,9 +415,11 @@ class NavigationInterface(ABC, Service):
             [{"points": [{"x": 0.6, "y": 0.6}, {"x": -0.6, "y": 0.6}, ...]}]
 
         纯解析、不下发 RPC，不区分 RBK 版本。
+        按栈板识别面旋转：A 顺时针 90°、B 180°、C 逆时针 90°、D 不旋转。
 
         Args:
             recognition_file (str): 识别文件名，如 "xxx.srec"。
+            recognition_side (Optional[str]): A/B/C/D，默认 B；None 保持原坐标。
 
         Returns:
             (List[Dict[str, float]]): ``setGoodsPolyShape`` 需要的点列表；

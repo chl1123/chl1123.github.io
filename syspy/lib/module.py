@@ -10,7 +10,7 @@ from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
 from syspy import RBK_VERSION, Container, ScriptParam, Navigation
 from .trace import Trace
-from inspect import stack
+from inspect import signature, stack
 
 
 class ScriptStatus(IntEnum):
@@ -295,12 +295,22 @@ class Module:
 
     @classmethod
     def __bindContainer(cls, container_id: str, goods_name: str, desc: str,
-                        recognitionFile: Optional[str] = None) -> bool:
+                        recognitionFile: Optional[str] = None,
+                        recognitionSide: Optional[str] = "B") -> bool:
         """绑定容器回调（MF/服务端调用）。
 
         recognitionFile 为可选的识别文件名（如 xxx.srec），缺省 None。
+        recognitionSide 为识别面 A/B/C/D，缺省 B。
         """
-        return cls.__bind_container_callback(container_id, goods_name, desc, recognitionFile)
+        callback = cls.__bind_container_callback
+        # 兼容仍重写旧版 bindContainer 的专用模块，避免把识别面误传为插入方向。
+        try:
+            callback_names = list(signature(callback).parameters)
+        except (TypeError, ValueError):
+            callback_names = []
+        if "recognitionSide" in callback_names or "recognition_side" in callback_names:
+            return callback(container_id, goods_name, desc, recognitionFile, recognitionSide)
+        return callback(container_id, goods_name, desc, recognitionFile)
 
     @classmethod
     def __unbindContainer(cls, container_id: str = "", goods_name: str = "") -> bool:
@@ -315,7 +325,7 @@ class Module:
         cls.__modbus_callback = callback
 
     @classmethod
-    def bindContainerCallback(cls, callback: Callable[[str, str, str, Optional[str]], bool]):
+    def bindContainerCallback(cls, callback: Callable[[str, str, str, Optional[str], Optional[str]], bool]):
         cls.__bind_container_callback = callback
 
     @classmethod
@@ -527,7 +537,8 @@ class ModuleBase(ABC):
         Module.setSafeMoveCheckStatus(status)
 
     def bindContainer(self, container_id: str, goods_name: str, desc: str,
-                      recognitionFile: Optional[str] = None) -> bool:
+                      recognitionFile: Optional[str] = None,
+                      recognitionSide: Optional[str] = "B") -> bool:
         """绑定货物到容器，并根据识别文件设置货物形状
 
         默认实现：绑定容器后，如果有 recognitionFile，从它的
@@ -540,18 +551,21 @@ class ModuleBase(ABC):
             desc (str): 货物描述
             recognitionFile (Optional[str]): 识别文件名（如 xxx.srec）。
                 缺省 None 时不设置货物形状。
+            recognitionSide (Optional[str]): 识别面 A/B/C/D，默认 B；
+                None 时保持识别文件中的原始坐标。
 
         Returns:
             (bool): 如果没有库位或者容器，则返回false
         """
         bound = Container.bindContainer(container_id, goods_name, desc)
         if recognitionFile:
-            shape = Navigation.parseGoodsShape(recognitionFile)
+            shape = Navigation.parseGoodsShape(recognitionFile, recognitionSide)
             if shape:
                 Navigation.setGoodsPolyShape(shape, recognitionFile)
             Trace.log(
                 f"bindContainer container={container_id} goods={goods_name} "
-                f"recognitionFile={recognitionFile} shape_points={len(shape)}",
+                f"recognitionFile={recognitionFile} recognitionSide={recognitionSide} "
+                f"shape_points={len(shape)}",
                 name="Module.bindContainer",
             )
         return bound
