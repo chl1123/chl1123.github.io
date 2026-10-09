@@ -50,6 +50,7 @@ from syspy import (
     Can,
     NavStatus,
     NavSpeed,
+    Map,
     LevelDB,
 )
 
@@ -500,6 +501,22 @@ class ConfigParams:
                         builder.DEFAULTVALUE(
                             '["AP9", "AP8", "LM7", "AP5", "AP6", "LM3", "AP1", "AP2"]')
 
+                    with builder.CHILD(
+                            key="wait_input_route",
+                            name="wait_input_route",
+                            desc="启用后不从定时路线配置自动发单，等待输入参数发送路线或区域",
+                    ):
+                        builder.TYPE(ParamType.BOOL)
+                        builder.DEFAULTVALUE(False)
+
+                    with builder.CHILD(
+                            key="clean_area_routes",
+                            name="clean_area_routes",
+                            desc="清洁区域入口和出口映射，格式：{\"CA1\":[\"入口\",\"出口\"]}",
+                    ):
+                        builder.TYPE(ParamType.STRING)
+                        builder.DEFAULTVALUE("{}")
+
         builder.save(merge=True)
         if migrate_basic_config:
             with open(param_loader.config_file, "r", encoding="utf-8") as config_file:
@@ -566,6 +583,70 @@ class ConfigParams:
         cls.scheduled_clean_enabled = cls.config.get("scheduled_clean_enabled", 1)
         cls.scheduled_clean_hour = cls.config.get("scheduled_clean_hour", 8)
         cls.scheduled_clean_minute = cls.config.get("scheduled_clean_minute", 0)
+        cls.wait_input_route = bool(cls.config.get("wait_input_route", False))
+        previous_area_routes = getattr(cls, "clean_area_routes", {})
+        area_route_config_error = None
+        try:
+            clean_area_routes = json.loads(cls.config.get("clean_area_routes", "{}"))
+            if (not isinstance(clean_area_routes, dict) or
+                    any(not isinstance(area, str) or
+                        not isinstance(points, list) or len(points) != 2 or
+                        not all(isinstance(point, str) and point for point in points)
+                        for area, points in clean_area_routes.items())):
+                raise ValueError("must be an object of area -> [entrance, exit] pairs")
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
+            area_route_config_error = str(exc)
+            clean_area_routes = previous_area_routes
+            Trace.log(
+                f"Invalid clean_area_routes config: {exc}; keeping the previous valid mapping"
+            )
+        cls.clean_area_routes = clean_area_routes
+        if area_route_config_error is None and clean_area_routes:
+            try:
+                topo_areas = Map.getTopoAreaList()
+                if topo_areas is None:
+                    raise ValueError("Map.getTopoAreaList returned no data")
+                area_points = {
+                    area.get("instanceName"): set(area.get("advancedPointNames") or [])
+                    for area in topo_areas
+                    if isinstance(area, dict) and area.get("instanceName")
+                }
+                missing_areas = sorted(
+                    area for area in clean_area_routes
+                    if area not in area_points
+                )
+                mismatched_points = sorted(
+                    f"{area}: {', '.join(point for point in points if point not in area_points[area])}"
+                    for area, points in clean_area_routes.items()
+                    if area in area_points and any(
+                        point not in area_points[area] for point in points
+                    )
+                )
+                if missing_areas or mismatched_points:
+                    details = []
+                    if missing_areas:
+                        details.append(f"unknown areas: {', '.join(missing_areas)}")
+                    if mismatched_points:
+                        details.append(
+                            "points not in area: " + "; ".join(mismatched_points)
+                        )
+                    raise ValueError("; ".join(details))
+            except Exception as exc:
+                area_route_config_error = f"area/point mapping validation failed: {exc}"
+                Trace.log(f"Invalid clean_area_routes config: {area_route_config_error}")
+        cls.clean_area_route_config_valid = area_route_config_error is None
+        cls.clean_area_route_config_error = area_route_config_error
+        try:
+            if area_route_config_error:
+                Navigation.setDeviceError(
+                    "DeviceError-CLEAN-AREA-ROUTE",
+                    f"Invalid clean_area_routes config: {area_route_config_error}; "
+                    "please check area advancedPointNames and push again"
+                )
+            else:
+                Navigation.clearDeviceError("DeviceError-CLEAN-AREA-ROUTE")
+        except Exception as exc:
+            Trace.log(f"Failed to update clean area route error: {exc}")
         previous_locations = getattr(cls, "scheduled_clean_locations", [])
         previous_routes = getattr(cls, "scheduled_clean_routes", [])
         route_config_error = None
@@ -584,7 +665,9 @@ class ConfigParams:
                       for route in scheduled_clean_locations)):
                 scheduled_clean_routes = scheduled_clean_locations
             else:
-                raise ValueError("route must be a string list or a non-empty list of string lists")
+                raise ValueError(
+                    "route must be a string list or a non-empty list of string lists"
+                )
         except (TypeError, json.JSONDecodeError, ValueError) as exc:
             route_config_error = str(exc)
             Trace.log(
@@ -1715,6 +1798,10 @@ class InputParams:
 
                 with builder.CHILD(key="SendOrders", name="SendOrders", desc="SendOrders"):
                     builder.TYPE(ParamType.ARRAY)
+                    with builder.CHILDREN():
+                        with builder.CHILD(key="areas", name="areas", desc="清洁区域列表，例如 [\"CA1\",\"CA2\"]"):
+                            builder.TYPE(ParamType.ARRAY)
+                            builder.REQUIRED(True)
 
                 with builder.CHILD(key="SendContinueOrders", name="SendContinueOrders", desc="SendContinueOrders"):
                     builder.TYPE(ParamType.ARRAY)
@@ -2582,9 +2669,83 @@ class CleanRobotManage:
         elif op == "ResetCleanPath":
             Trace.log(f"[cleanRobotManage] run() operation={op}, args={args}")
             self._handle_reset_clean_path()
+        elif op == "SendOrders":
+            self._handle_send_orders(args)
         else:
             if isFirstRun:
                 Trace.log(f"[cleanRobotManage] run() called with unknown operation={op}, args={args}")
+
+    @staticmethod
+    def _parse_json_list(value: Any, name: str) -> List[str]:
+        """解析输入中的 JSON 字符串列表。"""
+        if isinstance(value, str):
+            value = json.loads(value or "[]")
+        if (not isinstance(value, list) or
+                not all(isinstance(item, str) and item for item in value)):
+            raise ValueError(f"{name} must be a list of non-empty strings")
+        return value
+
+    def _areas_to_route(self, areas: List[str]) -> List[str]:
+        """按配置的区域入口/出口映射展开为 M4 站点路线。"""
+        if not config_params.clean_area_route_config_valid:
+            raise ValueError(
+                f"clean_area_routes config is invalid: "
+                f"{config_params.clean_area_route_config_error}"
+            )
+        route = []
+        for area in areas:
+            points = config_params.clean_area_routes.get(area)
+            if not points:
+                raise ValueError(f"clean area '{area}' has no entrance/exit mapping")
+            entrance, exit_point = points[0], points[-1]
+            if not route or route[-1] != entrance:
+                route.append(entrance)
+            route.append(exit_point)
+        return route
+
+    def _handle_send_orders(self, args: Dict[str, Any]):
+        """按输入区域发送清洁运单，机器人和优先级沿用配置。"""
+        try:
+            areas = self._parse_json_list(args.get("areas", []), "areas")
+            step_locations = self._areas_to_route(areas)
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
+            Trace.log(f"[cleanRobotManage] Invalid SendOrders route: {exc}")
+            Module.setStatus(ScriptStatus.FAILED)
+            Navigation.setTaskError("args error", f"invalid clean route: {exc}")
+            return
+        if not step_locations:
+            Trace.log("[cleanRobotManage] SendOrders route is empty")
+            Module.setStatus(ScriptStatus.FAILED)
+            Navigation.setTaskError("args error", "clean route is empty")
+            return
+        if not self.can_dispatch_to_m4():
+            Trace.log("[cleanRobotManage] SendOrders rejected: robot cannot dispatch to M4")
+            return
+        else:
+            Trace.log(f"[cleanRobotManage] SendOrders route: {step_locations}")
+        payload = self._build_simple_order(
+            step_locations,
+            config_params.robot_name,
+            50,
+        )
+        order_id = self.post_to_scheduler(payload)
+        if not order_id:
+            Navigation.setTaskError("HTTP-M4-ERROR", "send clean order failed")
+            return
+        self.current_task = {
+            "step_locations": step_locations,
+            "robot_name": config_params.robot_name,
+            "priority": 50,
+            "task_id": f"input_clean_{int(time.time())}",
+        }
+        self.current_task_type = TaskType.CLEAN
+        self.current_order_id = order_id
+        self._reset_clean_area_progress(step_locations)
+        self._save_order_state()
+        # SendOrders 只负责创建一次 M4 运单；订单状态由 current_task 后续监控。
+        self.action_status = ScriptStatus.FINISHED
+        Module.setStatus(self.action_status)
+        Trace.log(f"[cleanRobotManage] Input clean order sent: {order_id}, areas={areas}, route={step_locations}")
 
     # 开始清扫任务接口
     def _handle_run_clean_path_and_wash(self, args: Dict[str, Any], is_wash: bool = False):
@@ -3503,7 +3664,8 @@ class CleanRobotManage:
         - 使用日期字符串判断是否今天已执行过
         """
         # 检查是否启用
-        if not config_params.scheduled_clean_enabled:
+        if (not config_params.scheduled_clean_enabled or
+                config_params.wait_input_route):
             return
 
         if not config_params.scheduled_clean_config_valid:
@@ -3737,13 +3899,10 @@ def main():
 
     SendOrders 操作的 JSON 示例：
 
-    1. 发送清洁运单（导航到多个站点）:
+    1. 按区域发送清洁运单（区域入口和出口由 clean_area_routes 配置提供）:
     {
         "operation": "SendOrders",
-        "order_type": "clean",
-        "step_locations": ["LM29", "LM55", "CA1", "LM60"],
-        "robot_name": "SVJ-01",
-        "priority": 90
+        "areas": ["CA1", "CA2"]
     }
 
     2. 发送充电运单:
