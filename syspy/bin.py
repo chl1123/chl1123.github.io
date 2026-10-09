@@ -1,9 +1,51 @@
 from abc import ABC
-from typing import List, TYPE_CHECKING, Union, Optional
+import json
+from typing import Dict, List, TYPE_CHECKING, Union, Optional
 
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 from syspy import RBK_VERSION
 from syspy.core.rbk_rpc import Service, Message, RBKVersionError
+
+
+def parseGoodsShape(recognition_file: str, recognition_side: Optional[str] = "B") -> List[Dict[str, float]]:
+    """从识别文件读取货物形状并按识别面旋转。"""
+    if not recognition_file:
+        return []
+    from .lib.robot import RobotParam
+    from .lib.trace import Trace
+    try:
+        goods_shape = RobotParam.getConfig(
+            "recognition", "recognitionObject.pallet.goodsParameter.goodsShape", recognition_file
+        )
+        shapes = json.loads(goods_shape) if isinstance(goods_shape, str) else goods_shape
+    except Exception as e:
+        Trace.log(f"parse goods shape failed recognitionFile={recognition_file} error={e}", name="Navigation.err")
+        return []
+    if isinstance(shapes, dict):
+        shapes = [shapes]
+    if not isinstance(shapes, (list, tuple)):
+        return []
+    points = []
+    for shape in shapes:
+        if not isinstance(shape, dict):
+            continue
+        for point in shape.get("points", []) or []:
+            if isinstance(point, dict) and "x" in point and "y" in point:
+                points.append({"x": point["x"], "y": point["y"]})
+            elif isinstance(point, (list, tuple)) and len(point) >= 2:
+                points.append({"x": point[0], "y": point[1]})
+    side = recognition_side.upper() if isinstance(recognition_side, str) else recognition_side
+    if side not in (None, "", "A", "B", "C", "D"):
+        return []
+    for point in points:
+        x, y = point["x"], point["y"]
+        if side == "A":
+            point["x"], point["y"] = y, -x
+        elif side == "B":
+            point["x"], point["y"] = -x, -y
+        elif side == "C":
+            point["x"], point["y"] = -y, x
+    return points
 
 
 if TYPE_CHECKING:

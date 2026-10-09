@@ -216,69 +216,6 @@ class NavigationV3(NavigationInterface):
         pass
 
     @classmethod
-    def parseGoodsShape(cls, recognition_file: str,
-                        recognition_side: Optional[str] = "B") -> List[Dict[str, float]]:
-        """从识别文件中解析货物形状。
-
-        读取识别文件 recognition_file（如 xxx.srec）中的
-        ``recognitionObject.pallet.goodsParameter.goodsShape``：
-
-            [{"points": [{"x": 0.6, "y": 0.6}, {"x": -0.6, "y": 0.6}, ...]}]
-
-        Args:
-            recognition_file (str): 识别文件名，如 "xxx.srec"。
-            recognition_side (Optional[str]): A/B/C/D，默认 B；None 保持原坐标。
-
-        Returns:
-            (List[Dict[str, float]]): ``setGoodsPolyShape`` 需要的点列表；
-            识别文件缺失、未配置或格式非法时返回 []。
-        """
-        import json
-        # 延迟导入：syspy/__init__ 中 v3.navigation 早于 lib.robot 加载，顶层导入会循环
-        from ..lib.robot import RobotParam
-        from ..lib.trace import Trace
-
-        if not recognition_file:
-            return []
-        try:
-            goods_shape = RobotParam.getConfig(
-                "recognition", "recognitionObject.pallet.goodsParameter.goodsShape", recognition_file
-            )
-        except Exception as e:
-            Trace.log(f"read goods shape failed recognitionFile={recognition_file} error={e}",
-                      name="Navigation.err")
-            return []
-        if not goods_shape:
-            return []
-        try:
-            shapes = json.loads(goods_shape) if isinstance(goods_shape, str) else goods_shape
-        except (TypeError, ValueError) as e:
-            Trace.log(f"parse goods shape failed recognitionFile={recognition_file} error={e}",
-                      name="Navigation.err")
-            return []
-        if isinstance(shapes, dict):
-            shapes = [shapes]
-        if not isinstance(shapes, (list, tuple)):
-            return []
-
-        points: List[Dict[str, float]] = []
-        for shape in shapes:
-            if not isinstance(shape, dict):
-                continue
-            for point in shape.get("points", []) or []:
-                if isinstance(point, dict) and "x" in point and "y" in point:
-                    points.append({"x": point["x"], "y": point["y"]})
-                elif isinstance(point, (list, tuple)) and len(point) >= 2:
-                    points.append({"x": point[0], "y": point[1]})
-        from ..utils.goods_shape import transform_goods_shape
-        try:
-            return transform_goods_shape(points, recognition_side)
-        except (TypeError, ValueError) as e:
-            Trace.log(f"transform goods shape failed recognitionFile={recognition_file} "
-                      f"recognitionSide={recognition_side} error={e}", name="Navigation.err")
-            return []
-
-    @classmethod
     @call_service()
     def setIncreaseSpinAngle(cls, angle: float):
         pass

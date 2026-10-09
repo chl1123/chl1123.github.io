@@ -187,58 +187,8 @@ class NavigationV4(NavigationInterface):
     @classmethod
     def parseGoodsShape(cls, recognition_file: str,
                         recognition_side: Optional[str] = "B") -> List[dict]:
-        """从识别文件中解析货物形状（纯解析，不下发 RPC）。
-
-        读取 recognition_file 中的
-        ``recognitionObject.pallet.goodsParameter.goodsShape``，返回
-        ``setGoodsPolyShape`` 需要的点列表；异常时返回 []。
-        recognition_side 为 A/B/C/D，默认 B；None 保持原坐标。
-        A 顺时针 90°、B 180°、C 逆时针 90°、D 不旋转。
-        """
-        import json
-        # 延迟导入：syspy/__init__ 中 v4.navigation 早于 lib.robot 加载，顶层导入会循环
-        from ..lib.robot import RobotParam
-        from ..lib.trace import Trace
-
-        if not recognition_file:
-            return []
-        try:
-            goods_shape = RobotParam.getConfig(
-                "recognition", "recognitionObject.pallet.goodsParameter.goodsShape", recognition_file
-            )
-        except Exception as e:
-            Trace.log(f"read goods shape failed recognitionFile={recognition_file} error={e}",
-                      name="Navigation.err")
-            return []
-        if not goods_shape:
-            return []
-        try:
-            shapes = json.loads(goods_shape) if isinstance(goods_shape, str) else goods_shape
-        except (TypeError, ValueError) as e:
-            Trace.log(f"parse goods shape failed recognitionFile={recognition_file} error={e}",
-                      name="Navigation.err")
-            return []
-        if isinstance(shapes, dict):
-            shapes = [shapes]
-        if not isinstance(shapes, (list, tuple)):
-            return []
-
-        points: List[dict] = []
-        for shape in shapes:
-            if not isinstance(shape, dict):
-                continue
-            for point in shape.get("points", []) or []:
-                if isinstance(point, dict) and "x" in point and "y" in point:
-                    points.append({"x": point["x"], "y": point["y"]})
-                elif isinstance(point, (list, tuple)) and len(point) >= 2:
-                    points.append({"x": point[0], "y": point[1]})
-        from ..utils.goods_shape import transform_goods_shape
-        try:
-            return transform_goods_shape(points, recognition_side)
-        except (TypeError, ValueError) as e:
-            Trace.log(f"transform goods shape failed recognitionFile={recognition_file} "
-                      f"recognitionSide={recognition_side} error={e}", name="Navigation.err")
-            return []
+        from ..bin import parseGoodsShape
+        return parseGoodsShape(recognition_file, recognition_side)
 
     @classmethod
     @call_service()

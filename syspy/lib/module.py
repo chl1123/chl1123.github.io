@@ -9,8 +9,9 @@ from syspy.utils import ScriptType
 from ..core.rbk_rpc import Service
 from ..utils import SCRIPTS_DIR
 from syspy import RBK_VERSION, Container, ScriptParam, Navigation
+from syspy.bin import parseGoodsShape
 from .trace import Trace
-from inspect import signature, stack
+from inspect import stack
 
 
 class ScriptStatus(IntEnum):
@@ -302,15 +303,9 @@ class Module:
         recognitionFile 为可选的识别文件名（如 xxx.srec），缺省 None。
         recognitionSide 为识别面 A/B/C/D，缺省 B。
         """
-        callback = cls.__bind_container_callback
-        # 兼容仍重写旧版 bindContainer 的专用模块，避免把识别面误传为插入方向。
-        try:
-            callback_names = list(signature(callback).parameters)
-        except (TypeError, ValueError):
-            callback_names = []
-        if "recognitionSide" in callback_names or "recognition_side" in callback_names:
-            return callback(container_id, goods_name, desc, recognitionFile, recognitionSide)
-        return callback(container_id, goods_name, desc, recognitionFile)
+        return cls.__bind_container_callback(
+            container_id, goods_name, desc, recognitionFile, recognitionSide
+        )
 
     @classmethod
     def __unbindContainer(cls, container_id: str = "", goods_name: str = "") -> bool:
@@ -559,7 +554,7 @@ class ModuleBase(ABC):
         """
         bound = Container.bindContainer(container_id, goods_name, desc)
         if recognitionFile:
-            shape = Navigation.parseGoodsShape(recognitionFile, recognitionSide)
+            shape = parseGoodsShape(recognitionFile, recognitionSide)
             if shape:
                 Navigation.setGoodsPolyShape(shape, recognitionFile)
             Trace.log(
