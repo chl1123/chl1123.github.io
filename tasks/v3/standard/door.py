@@ -91,8 +91,14 @@ class GoBezierWorld(_BaseGoBezierWorld):
         path_heading = self._path_heading
         if path_heading is None:
             path_heading = math.atan2(p3[1] - p0[1], p3[0] - p0[0])
+        # Use the directed passage geometry for both tangents.  The robot may
+        # currently face the opposite way at the source station; using its yaw
+        # here creates a cusp and can make the curvature numerically explode.
+        geometry_start = [p0[0], p0[1], path_heading]
         geometry_target = [p3[0], p3[1], path_heading + math.pi]
-        return super().compute_bezier_controls_dir(p0, geometry_target, alpha)
+        return super().compute_bezier_controls_dir(
+            geometry_start, geometry_target, alpha
+        )
 
 
 class ConfigParams:
@@ -288,6 +294,74 @@ class ProtocolAction(ActionBase):
             return {}
         return {key: value for key, value in vars(self.result).items()
                 if isinstance(value, (bool, int, float, str))}
+
+
+class AlignDoorHeading(ActionBase):
+    """Align the chassis at its current position before acquiring the gate."""
+
+    def __init__(self, source, target):
+        super().__init__(self.__class__.__name__)
+        self.heading = math.atan2(
+            float(target["y"]) - float(source["y"]),
+            float(target["x"]) - float(source["x"]),
+        )
+        self.path_started = False
+
+    def args_summary(self):
+        return {"heading": self.heading}
+
+    def reset(self):
+        super().reset()
+        self.path_started = False
+
+    def run(self, _ctx=None):
+        try:
+            if not self.path_started:
+                pose = Loc.getPose()
+                yaw = math.radians(float(pose["yaw"]))
+                error = (self.heading - yaw + math.pi) % (2 * math.pi) - math.pi
+                if abs(error) <= math.radians(ConfigParams.reachAngle):
+                    self.action_status = ActionStatus.FINISHED
+                    return self.action_status
+                x, y = float(pose["x"]), float(pose["y"])
+                Navigation.resetPath()
+                Navigation.setPathReachAngle(math.radians(ConfigParams.reachAngle))
+                Navigation.setPathReachDist(ConfigParams.reachDist)
+                Navigation.setPathBackMode(False)
+                Navigation.setPathMaxSpeed(ConfigParams.maxSpeed)
+                # Coincident endpoints request orientation alignment without
+                # translating towards the gate or acquiring its control.
+                Navigation.setPathOnWorld([x, x], [y, y], self.heading)
+                Navigation.goPathParam({})
+                self.path_started = True
+                Trace.log({"event": "doorHeadingAlignmentStarted", "pose": pose,
+                           "heading": self.heading}, name="door")
+            if Navigation.isPathReached():
+                Navigation.resetPath()
+                self.path_started = False
+                self.action_status = ActionStatus.FINISHED
+        except Exception as error:
+            self.fail_reason = str(error)
+            self.error_code = "DoorHeadingAlignmentFailed"
+            self.action_status = ActionStatus.FAILED
+            Navigation.resetPath()
+        return self.action_status
+
+    def cancel(self):
+        if self.path_started:
+            Navigation.resetPath()
+            self.path_started = False
+        super().cancel()
+
+    def suspend(self):
+        if self.path_started:
+            Navigation.stopRobotNow()
+        super().suspend()
+
+    def resume(self):
+        if self.path_started:
+            Navigation.goPathParam({})
+        super().resume()
 
 
 class DoorBezierAction(ActionBase):
@@ -524,14 +598,10 @@ class DoorLease:
         return result
 
     def release_if_safe(self):
-        if not self.acquired or self.car_position == DoorCarPosition.OUTSIDE:
-            return self.release()
-        Trace.log({
-            "event": "doorSafetyHolding",
-            "carPosition": self.car_position.value,
-            "reason": "defer release until robot exits passage",
-        }, name="door.err")
-        return None
+        # A failed/cancelled door task must release the lease immediately. The
+        # caller has already stopped the navigation task, and retaining the
+        # lease here can leave the gate locked indefinitely.
+        return self.release()
 
 
 class DoorOpenDelayAction(ActionBase):
@@ -752,7 +822,9 @@ def build_actions(context, protocol, publisher=None):
             context.source_station, "sourceStation", context.workspace,
         )
 
-    actions = []
+    if source is None:
+        raise ValueError("sourceStation is required for door heading alignment")
+    actions = [AlignDoorHeading(source, target)]
     if open_delay_time > 0.0:
         actions.extend([
             ProtocolAction(
@@ -876,7 +948,9 @@ class DoorModule(ModuleBase):
                         _current_map_name() or "message",
                     )
                 )
-            protocol_data = protocol_site.get("jsonObject") or {}
+            protocol_data = dict(protocol_site.get("jsonObject") or {})
+            if protocol_site.get("pointNames") is not None:
+                protocol_data["pointNames"] = protocol_site["pointNames"]
             # ``args`` stays the parsed task input; the resolved pass state
             # lives in DoorPassContext rather than being merged into it.
             self.context = _resolve_pass_context(self.args, protocol_data)
@@ -909,6 +983,23 @@ class DoorModule(ModuleBase):
             Trace.log(str(error), name="door.err")
             self.set_status(ScriptStatus.FAILED)
 
+    def _release_failed_queue(self):
+        lease = next(
+            (getattr(action, "lease", None) for action in self.queue.action_list
+             if getattr(action, "lease", None) is not None),
+            None,
+        )
+        if lease is None or not lease.acquired:
+            return
+        try:
+            lease.release()
+            Trace.log({"event": "doorReleasedAfterFailure"}, name="door.safety")
+        except Exception as error:
+            Trace.log({
+                "event": "doorReleaseAfterFailureFailed",
+                "error": str(error),
+            }, name="door.err")
+
     def _fail_queue(self):
         failed = next(
             action for action in self.queue.action_list
@@ -918,8 +1009,8 @@ class DoorModule(ModuleBase):
             failed.error_code or "DoorActionFailed",
             failed.fail_reason or "door action failed",
         )
-        self._start_safety_holding()
-        if self.safety_holding is None and self.publisher is not None:
+        self._release_failed_queue()
+        if self.publisher is not None:
             self.publisher.publish(DoorPhase.FAILED)
         self.set_status(ScriptStatus.FAILED)
 
@@ -981,8 +1072,8 @@ class DoorModule(ModuleBase):
     def cancel(self):
         if self.queue is not None and not self.queue.is_done:
             self.queue.cancel("module stopped")
-        self._start_safety_holding()
-        if self.safety_holding is None and self.publisher is not None:
+        self._release_failed_queue()
+        if self.publisher is not None:
             self.publisher.publish(DoorPhase.FAILED)
         self.set_status(ScriptStatus.FAILED)
 
