@@ -502,16 +502,16 @@ class ConfigParams:
                             '["AP9", "AP8", "LM7", "AP5", "AP6", "LM3", "AP1", "AP2"]')
 
                     with builder.CHILD(
-                            key="wait_input_route",
-                            name="wait_input_route",
+                            key="waitInputRoute",
+                            name="Wait Input Route",
                             desc="启用后不从定时路线配置自动发单，等待输入参数发送路线或区域",
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
-                            key="clean_area_routes",
-                            name="clean_area_routes",
+                            key="cleanAreaRoutes",
+                            name="Clean Area Routes",
                             desc="清洁区域入口和出口映射，格式：{\"CA1\":[\"入口\",\"出口\"]}",
                     ):
                         builder.TYPE(ParamType.STRING)
@@ -583,11 +583,11 @@ class ConfigParams:
         cls.scheduled_clean_enabled = cls.config.get("scheduled_clean_enabled", 1)
         cls.scheduled_clean_hour = cls.config.get("scheduled_clean_hour", 8)
         cls.scheduled_clean_minute = cls.config.get("scheduled_clean_minute", 0)
-        cls.wait_input_route = bool(cls.config.get("wait_input_route", False))
-        previous_area_routes = getattr(cls, "clean_area_routes", {})
+        cls.wait_input_route = bool(cls.config.get("waitInputRoute", False))
+        previous_area_routes = getattr(cls, "cleanAreaRoutes", {})
         area_route_config_error = None
         try:
-            clean_area_routes = json.loads(cls.config.get("clean_area_routes", "{}"))
+            clean_area_routes = json.loads(cls.config.get("cleanAreaRoutes", "{}"))
             if (not isinstance(clean_area_routes, dict) or
                     any(not isinstance(area, str) or
                         not isinstance(points, list) or len(points) != 2 or
