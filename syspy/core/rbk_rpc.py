@@ -70,6 +70,9 @@ class V3RpcClient(RpcClient):
         if V3RpcClient._bin_client is None:
             from ..v3.lib.rpc import client
             V3RpcClient._bin_client = client.BinMsgClient(identity=self._script_id)
+        elif self._script_id:
+            # 单例可能已在拿到 script_id 之前建成（见 RpcClient.rebind_identity），回填身份
+            V3RpcClient._bin_client.set_identity(self._script_id)
         return V3RpcClient._bin_client
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:

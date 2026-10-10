@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 from typing import Optional, Union
 
@@ -13,6 +14,15 @@ PYTHON_CPP_IPC = "ipc:///tmp/python2cpp_rpc.ipc"
 PYTHON_CPP_BIN_IPC = "ipc:///tmp/python2cpp_binmsg.ipc"
 
 _RPC_RECV_TIMEOUT_MS = 3000
+
+
+def _anon_identity() -> str:
+    """空身份时的兜底标记。
+
+    原先用 ``str(id(self))``（对象内存地址），同一个进程每次运行都变，在 trace 里
+    只能看到一串无法关联到脚本的数字。改用自描述且同进程稳定的 pid 标记。
+    """
+    return f"anon-pid{os.getpid()}"
 
 
 class ZmqClient:
@@ -35,7 +45,7 @@ class ZmqClient:
     def _identity_bytes(self) -> bytes:
         if self._identity:
             return ("py::" + self._identity).encode("utf-8")
-        return ("py::" + str(id(self))).encode("utf-8")
+        return ("py::" + _anon_identity()).encode("utf-8")
 
     def _open_socket(self):
         sock = self.context.socket(zmq.REQ)
@@ -63,6 +73,25 @@ class ZmqClient:
         with self._lock:
             self._addr = addr
             self.socket.connect(addr)
+
+    def set_identity(self, identity: Optional[str]) -> bool:
+        """更新 ZMQ identity 并重建 socket。
+
+        ZMQ 的 identity 只能在 connect 前通过 setsockopt 设置，因此已建好的 socket
+        必须重建才能换身份。重建走与 send_recv 相同的锁，避免在途请求拿到已关闭的
+        socket（否则抛 ZMQError: Socket operation on non-socket）。
+
+        Returns:
+            bool: 是否真的做了重建。
+        """
+        if not identity or identity == self._identity:
+            return False
+        with self._lock:
+            if self._closed:
+                return False
+            self._identity = identity
+            self._reset_socket()
+        return True
 
     def __del__(self):
         try:
@@ -127,9 +156,29 @@ class RpcClient:
 
     def __init__(self, ipc=PYTHON_CPP_IPC, identity=None):
         if not RpcClient._initialized:
+            self._identity = identity
             self.zmq_client = ZmqClient(identity)
             self.zmq_client.connect(ipc)
             RpcClient._initialized = True
+        elif identity and identity != getattr(self, "_identity", None):
+            # 单例已由更早的调用（如导入期的配置加载）建立，且当时没有 script_id。
+            # 这里在拿到真实身份后回填，否则 trace 里只能看到匿名标记。
+            self.rebind_identity(identity)
+
+    def rebind_identity(self, identity: Optional[str]) -> bool:
+        """拿到真实 script_id 后回填 ZMQ identity。
+
+        脚本可能在 ``Module.init()`` 之前就因配置加载而首次发出 RPC（如 fork 系列在
+        模块级构造实例），当时 ``script_id`` 还是空字符串，单例身份因而被定型成匿名标记。
+        回填会重建 socket，因此调用方应选在无并发请求的时间点（例如 ``Module.init``）。
+
+        Returns:
+            bool: 是否真的更新了身份。
+        """
+        if not identity or identity == getattr(self, "_identity", None):
+            return False
+        self._identity = identity
+        return self.zmq_client.set_identity(identity)
 
     def __del__(self):
         try:
@@ -214,7 +263,7 @@ class BinMsgClient:
     def _identity_bytes(self) -> bytes:
         if self._identity:
             return ("py-bin::" + self._identity).encode("utf-8")
-        return ("py-bin::" + str(id(self))).encode("utf-8")
+        return ("py-bin::" + _anon_identity()).encode("utf-8")
 
     def _open_socket(self):
         sock = self.context.socket(zmq.REQ)
@@ -223,6 +272,20 @@ class BinMsgClient:
         sock.connect(self._addr)
         self.socket = sock
         self.poller.register(sock, zmq.POLLIN)
+
+    def set_identity(self, identity: Optional[str]) -> bool:
+        """更新 ZMQ identity 并重建 socket（语义同 ZmqClient.set_identity）。
+
+        与 get_message 共用同一把锁，避免在途请求拿到已关闭的 socket。
+        """
+        if not identity or identity == self._identity:
+            return False
+        with self._lock:
+            if self._closed:
+                return False
+            self._identity = identity
+            self._reset_socket()
+        return True
 
     def _reset_socket(self):
         if self.socket is not None:
