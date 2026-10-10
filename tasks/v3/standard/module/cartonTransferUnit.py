@@ -38,6 +38,8 @@ AUTO_PRE_FINGER_BUDGET = 3.0
 AUTO_PRE_DI_BUDGET = 0.1
 TIMEOUT_RECOVERY_TIMEOUT = 15.0
 
+in_load_or_unload = None
+
 # 取货结束后货物保留在 999；这里只跨任务保存重建延迟入背篓动作所需的最小数据。
 _pending_fork_store = None
 def _remember_pending_fork_store(goods_id, preferred_container, skip_safe_height=False):
@@ -1310,7 +1312,7 @@ class RotateAction(BaseAction):
 
 
 class StretchAction(BaseAction):
-    def __init__(self, agv, length, action_name="Stretch", dynamic=False):
+    def __init__(self, agv, length, action_name="Stretch", dynamic=False, action_type=False):
         super().__init__(action_name)
         self.agv = agv
         self.length = length
@@ -1318,8 +1320,14 @@ class StretchAction(BaseAction):
         # 取/放货伸出长度由 RecAdjust 在运行时算出并写到 agv.stretch_length，
         # 而整个 action 队列是提前构建的，构建时该值还是 0，必须延迟到运行时再读。
         self.dynamic = dynamic
+        self.action_type = action_type
 
     def run(self, m):
+        global in_load_or_unload
+        if self.action_type:
+            in_load_or_unload = True
+        else:
+            in_load_or_unload = False
         super().run(m)
         if self.dynamic:
             self.length = self.agv.stretch_length
@@ -2670,6 +2678,19 @@ class ContainerRobot(ModuleBase):
             )
         self.action_list = [action]
 
+    def _make_safe_move_actions(self, stretch_only=False):
+        """移动安全检查始终先收回伸缩；必要时再执行其余归零动作。"""
+        if in_load_or_unload:
+            return []
+        actions = [StretchAction(self, 0, "safe_stretch_retract")]
+        if stretch_only:
+            return actions
+        if not Container.hasGoods("999"):
+            actions.append(FingerAction(self, 1, "safe_finger_open"))
+        # actions.append(RotateAction(self, 0, action_name="safe_rotate_zero"))
+        # actions.append(LiftAction(self, 0.5, "safe_lift_zero"))
+        return actions
+
     @staticmethod
     def _estimate_auto_pre_position_time(start_pos, target_pos, speed, motor_name=None):
         values = (start_pos, target_pos, speed)
@@ -2776,7 +2797,7 @@ class ContainerRobot(ModuleBase):
                 RotateAction(self, 0, action_name=f"{action_prefix}_rotate_zero"),
                 LiftAction(self, ConfigParams.high[int(container_id)], f"{action_prefix}_lift_container"),
             ], f"{action_prefix}_parallel_to_container"),
-            StretchAction(self, ConfigParams.stretch_self_length, f"{action_prefix}_stretch_self"),
+            StretchAction(self, ConfigParams.stretch_self_length, f"{action_prefix}_stretch_self", action_type=True),
             FingerAction(self, 1, f"{action_prefix}_finger_open"),
             StretchAction(self, 0, f"{action_prefix}_stretch_retract"),
             # FingerAction(self, 0, f"{action_prefix}_finger_close"),
@@ -3192,7 +3213,7 @@ class ContainerRobot(ModuleBase):
                 FingerAction(self, 1, "unload_finger_open_take"),
                 RotateAction(self, 0, action_name="unload_rotate_zero_take"),
             ], "unload_parallel_take_init"))
-            take_actions.append(StretchAction(self, ConfigParams.stretch_self_length, "unload_stretch_self"))
+            take_actions.append(StretchAction(self, ConfigParams.stretch_self_length, "unload_stretch_self", action_type=True))
             take_actions.append(FingerAction(self, 0, "unload_finger_close_take"))
             take_actions.append(StretchAction(self, 0, "unload_stretch_retract_take"))
             take_actions.append(CheckGoodsDiUnloadTakeAction(self, "unload_check_goods_take"))
@@ -3780,22 +3801,15 @@ class ContainerRobot(ModuleBase):
             Trace.log("safe_move_check finished without mechanism actions in simulation", name=MOD)
             return
 
-        if not self.startup_zero_pending and _get_pending_fork_store() is not None:
-            self.safe_zero_task.reset()
-            self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
-            self.event_safe_move_check = False
-            Trace.log("safe_move_check kept carried goods on fork 999", name=f"{MOD}.autoPre")
-            return
         if self.auto_pre_enabled:
             auto_pre = self.auto_pre_enabled
         else:
             auto_pre = Module.getAutoPre()
-        if not self.startup_zero_pending and auto_pre and self.operation in ("load", "unload"):
-            self.safe_zero_task.reset()
-            self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
-            self.event_safe_move_check = False
-            Trace.log("safe_move_check skipped while AutoPre owns CTU motors", name=f"{MOD}.autoPre")
-            return
+        stretch_only = (
+            not self.startup_zero_pending
+            and (_get_pending_fork_store() is not None
+                 or (auto_pre and self.operation in ("load", "unload")))
+        )
         status = SafeMoveStatus.RUNNING
         self.setSafeMoveStatus(status)
         # self.check_motor_emc()
@@ -3805,7 +3819,7 @@ class ContainerRobot(ModuleBase):
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
             if self.safe_zero_task.status == ActionStatus.INIT:
-                self.safe_zero_task.build(self._make_zero_actions(0.5))
+                self.safe_zero_task.build(self._make_safe_move_actions(stretch_only=stretch_only))
             self.safe_zero_task.step(self)
             if self.safe_zero_task.status == ActionStatus.FINISHED:
                 self.safe_zero_task.reset()  # 复位以便下次移动重新归零
@@ -4257,13 +4271,18 @@ def main():
                                        ConfigParams.stretch_motor_speed)
                 robot.emc_recover_last_command_time = time.time()
                 Trace.log("急停已解除，手指打开，伸缩电机归零", name=f"{MOD}.motor")
-        if robot.startup_zero_pending or robot.event_safe_move_check:
+        safe_move_check_active = (
+            robot.startup_zero_pending or robot.event_safe_move_check
+        )
+        if safe_move_check_active:
             robot.safeMoveCheck()
         if robot.event_modbus:
             modbus_args = robot.modbus()
             robot.event_modbus = False
         # move_task = Navigation.moveTask()
-        if status == ScriptStatus.NONE:
+        if safe_move_check_active:
+            pass
+        elif status == ScriptStatus.NONE:
             args = modbus_args or Module.getTaskArgs()
             if args:
                 # 安全归零队列属于当前实例；切换任务会替换 Module 的回调，
