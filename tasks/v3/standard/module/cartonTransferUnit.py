@@ -2146,6 +2146,7 @@ class ContainerRobot(ModuleBase):
         self.timeout_recovery_task = ActionTask(mod=f"{MOD}.timeoutRecovery")
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
+        self.station_zero_pending = False
 
         self.first_full = True
         self.startup_zero_pending = not ContainerRobot.startup_zero_done
@@ -3600,6 +3601,10 @@ class ContainerRobot(ModuleBase):
 
     def cancel(self):
         self._log_task_control("cancel")
+        if self.station_zero_pending:
+            self.safe_zero_task.cancel()
+            self.station_zero_pending = False
+            self.event_safe_move_check = False
         Recognize.resetRec()
         motor_names = [self.lift_motor.motor_name, self.stretch_motor.motor_name,
                        self.rotate_motor.motor_name]
@@ -3804,6 +3809,7 @@ class ContainerRobot(ModuleBase):
         """底盘移动前安全检查（可选）"""
         if is_simulation():
             self.safe_zero_task.reset()
+            self.station_zero_pending = False
             Navigation.clearTaskError("FingerTimeout")
             Navigation.clearTaskError("StretchObstacle")
             self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
@@ -3829,7 +3835,10 @@ class ContainerRobot(ModuleBase):
         status = SafeMoveStatus.RUNNING
         if self.motor_calib_state:
             if self.safe_zero_task.status == ActionStatus.INIT:
-                self.safe_zero_task.build(self._make_safe_move_actions(stretch_only=stretch_only))
+                self.safe_zero_task.build(
+                    self._make_zero_actions() if self.station_zero_pending
+                    else self._make_safe_move_actions(stretch_only=stretch_only)
+                )
             self.safe_zero_task.step(self)
             if self.safe_zero_task.status == ActionStatus.FINISHED:
                 self.safe_zero_task.reset()  # 复位以便下次移动重新归零
@@ -3862,6 +3871,10 @@ class ContainerRobot(ModuleBase):
             )
             self._last_safe_move_log = snapshot
         if status == SafeMoveStatus.FAILED or status == SafeMoveStatus.FINISHED:
+            if self.station_zero_pending and status == SafeMoveStatus.FAILED:
+                self._stop_mechanisms_for_suspend()
+                self.status = ScriptStatus.FAILED
+            self.station_zero_pending = False
             self.event_safe_move_check = False
 
     def modbus(self):
@@ -4249,6 +4262,7 @@ def main():
     # 实例化脚本任务主类
     robot = ContainerRobot()
     modbus_args = None
+    last_station_zero_key = None
     container_num = ConfigParams.get_container_count()
     if isinstance(container_num, int) and container_num > 0:
         Container.initContainer(container_num - 1, "999")
@@ -4294,6 +4308,27 @@ def main():
             pass
         elif status == ScriptStatus.NONE:
             args = modbus_args or Module.getTaskArgs()
+            # 内部归零不占用业务任务状态，新任务接收后等待机构归零完成。
+            if not args and not Module.getAutoPre():
+                try:
+                    move_tasks = Navigation.moveTaskList() or []
+                    last_task = move_tasks[-1] if move_tasks else {}
+                    if isinstance(last_task, dict):
+                        target_name = last_task.get("targetName", "")
+                        station_key = (last_task.get("taskId", ""), target_name)
+                        if (isinstance(target_name, str)
+                                and target_name.startswith(("CP", "PP"))
+                                and station_key != last_station_zero_key):
+                            robot.safe_zero_task.reset()
+                            robot.station_zero_pending = True
+                            robot.event_safe_move_check = True
+                            last_station_zero_key = station_key
+                            Trace.log(
+                                f"Navigation endpoint triggers zero: target={target_name}, taskId={station_key[0]}",
+                                name=MOD,
+                            )
+                except Exception as e:
+                    Trace.log(f"Read navigation endpoint for zero failed: {e}", name=f"{MOD}.err")
             if args:
                 # 安全归零队列属于当前实例；切换任务会替换 Module 的回调，
                 # 不能在归零过程中重建 robot，否则队列将失去后续 step 驱动。
