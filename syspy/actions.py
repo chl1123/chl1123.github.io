@@ -14,20 +14,12 @@ from syspy.lib.module import ModuleBase
 from syspy.utils.param_server import ParamBuilder, ParamType, ScriptParam
 param_loader = ScriptParam(__file__)
 from syspy.lib.robot import RobotParam
-from syspy.utils import ScriptType
+from syspy.utils import OMNI_CHASSIS_TYPES, ScriptType
 from typing import List, Dict
 
 
 LOG_NAME = "actions"
 MOTION_EPS = 1e-6
-OMNI_CHASSIS_TYPES = {  # 支持全向运动的底盘类型
-    "multipleDifferentialSteers",
-    "multiStandardAndDifferentialSteers",
-    "multiSteers",
-    "omni",
-    "quadruped",
-    "wheeledLeggedQuadruped",
-}
 
 
 class RotateDirection(IntEnum):

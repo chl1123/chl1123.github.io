@@ -16,6 +16,53 @@ class Coordinate(str, Enum):
     WORLD = "world"
 
 
+class ChassisType(str, Enum):
+    """底盘类型，即设备模型 ``Model-000.chassisType`` 的取值。
+
+    取值与设备模型文件的枚举项 key 一一对应（见 ``/opt/.data/rbk/resources/devices/robot.model``
+    的 chassisType 节点），不要改名；新增车型需同步模型文件。
+
+    需要判断“底盘能不能横移”时用 :data:`OMNI_CHASSIS_TYPES`，不要在各脚本里重新列举。
+
+    Note:
+        继承 ``str`` 使成员与模型文件读出的裸字符串可直接比较：
+        ``ChassisType.OMNI == "omni"`` 为 True，因此 ``chassis_type == ChassisType.OMNI``
+        和 ``chassis_type in OMNI_CHASSIS_TYPES`` 对字符串与枚举成员都成立。
+    """
+
+    TWO_WHEEL_DIFF = "twoWheelDiff"
+    FOUR_WHEEL_DIFF = "fourWheelDiff"
+    SINGLE_STANDARD_STEER = "singleStandardSteer"
+    SINGLE_DIFF_STEER = "singleDiffSteer"
+    VARIABLE_WHEELBASE_SINGLE_STANDARD_STEER = "variableWheelbaseSingleStandardSteer"
+    VARIABLE_WHEELBASE_SINGLE_DIFFERENTIAL_STEER = "variableWheelbaseSingleDifferentialSteer"
+    STANDARD_ACKERMANN = "standardAckermann"
+    DIFFERENTIAL_ACKERMANN = "differentialAckermann"
+    SINGLE_WALK_DUAL_STEERS = "singleWalkDualSteers"
+    TWO_TRACKS = "twoTracks"
+    MULTIPLE_DIFFERENTIAL_STEERS = "multipleDifferentialSteers"
+    MULTI_STANDARD_AND_DIFFERENTIAL_STEERS = "multiStandardAndDifferentialSteers"
+    MULTI_STEERS = "multiSteers"
+    OMNI = "omni"
+    RGV4 = "RGV4"
+    RGV2 = "RGV2"
+    STACKER = "stacker"
+    WHEELED_LEGGED_QUADRUPED = "wheeledLeggedQuadruped"
+    QUADRUPED = "quadruped"
+
+
+#: 支持全向运动（可原地/横移）的底盘类型集合。成员同时接受 ``ChassisType`` 成员
+#: 与模型文件读出的裸字符串；用 ``in`` 判断即可。
+OMNI_CHASSIS_TYPES = frozenset({
+    ChassisType.MULTIPLE_DIFFERENTIAL_STEERS,
+    ChassisType.MULTI_STANDARD_AND_DIFFERENTIAL_STEERS,
+    ChassisType.MULTI_STEERS,
+    ChassisType.OMNI,
+    ChassisType.QUADRUPED,
+    ChassisType.WHEELED_LEGGED_QUADRUPED,
+})
+
+
 class TaskStage(IntEnum):
     """脚本 TASK 的调度阶段，即 ``Module.getTaskParams("stage")``，默认 2。
 
