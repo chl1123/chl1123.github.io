@@ -148,6 +148,9 @@ from standard.fork_utils import (
     MoveChassisByY,
     normalize_motor_operation,
     OperationFlow,
+    is_side_pick_direction,
+    resolve_module_pick_direction,
+    validate_module_pick_direction,
     resolve_load_recognition_pose,
     resolve_back_dist,
     resolve_rec_center_to_robot,
@@ -205,6 +208,16 @@ class ConfigParams:
     tail: float = 0.0
     width: float = 0.0
     module_x: float = 0.0
+    # 机构安装位姿 yaw（单位：°）。0 = 正叉车（货叉朝车头）；非 0 表示机构侧向/后向
+    # 安装，按需求约定视为“可单独升降侧叉”，取货方向与行进方式随之改变。
+    module_yaw: float = 0.0
+    # 机构安装位姿 y（单位：m）。侧叉的货叉中心线在车体 Y 方向有偏置，
+    # 横移进叉时要用它把底盘中心对到货叉中心线。
+    module_y: float = 0.0
+    # 由 module_yaw 解析出的取货方向：front / left / right / rear / unknown。
+    module_pick_direction: str = "front"
+    # 是否按“可单独升降侧叉”处理（侧向取货需要底盘横移，且必须校验底盘类型）。
+    module_side_pick: bool = False
     base_shift: bool = False
     base_shift_length: float = 0.0
 
@@ -580,6 +593,25 @@ class ConfigParams:
         cls.tail = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.tail") or 0)
         cls.width = float(RobotParam.getDevice("Model-000", f"shape.{cls.shape}.width") or 0)
         cls.module_x = float(RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.installPosition.x") or 0)
+        # 兼容分支入口：机构安装位姿 yaw 非 0 即视为可单独升降侧叉。旧模型文件只有 x/y，
+        # 读不到 yaw 时保持 0，脚本行为与改造前完全一致。
+        cls.module_yaw = cls._safe_float(
+            RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.installPosition.yaw"),
+            0.0,
+        )
+        cls.module_y = cls._safe_float(
+            RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.installPosition.y"),
+            0.0,
+        )
+        cls.module_pick_direction = resolve_module_pick_direction(cls.module_yaw)
+        # 侧叉只对“需要横移才能取货”的方向生效（左/右）。后向安装（yaw=180）仍按正叉
+        # 车处理：机构只是背对车头，goPath 的 backMode 已负责选择前进/后退。
+        cls.module_side_pick = is_side_pick_direction(cls.module_pick_direction)
+        Trace.log(
+            f"module install yaw:{cls.module_yaw}deg, pickDirection:{cls.module_pick_direction}, "
+            f"sidePick:{cls.module_side_pick}, chassisType:{cls.chassis_type}",
+            name="fork.cfg",
+        )
         cls.fork_tip_width = float(RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkWidth") or 0)
         cls.center_distance_between_forks = float(
             RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.centerDistanceBetweenForks") or 0
@@ -741,6 +773,21 @@ class ConfigParams:
     @classmethod
     def reload_extra_config(cls, cfg):
         _run_script_hook("config_reload_hook", cls, cfg)
+
+    @classmethod
+    def validate_side_fork(cls):
+        """侧叉兼容分支的取放货前校验。
+
+        需求约定：yaw 为 ±90（侧向取货）时，若底盘不是全向车则取货要报错。校验放
+        在取放货入口而不是配置加载阶段，避免“机构已配置但用其他车型脚本”时误报。
+        返回 True 表示可继续执行。
+        """
+        direction, error_msg = validate_module_pick_direction(cls)
+        if not error_msg:
+            return True
+        Navigation.setTaskError("SideForkChassisUnsupported", error_msg)
+        Trace.log(f"side fork check failed: {error_msg}", name="fork.err")
+        return False
 
     @classmethod
     def extend_config_builder(cls, builder):
@@ -3062,6 +3109,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         # 每 yield 一批动作，队列跑完后 resume；yield 之后就地读刚结束动作的结果。
         if not validate_goods_state_for_operation(self, "load"):
             return
+        if not ConfigParams.validate_side_fork():
+            self.set_status(ScriptStatus.FAILED)
+            return
         apply_default_navigation_policy()
         r_loc = get_r_loc()
         self._init_start_loc_from_source(r_loc)
@@ -3166,6 +3216,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def unload(self):
         # 生成器式放货：识别/盲放 -> 进叉 -> 落叉释放 -> 收尾，全流程顶到底可读。
         if not validate_goods_state_for_operation(self, "unload"):
+            return
+        if not ConfigParams.validate_side_fork():
+            self.set_status(ScriptStatus.FAILED)
             return
         apply_default_navigation_policy()
         r_loc = get_r_loc()

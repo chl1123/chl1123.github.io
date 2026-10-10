@@ -7,7 +7,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from syspy import Container, Di, Do, Laser, Motor, Navigation, Loc, NavSpeed, Recognize, RobotError, RobotParam, ScriptStatus, Trace, _TR
-from syspy.utils import Coordinate
+from syspy.utils import Coordinate, OMNI_CHASSIS_TYPES
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
 from syspy.utils.param_server import BindType, ParamBuilder, ParamType
@@ -23,6 +23,17 @@ EPS = 1e-6
 ActionStatus = TaskActionStatus
 MOTOR_ACTION_ERROR_KEY = "ms@MotorAction"
 MOTOR_LIMIT_OPERATIONS = {"forkHeight", "lift", "shift", "pitch", "reach", "expand"}
+
+# 机构安装位姿 yaw 的方向语义（单位：°）。0 表示正叉车（货叉朝车头），
+# 90/-90/180 分别表示货叉朝车体左侧/右侧/后侧。
+MODULE_YAW_FRONT_DEG = 0.0
+MODULE_YAW_LEFT_DEG = 90.0
+MODULE_YAW_RIGHT_DEG = -90.0
+MODULE_YAW_REAR_DEG = 180.0
+# 判定方向时的角度容差：超出容差说明机构安装角介于两个朝向之间，脚本无法判断取货方向。
+MODULE_YAW_TOLERANCE_DEG = 20.0
+# 需要底盘横移才能取放货的朝向（侧向取货）。
+SIDE_PICK_DIRECTIONS = ("left", "right")
 
 
 def bind_runtime(config_cls):
@@ -272,6 +283,148 @@ def resolve_back_dist(rec_info):
     if not is_enabled(rec_info.get("enableBackDistance", "off")):
         return _config().module_x
     return rec_info.get("backDistance")
+
+
+def resolve_module_lateral_offset(target_world_pos, direction=None):
+    """侧叉横移进叉时，底盘中心相对货叉中心线的横向补偿量（世界系平移向量）。
+
+    正叉车的机构偏置只在车体 X 方向（module_x），底盘沿货叉轴线平移即可；侧叉的货叉
+    中心线在车体 Y 方向有偏置（installPosition.y），底盘横移时必须把这个偏置补上，
+    否则叉尖会偏在栈板轴线上的一侧。
+
+    因为 holdDir 下底盘不旋转，世界系横向方向就是目标轴线的法向。偏置的符号取决于货叉
+    挂在车体哪一侧：左叉（yaw=+90）与右叉（yaw=-90）的补偿方向相反，所以需要传入
+    ``direction``；未传时从配置里的 ``module_pick_direction`` 取。
+    """
+    cfg = _config()
+    offset = float(getattr(cfg, "module_y", 0.0) or 0.0)
+    if abs(offset) <= EPS or not target_world_pos or len(target_world_pos) < 3:
+        return 0.0, 0.0
+    direction = direction or getattr(cfg, "module_pick_direction", "")
+    if direction == "left":
+        gain = -1.0
+    elif direction == "right":
+        gain = 1.0
+    else:
+        return 0.0, 0.0
+    yaw = float(target_world_pos[2])
+    # 目标轴线法向（单位向量）
+    dx, dy = -math.sin(yaw), math.cos(yaw)
+    return dx * offset * gain, dy * offset * gain
+
+
+def apply_module_lateral_offset(world_pos):
+    """把侧叉机构横向偏置作用到进叉目标位上；非侧叉返回原目标位。"""
+    cfg = _config()
+    if not getattr(cfg, "module_side_pick", False):
+        return list(world_pos)
+    dx, dy = resolve_module_lateral_offset(world_pos)
+    if abs(dx) <= EPS and abs(dy) <= EPS:
+        return list(world_pos)
+    shifted = [world_pos[0] + dx, world_pos[1] + dy, world_pos[2]]
+    _trace_log(
+        f"side fork lateral offset: module_y={getattr(cfg, 'module_y', 0.0)}, "
+        f"{world_pos} -> {shifted}",
+        name="fork.task",
+    )
+    return shifted
+
+
+def normalize_deg(deg) -> float:
+    """把任意角度归一到 (-180, 180]。"""
+    return (float(deg) + 180.0) % 360.0 - 180.0
+
+
+def circular_distance_deg(lhs, rhs) -> float:
+    """两个角度之间的最短夹角，单位：°。"""
+    return abs(normalize_deg(float(lhs) - float(rhs)))
+
+
+def resolve_module_pick_direction(module_yaw_deg, tolerance_deg=MODULE_YAW_TOLERANCE_DEG) -> str:
+    """由机构安装位姿 yaw 解析取货方向。
+
+    兼容分支的判定入口：yaw 为 0 是普通正叉车，保持既有行为；非 0 说明机构被侧向/
+    后向安装（可单独升降侧叉），取货方向随之改变。返回值：
+    ``front`` / ``left`` / ``right`` / ``rear``；介于两个朝向之间时返回 ``unknown``，
+    由调用方决定是报错还是回退到正叉车行为。
+    """
+    yaw = float(module_yaw_deg or 0.0)
+    for direction, reference in (
+            ("front", MODULE_YAW_FRONT_DEG),
+            ("left", MODULE_YAW_LEFT_DEG),
+            ("right", MODULE_YAW_RIGHT_DEG),
+            ("rear", MODULE_YAW_REAR_DEG),
+    ):
+        if circular_distance_deg(yaw, reference) <= tolerance_deg:
+            return direction
+    return "unknown"
+
+
+def is_side_pick_direction(direction) -> bool:
+    """是否必须靠底盘横移才能取放货（左/右侧向取货）。"""
+    return str(direction or "") in SIDE_PICK_DIRECTIONS
+
+
+def module_hold_dir_deg(target_world_pos):
+    """侧向取货时下发的 holdDir：保持车体朝向，让底盘平移进叉。
+
+    ``holdDir`` 是“全向车平移时车身的固定角度”，单位与 goPath 参数一致为 °。
+    取货点上车位姿的 yaw 就是车体应保持的朝向，因此直接取目标世界位姿的角度。
+    """
+    if not target_world_pos or len(target_world_pos) < 3:
+        return None
+    return math.degrees(float(target_world_pos[2]))
+
+
+def apply_module_hold_dir(args, world_pos) -> None:
+    """就地给路径参数补 holdDir。仅侧向取货需要，其余情况保持参数原样。"""
+    cfg = _config()
+    if not getattr(cfg, "module_side_pick", False):
+        return
+    hold_dir = module_hold_dir_deg(world_pos)
+    if hold_dir is None:
+        return
+    args["holdDir"] = hold_dir
+    _trace_log(
+        f"side fork holdDir={hold_dir:.3f}deg for target:{world_pos}, "
+        f"moduleYaw:{getattr(cfg, 'module_yaw', 0.0)}deg, "
+        f"pickDirection:{getattr(cfg, 'module_pick_direction', '')}",
+        name="fork.task",
+    )
+
+
+def validate_module_pick_direction(cfg=None, *, tolerance_deg=MODULE_YAW_TOLERANCE_DEG):
+    """校验机构安装角与底盘类型的组合，返回 (pick_direction, error_msg)。
+
+    校验规则来自需求评审结论：
+    1. yaw 非 0 视为可单独升降侧叉，yaw 决定取货方向（左/右/后）；
+    2. 侧向取货（yaw 为 ±90）必须能横移，底盘不是全向车则取货要报错；
+    3. 具体报错由调用方通过 Navigation.setTaskError 上报，这里只做判定。
+    """
+    cfg = cfg if cfg is not None else _config()
+    module_yaw = float(getattr(cfg, "module_yaw", 0.0) or 0.0)
+    direction = resolve_module_pick_direction(module_yaw, tolerance_deg)
+    if direction == "unknown":
+        return direction, (
+            f"module installPosition.yaw {module_yaw:.1f}deg is not a valid fork direction; "
+            f"expected 0/±90/180 within {tolerance_deg:g}deg"
+        )
+    if not is_side_pick_direction(direction):
+        return direction, ""
+    if not getattr(cfg, "module_side_pick", False):
+        # 侧叉未生效（例如旧模型文件误配 yaw）时不阻塞，仅提示。
+        return direction, ""
+    chassis_type = str(getattr(cfg, "chassis_type", "") or "")
+    if chassis_type not in OMNI_CHASSIS_TYPES:
+        # 用 .value 而不是 str()：str-Enum 成员的 str() 是 'ChassisType.X'，
+        # 直接拼进报错文案会暴露枚举名而不是模型文件里的裸取值。
+        omni_names = ", ".join(sorted(item.value for item in OMNI_CHASSIS_TYPES))
+        return direction, (
+            f"module installPosition.yaw {module_yaw:.1f}deg requires lateral motion for "
+            f"{direction}-side picking, but chassisType {chassis_type or 'unknown'} is not omni; "
+            f"omni chassis types: {omni_names}"
+        )
+    return direction, ""
 
 
 def apply_default_navigation_policy():
@@ -1989,6 +2142,17 @@ class GoPathWithContactDi(ActionBase):
         self.obs_dist_compensation = max(0.0, float(obs_dist_compensation or 0.0))
         self.start_loc = None
         self.method = method
+        # 兼容分支：侧叉（机构安装 yaw 非 0）必须在进叉段保持车体朝向、让底盘横移。
+        # goPath 持有 holdDir 参数，而 bezier / straightLine 的几何都是按“货叉朝车头”
+        # 推导的前进式轨迹，侧向取货不适用，统一改走 goPath。
+        self.side_pick = is_side_pick_direction(getattr(_config(), "module_pick_direction", ""))
+        if self.side_pick and self.method != "goPath":
+            self.method = "goPath"
+            args = {}
+            Trace.log(
+                f"side fork forces goPath for lateral approach, original method:{method}",
+                name="fork.task",
+            )
         self.di_trigger_time = 1
         self.set_policy = False
         self.clear_policy = False
@@ -2112,6 +2276,9 @@ class GoPathWithContactDi(ActionBase):
             target_pos = pos2World([-_config().forkDiDist, 0, 0], world_pos)
         else:
             target_pos = world_pos
+        # 兼容分支：侧叉的货叉中心线在车体 Y 方向有偏置（installPosition.y），
+        # 横移进叉前先把底盘中心对到货叉中心线上；正叉车不变。
+        target_pos = apply_module_lateral_offset(target_pos)
         self.final_target = target_pos
         self.motion_target = target_pos
 
@@ -2128,6 +2295,8 @@ class GoPathWithContactDi(ActionBase):
             "reachAngle": math.radians(0.5),
             "reachDist": 0.005,
         }
+        # 兼容分支：侧叉进叉段保持车体朝向，交由底盘横移完成进叉。
+        apply_module_hold_dir(self.back_args, target_pos)
         # goPath 没有固定的进叉方向，根据建路时机器人与目标的相对位置选择前进或后退。
         if back_mode_override is None:
             target2robot = pos2Base(world_pos, get_r_loc())
