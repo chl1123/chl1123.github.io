@@ -2431,9 +2431,19 @@ class ContainerRobot(ModuleBase):
             if self.enable_motor and not self.motor_calib_state:
                 self.motor_calib()
 
+            timeout = ConfigParams.timeout
+            if self.auto_pre_enabled:
+                timeout += max(0.0, ConfigParams.auto_pre_advance_time)
+            elapsed = time.time() - self.start_time
             if (self.status == ScriptStatus.RUNNING
                     and self.business_timeout_started
-                    and time.time() - self.start_time > ConfigParams.timeout):
+                    and elapsed > timeout):
+                Trace.log(
+                    f"Script timeout triggered: elapsed={elapsed:.3f}s, "
+                    f"timeout={timeout:.3f}s, autoPre={self.auto_pre_enabled}, "
+                    f"advance={ConfigParams.auto_pre_advance_time:.3f}s",
+                    name=f"{MOD}.timeout",
+                )
                 self._start_timeout_recovery()
 
         if self.timeout_recovery_active:
