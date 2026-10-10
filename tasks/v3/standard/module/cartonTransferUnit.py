@@ -2147,6 +2147,7 @@ class ContainerRobot(ModuleBase):
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
         self.station_zero_pending = False
+        self.station_zero_start = None
 
         self.first_full = True
         self.startup_zero_pending = not ContainerRobot.startup_zero_done
@@ -3604,6 +3605,7 @@ class ContainerRobot(ModuleBase):
         if self.station_zero_pending:
             self.safe_zero_task.cancel()
             self.station_zero_pending = False
+            self.station_zero_start = None
             self.event_safe_move_check = False
         Recognize.resetRec()
         motor_names = [self.lift_motor.motor_name, self.stretch_motor.motor_name,
@@ -3810,11 +3812,25 @@ class ContainerRobot(ModuleBase):
         if is_simulation():
             self.safe_zero_task.reset()
             self.station_zero_pending = False
+            self.station_zero_start = None
             Navigation.clearTaskError("FingerTimeout")
             Navigation.clearTaskError("StretchObstacle")
             self.setSafeMoveStatus(SafeMoveStatus.FINISHED)
             self.event_safe_move_check = False
             Trace.log("safe_move_check finished without mechanism actions in simulation", name=MOD)
+            return
+
+        if (self.station_zero_pending
+                and self.station_zero_start is not None
+                and time.time() - self.station_zero_start >= ConfigParams.timeout):
+            self.safe_zero_task.cancel(reason="station zero timeout")
+            self._stop_mechanisms_for_suspend()
+            self.station_zero_pending = False
+            self.station_zero_start = None
+            self.event_safe_move_check = False
+            self.status = ScriptStatus.FAILED
+            self.setSafeMoveStatus(SafeMoveStatus.FAILED)
+            Navigation.setTaskError("ScriptTimeout", _TR("Automatic station zero timed out"))
             return
 
         if self.auto_pre_enabled:
@@ -3875,6 +3891,7 @@ class ContainerRobot(ModuleBase):
                 self._stop_mechanisms_for_suspend()
                 self.status = ScriptStatus.FAILED
             self.station_zero_pending = False
+            self.station_zero_start = None
             self.event_safe_move_check = False
 
     def modbus(self):
@@ -4321,6 +4338,7 @@ def main():
                                 and station_key != last_station_zero_key):
                             robot.safe_zero_task.reset()
                             robot.station_zero_pending = True
+                            robot.station_zero_start = time.time()
                             robot.event_safe_move_check = True
                             last_station_zero_key = station_key
                             Trace.log(
