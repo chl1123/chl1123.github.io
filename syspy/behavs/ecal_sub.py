@@ -8,12 +8,11 @@
 import atexit
 import ctypes
 import json
-import logging
 import os
 import threading
 import sys
 
-log = logging.getLogger("rbk.behavs.ecal_sub")
+from syspy.lib.trace import Trace
 
 STATE_TOPIC = "/rbk/state"
 
@@ -33,7 +32,8 @@ def _preload_ecal_core():
                 ctypes.CDLL(candidate, mode=ctypes.RTLD_GLOBAL)
                 return candidate
             except OSError as exc:
-                log.warning("preload site-packages libecal_core failed: %s", exc)
+                Trace.log("preload site-packages libecal_core failed: {}".format(exc),
+                          name="syspy.ecal.err")
     return None
 
 
@@ -58,7 +58,7 @@ class EcalStateSubscriber(object):
                 import ecal.core.core as ecal_core
                 self.ecal_core = ecal_core
             except Exception as e:
-                log.warning("eCAL Python bindings not found: %s", e)
+                Trace.log("eCAL Python bindings not found: {}".format(e), name="syspy.ecal.err")
                 self.ecal_core = None
                 return
 
@@ -71,8 +71,8 @@ class EcalStateSubscriber(object):
 
     def _setup(self, unit_name):
         try:
-            log.info("[ecal_sub] _setup: use_nanobind=%s, ecal_core.ok()=%s",
-                     self._use_nanobind, self.ecal_core.ok())
+            Trace.log("[ecal_sub] _setup: use_nanobind={}, ecal_core.ok()={}".format(
+                self._use_nanobind, self.ecal_core.ok()), name="syspy.ecal")
             if not self.ecal_core.ok():
                 if self._use_nanobind:
                     cfg = self.ecal_core.Configuration()
@@ -84,7 +84,8 @@ class EcalStateSubscriber(object):
                 else:
                     self.ecal_core.initialize(unit_name)
                 self._initialized_here = True
-                log.info("[ecal_sub] eCAL initialized (unit_name=%s)", unit_name)
+                Trace.log("[ecal_sub] eCAL initialized (unit_name={})".format(unit_name),
+                          name="syspy.ecal")
 
             if self._use_nanobind:
                 try:
@@ -94,9 +95,11 @@ class EcalStateSubscriber(object):
                     sub_cfg.layer.udp.enable = True
                     sub_cfg.layer.tcp.enable = False
                     self._subscriber = StringSubscriber(STATE_TOPIC, sub_cfg)
-                    log.info("[ecal_sub] nanobind StringSubscriber created on '%s'", STATE_TOPIC)
+                    Trace.log("[ecal_sub] nanobind StringSubscriber created on '{}'".format(STATE_TOPIC),
+                              name="syspy.ecal")
                 except Exception as e:
-                    log.warning("[ecal_sub] StringSubscriber failed: %s, falling back to raw Subscriber", e)
+                    Trace.log("[ecal_sub] StringSubscriber failed: {}, falling back to raw Subscriber".format(e),
+                              name="syspy.ecal.err")
                     sub_cfg = self.ecal_core.SubscriberConfiguration()
                     sub_cfg.layer.shm.enable = True
                     sub_cfg.layer.udp.enable = True
@@ -107,15 +110,20 @@ class EcalStateSubscriber(object):
                         sub_cfg,
                     )
                     self._use_nanobind = "raw"
-                    log.info("[ecal_sub] raw nanobind Subscriber created on '%s'", STATE_TOPIC)
+                    Trace.log("[ecal_sub] raw nanobind Subscriber created on '{}'".format(STATE_TOPIC),
+                              name="syspy.ecal")
             else:
                 self._subscriber = self.ecal_core.subscriber(STATE_TOPIC)
-                log.info("[ecal_sub] core subscriber created on '%s'", STATE_TOPIC)
+                Trace.log("[ecal_sub] core subscriber created on '{}'".format(STATE_TOPIC),
+                          name="syspy.ecal")
 
             self._subscriber.set_receive_callback(self._on_receive)
-            log.info("[ecal_sub] callback registered, subscriber.available=%s", self.available)
+            Trace.log("[ecal_sub] callback registered, subscriber.available={}".format(self.available),
+                      name="syspy.ecal")
+            sys.stdout.flush()
         except Exception as exc:
-            log.error("[ecal_sub] setup FAILED: %s", exc, exc_info=True)
+            Trace.log("[ecal_sub] setup FAILED: {}".format(exc), name="syspy.ecal.err")
+            import traceback; traceback.print_exc()
             self.close()
 
     def _on_receive(self, *args):
@@ -130,14 +138,15 @@ class EcalStateSubscriber(object):
             else:
                 payload = args[1] if len(args) >= 2 else None
         except Exception as e:
-            log.error("[ecal_sub] _on_receive ERROR: %s, args_len=%s, arg_types=%s",
-                      e, len(args), [type(a).__name__ for a in args])
+            Trace.log("[ecal_sub] _on_receive ERROR: {}, args_len={}, arg_types={}".format(
+                e, len(args), [type(a).__name__ for a in args]), name="syspy.ecal.err")
             payload = None
 
         if payload and not hasattr(self, '_debug_first_recv'):
             self._debug_first_recv = True
-            log.info("[ecal_sub] FIRST MESSAGE RECEIVED! payload_len=%s, preview=%s",
-                     len(payload), payload[:200] if payload else None)
+            Trace.log("[ecal_sub] FIRST MESSAGE RECEIVED! payload_len={}, preview={}".format(
+                len(payload), payload[:200] if payload else None), name="syspy.ecal")
+            sys.stdout.flush()
 
         with self._lock:
             self._last_payload = payload
@@ -154,7 +163,7 @@ class EcalStateSubscriber(object):
             if isinstance(data, dict):
                 return data
         except Exception as exc:
-            log.debug("parse eCAL state payload failed: %s", exc)
+            Trace.log("parse eCAL state payload failed: {}".format(exc), name="syspy.ecal.err")
         return None
 
     def close(self):
