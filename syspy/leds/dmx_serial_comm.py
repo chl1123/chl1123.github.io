@@ -3,6 +3,7 @@ import time
 import serial
 
 from syspy.comms.serial_comm import SerialComm
+from syspy.lib.trace import Trace
 
 
 class DmxSerialComm(SerialComm):
@@ -19,7 +20,7 @@ class DmxSerialComm(SerialComm):
 
     def send(self, data):
         if self.serial is None or not self.serial.isOpen():
-            print("Port is not open")
+            Trace.log("Port is not open", name="syspy.led.err")
             return
         try:
             self.serial.break_condition = True  # TIOCSBRK equivalent
@@ -33,7 +34,7 @@ class DmxSerialComm(SerialComm):
                 self.serial.reset_output_buffer()
                 return
         except serial.SerialException as e:
-            print(f"Error writing to serial port: {e}")
+            Trace.log(f"Error writing to serial port: {e}", name="syspy.led.err")
 
     def close(self):
         super().close()

@@ -61,10 +61,10 @@ class ConfigParams:
         cls.simulation = config.get("simulation", False)
         try:
             cls.device_name_key_map = json.loads(config.get("device_name_key_map", "{}"))
-            print(cls.device_name_key_map)
+            Trace.log(f"device_name_key_map={cls.device_name_key_map}", name="syspy.motor.cfg")
         except json.JSONDecodeError:
             cls.device_name_key_map = {"motor_name_001": "motor__001", "motor_name_002": "motor_002"}
-            Trace.log("解析电机名称映射配置失败，使用默认值")
+            Trace.log("解析电机名称映射配置失败，使用默认值", name="syspy.motor.err")
 
 
 
@@ -691,8 +691,7 @@ def main():
         if status in (ScriptStatus.RUNNING, ScriptStatus.NONE):
             args = Module.getTaskArgs()
 
-            print(f'===================================={args}')
-            print(status)
+            Trace.log(f"getTaskArgs args={args}, status={status}", name="syspy.motor", debug=True)
             validated_params={}
             # args={
             #         "type": "setEnable",
@@ -701,28 +700,28 @@ def main():
             #     }
             if args:
                 try:
-                    Trace.log(f"接收到电机控制任务: {json.dumps(args, indent=2)}")
+                    Trace.log(f"接收到电机控制任务: {json.dumps(args, indent=2)}", name="syspy.motor")
                     validated_params = script_param.loadInput(args)
-                    print(validated_params)
+                    Trace.log(f"validated_params={validated_params}", name="syspy.motor", debug=True)
                 except ValueError as e:
-                    Trace.log(f"参数验证失败: {e},尝试修护")
+                    Trace.log(f"参数验证失败: {e},尝试修护", name="syspy.motor.err")
                     try:
                         a=dic2lis(args)
-                        print("修护后参数:",a)
+                        Trace.log(f"修护后参数: {a}", name="syspy.motor.err")
                     except Exception as e:
-                        Trace.log(f"修护失败: {e}")
+                        Trace.log(f"修护失败: {e}", name="syspy.motor.err")
                         return
                     try:
                         validated_params = script_param.loadInput(a)
                     except ValueError as e:
-                        Trace.log(f"修护后参数验证失败: {e}")
+                        Trace.log(f"修护后参数验证失败: {e}", name="syspy.motor.err")
                         return
             motor_controller.handle_robot_control_request(validated_params)
         elif status in (ScriptStatus.FAILED, ScriptStatus.FINISHED):
             if status == ScriptStatus.FAILED:
-                Trace.log(f"电机控制任务 {Module.getStatus()} 失败")
+                Trace.log(f"电机控制任务 {Module.getStatus()} 失败", name="syspy.motor.err")
             else:
-                Trace.log(f"电机控制任务 {Module.getStatus()} 完成")
+                Trace.log(f"电机控制任务 {Module.getStatus()} 完成", name="syspy.motor")
             Module.setStatus(ScriptStatus.NONE)
             break
 

@@ -268,7 +268,8 @@ class ScriptParam:
     def setTaskConfig(self, config_data: Dict[str, Any]):
         """合并任务配置参数"""
         if config_data:
-            print("setTaskConfig()")
+            from syspy.lib.trace import Trace
+            Trace.log("setTaskConfig()", name="syspy.param")
             if not self.config_full_params:
                 self.config_full_params = config_data
             else:
@@ -284,7 +285,8 @@ class ScriptParam:
             ScriptParam.event_task_config = False
             call_path = ScriptParam.file_callback.get(self.script_file)
             if call_path:
-                print("clearTaskConfig()")
+                from syspy.lib.trace import Trace
+                Trace.log("clearTaskConfig()", name="syspy.param")
                 call_path()
 
     def addAction(self, action_name: str,
@@ -1534,6 +1536,7 @@ def load_module_from_path(script_path: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     end_time = time.time()
+    # 本函数在脚本参数生成期被调用，此时可能尚未建立 RBK RPC，因此不能用 Trace。
     print("gen_param time: ", end_time - start_time)
     return module
 

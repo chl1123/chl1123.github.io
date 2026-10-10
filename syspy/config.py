@@ -1,7 +1,12 @@
 import json
+import logging
 import os
 import time
 from typing import Tuple
+
+# 本模块在 syspy/__init__.py 第 1 行被导入，早于 Trace 绑定，且此时 RBK_VERSION 尚未
+# 对外可用（syspy 包处于 partial 状态），因此不能使用 Trace.log，统一走标准库 logging。
+log = logging.getLogger("rbk.script")
 
 RBK_INFO_FILE = "/opt/.data/rbk/private/version/robokit.json"
 RBK_NETWORK_FILE = "/opt/.data/rbk/resources/network/default.ssys"
@@ -32,16 +37,16 @@ def read_rbk_version_from_file(max_retries: int, retry_interval: float) -> Tuple
                     if rbk_version is not None:
                         return rbk_version, rbk_full_version
         except json.JSONDecodeError:
-            print(f"Attempt {attempt + 1}: JSON decode error")
+            log.warning("Attempt %s: JSON decode error", attempt + 1)
         except Exception as e:
-            print(f"Attempt {attempt + 1}: Error reading file: {e}")
+            log.warning("Attempt %s: Error reading file: %s", attempt + 1, e)
 
-        print(f"Attempt {attempt + 1}: Get the RBK version")
+        log.debug("Attempt %s: Get the RBK version", attempt + 1)
         # 如果不是最后一次尝试，则等待后重试
         if attempt < max_retries - 1:
             time.sleep(retry_interval)
 
-    print(f"Failed to get valid RBK version info after {max_retries} attempts")
+    log.error("Failed to get valid RBK version info after %s attempts", max_retries)
     return DEFAULT_RBK_VERSION, "x"
 
 
@@ -56,13 +61,12 @@ def read_simulation_from_file(default: bool = False) -> bool:
                 return value.strip().lower() in ("1", "true", "yes", "on")
             return bool(value)
     except Exception as e:
-        print(f"read simulation flag failed: {e}")
+        log.warning("read simulation flag failed: %s", e)
     return default
 
 
 RBK_VERSION, RBK_FULL_VERSION = read_rbk_version_from_file(MAX_RETRIES, RETRY_INTERVAL)
 RBK_SIMULATION = read_simulation_from_file(False)
 os.environ["RBK_SIMULATION"] = "1" if RBK_SIMULATION else "0"
-print(f"{RBK_VERSION=}")
-print(f"{RBK_FULL_VERSION=}")
-print(f"{RBK_SIMULATION=}")
+log.debug("RBK_VERSION=%s RBK_FULL_VERSION=%s RBK_SIMULATION=%s",
+          RBK_VERSION, RBK_FULL_VERSION, RBK_SIMULATION)

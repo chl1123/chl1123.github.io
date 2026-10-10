@@ -26,6 +26,18 @@ def _log_to_syslog(message, level=syslog.LOG_ERR):
         pass
 
 
+def _log_to_trace(script, message):
+    """电池脚本重启前上报 Trace。
+
+    此处在崩溃/重启路径上，RBK RPC 可能已不可用，因此不能让 Trace 异常打断重启流程。
+    """
+    try:
+        from syspy.lib.trace import Trace
+        Trace.log(f"{script}: {message}", name="syspy.battery")
+    except Exception:
+        pass
+
+
 def _current_process_cmdline():
     try:
         with open("/proc/self/cmdline", "rb") as f:
@@ -75,7 +87,7 @@ def run_battery_script(factory: Callable[[], object], *, init_hook: Optional[Cal
         tb = traceback.format_exc()
         sys.stderr.write(tb)
         _log_to_syslog(f"{script} crashed, restarting in {restart_delay_s}s\n{tb}")
-        print(f"Battery script crashed, restarting in {restart_delay_s}s")
+        _log_to_trace(script, f"Battery script crashed, restarting in {restart_delay_s}s")
         time.sleep(restart_delay_s)
         cmdline = _current_process_cmdline()
         os.environ["BATTERY_RESTART_COUNT"] = str(restart_count + 1)

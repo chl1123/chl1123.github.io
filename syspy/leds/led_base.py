@@ -5,6 +5,7 @@ import time
 from typing import Union, Optional
 
 from syspy import Abnormal
+from syspy.lib.trace import Trace
 from .dmx_led import DmxLed, LightEffect
 from .dmx_serial_comm import DmxSerialComm
 from .light_type import Brightness, LightType, Color
@@ -43,22 +44,22 @@ class LedBase:
     def init(self):
         if self.check_config():
             self.set58050("led model: turnlight config error")
-            print("led model: turnlight config error")
+            Trace.log("led model: turnlight config error", name="syspy.led.err")
             return False
 
         self.clear58050("led model: turnlight config error")
-        print("Configuration is valid.")
+        Trace.log("Configuration is valid.", name="syspy.led")
 
         if self.dmx_serial is not None:
             self.dmx_serial.close()
-        print("DMXLedTTY init() self.dev:", self.dev)
+        Trace.log(f"DMXLedTTY init() self.dev: {self.dev}", name="syspy.led")
 
         if self.dmx_serial.open():
-            print("DMXLed init success")
+            Trace.log("DMXLed init success", name="syspy.led")
             if Abnormal.exists(58050):
                 Abnormal.clear(58050)
         else:
-            print("DMXLed init failed")
+            Trace.log("DMXLed init failed", name="syspy.led.err")
             Abnormal.setDevice(58050, "Error opening serial port", "Error opening serial port",
                                "check port baudrate", "led/*.py", "Led")
             return False

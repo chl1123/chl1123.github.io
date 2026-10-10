@@ -4,6 +4,7 @@ import subprocess
 import serial
 
 from syspy.comms.comm import Communication
+from syspy.lib.trace import Trace
 
 
 class SerialComm(Communication):
@@ -13,14 +14,13 @@ class SerialComm(Communication):
         self.serial = None
 
     def __del__(self):
-        print("SerialComm.__del__")
         self.close()
 
     def open(self):
         if self.serial is not None and self.serial.isOpen():
             return True
         try:
-            print(f"Opening serial port {self.port}, {self.baudrate}")
+            Trace.log(f"Opening serial port {self.port}, {self.baudrate}", name="syspy.serial")
             self.serial = serial.Serial(
                 port=self.port,
                 baudrate=self.baudrate,  # 波特率
@@ -31,13 +31,13 @@ class SerialComm(Communication):
             command = "cat /etc/srcname"
             output = subprocess.check_output(command, shell=True)
             output = output.decode("utf-8").strip()
-            print("SRC name: ", output)
+            Trace.log(f"SRC name: {output}", name="syspy.serial")
             if output in ['SRC800', 'SRC3000']:
                 fcntl.ioctl(self.serial, 0)  # 这行决定了485模式
-            print(f"Serial port {self.port} opened successfully.")
+            Trace.log(f"Serial port {self.port} opened successfully.", name="syspy.serial")
             return True
         except serial.SerialException as e:
-            print(f"Error opening serial port: {e}")
+            Trace.log(f"Error opening serial port: {e}", name="syspy.serial.err")
             return False
 
     def close(self):
@@ -45,7 +45,7 @@ class SerialComm(Communication):
             try:
                 self.serial.close()
             except serial.SerialException as e:
-                print(f"Error closing serial port: {e}")
+                Trace.log(f"Error closing serial port: {e}", name="syspy.serial.err")
                 return False
         return True
 

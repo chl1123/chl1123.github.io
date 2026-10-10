@@ -161,10 +161,12 @@ class Module:
 
         Service.init(cls.script_id, cls.script_type)
 
-        print("script_name=", cls.script_name)
-        print("script_id=", cls.script_id)
         args = cls.__getArgs()
-        print("args=", args)
+        Trace.log(
+            {"scriptName": cls.script_name, "scriptId": cls.script_id,
+             "scriptType": cls.script_type.value, "args": args},
+            name="syspy.module",
+        )
         if cls.script_type == ScriptType.TASK:
             cls.__initTaskArgs(args)
             cls.__register()
@@ -201,7 +203,8 @@ class Module:
                 if instance:
                     instance.setTaskConfig(cls.__task_params["config"])
                 else:
-                    print(f"ScriptParam.getInstance({cls.script_file}) is None")
+                    Trace.log(f"ScriptParam.getInstance({cls.script_file}) is None",
+                              name="syspy.module.err")
                     return
     @classmethod
     def __register(cls):

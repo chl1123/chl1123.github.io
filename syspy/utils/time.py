@@ -1,5 +1,7 @@
 import time
 
+from syspy.lib.trace import Trace
+
 
 def get_uuid():
     import uuid
@@ -35,13 +37,15 @@ def cost_time(func):
     def fun(*args, **kwargs):
         t = time.perf_counter()
         result = func(*args, **kwargs)
-        print(f'func {func.__name__} cost time:{time.perf_counter() - t:.8f} s')
+        Trace.log(f'func {func.__name__} cost time:{time.perf_counter() - t:.8f} s',
+                  name="syspy.utils.time")
         return result
 
     async def func_async(*args, **kwargs):
         t = time.perf_counter()
         result = await func(*args, **kwargs)
-        print(f'func {func.__name__} cost time:{time.perf_counter() - t:.8f} s')
+        Trace.log(f'func {func.__name__} cost time:{time.perf_counter() - t:.8f} s',
+                  name="syspy.utils.time")
         return result
 
     from asyncio.coroutines import iscoroutinefunction

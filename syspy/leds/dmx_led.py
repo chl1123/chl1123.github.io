@@ -6,6 +6,7 @@ from typing import Union
 
 from .light_type import LightType, Color
 from ..utils.param_server import ParamServer
+from ..lib.trace import Trace
 
 
 def adjust_color(rgb, brightness=1.0, saturation=1.0):
@@ -58,18 +59,18 @@ class LightEffect(metaclass=ABCMeta):
         if isinstance(brightness, (int, float)):
             self._brightness = brightness
         else:
-            print("brightness is not a number")
+            Trace.log("brightness is not a number", name="syspy.led.err")
 
     @abstractmethod
     def update(self):
         raise NotImplementedError("Subclasses must implement this method.")
     
     def set_index(self, idx):
-        print("Subclasses unimplement this method set_index")
+        Trace.log("Subclasses unimplement this method set_index", name="syspy.led.err")
         #raise NotImplementedError("Subclasses must implement this method.")
     
     def add_segment(self, led_idx, rgbw):
-        print("Subclasses unimplement this method add_segment")
+        Trace.log("Subclasses unimplement this method add_segment", name="syspy.led.err")
         #raise NotImplementedError("Subclasses must implement this method.")
 
     def data_packet(self, init_rgbw=None):

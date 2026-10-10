@@ -81,7 +81,7 @@ class dmx512NativeLib:
             while not self.__should_close.is_set():
                 self.recv()
         except Exception as e:
-            print("exception:", e)
+            Trace.log(f"exception: {e}", name="syspy.dmx512.err")
         finally:
             self.ser.close()
             pass
@@ -114,7 +114,7 @@ class dmx512NativeLib:
             self.bus.send(msg)
             Trace.log(f"message send: can_id={hex(can_id)}, dlc={dlc}, extend={extend}, can_string={can_string}")
         except Exception as e:
-            print(f"Error sending CAN frame: {e}")
+            Trace.log(f"Error sending CAN frame: {e}", name="syspy.dmx512.err")
 
     def recvCan(self):
         msg = self.bus.recv(1.0)  # 设置超时时间
@@ -127,7 +127,7 @@ class dmx512NativeLib:
             while not self.__should_close.is_set():
                 self.recvCan()
         except Exception as e:
-            print("recvCan exception:", e)
+            Trace.log(f"recvCan exception: {e}", name="syspy.dmx512.err")
         finally:
             self.bus.shutdown()  # 确保总线关闭
 

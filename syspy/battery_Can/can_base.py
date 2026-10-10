@@ -67,7 +67,7 @@ class CanBase:
 
     def serviceDispatcher(self,route_json: str):
         request = json.loads(route_json)
-        print(f"request={request}")
+        Trace.log(f"request={request}", name="syspy.battery.can", debug=True)
         response = dict()
         func_name = request["func_name"]
         if func_name == "getBatteryMsg":

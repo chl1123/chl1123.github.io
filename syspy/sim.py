@@ -12,6 +12,7 @@ import os
 from typing import Any, Callable, Optional, TypeVar, cast
 
 from syspy.config import RBK_SIMULATION
+from syspy.lib.trace import Trace
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -68,7 +69,7 @@ def sim_only(
                 msg = f"[sim_only] skip {target.__qualname__}"
                 if reason:
                     msg += f", reason={reason}"
-                print(msg)
+                Trace.log(msg, name="syspy.sim")
                 return skip_return
             return target(*args, **kwargs)
 

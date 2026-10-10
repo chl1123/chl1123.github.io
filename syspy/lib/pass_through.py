@@ -1,11 +1,13 @@
 import threading, zmq, time, sys
 
+from syspy.lib.trace import Trace
+
 
 # 导入protobuf定义
 try:
     from syspy.v3.protobuf.message import CanFrame_pb2
 except ImportError:
-    print("Warning: CanFrame_pb2 not found, falling back to bytes comparison")
+    Trace.log("CanFrame_pb2 not found, falling back to bytes comparison", name="syspy.passThrough.err")
 
 
 
@@ -29,28 +31,30 @@ class passThrough:
         self.__pass_type = None
         if pass_type == "can":
             self.__pass_type = True
-            print("Use Can Pass")
+            Trace.log("Use Can Pass", name="syspy.passThrough")
         elif pass_type == "serial":
             self.__pass_type = False
-            print("Use Serial Pass")
+            Trace.log("Use Serial Pass", name="syspy.passThrough")
         else:
-            print("passThrough type error.It should be 'can' or 'serial'")
-        print("passThrough start with real-time message settings (HWM=1)")
+            Trace.log("passThrough type error.It should be 'can' or 'serial'",
+                      name="syspy.passThrough.err")
+        Trace.log("passThrough start with real-time message settings (HWM=1)",
+                  name="syspy.passThrough")
 
     def close(self):
-        print("close the socket")
+        Trace.log("close the socket", name="syspy.passThrough")
         self.__should_close = True
         if self.__msg_thread and self.__msg_thread.is_alive():
             self.__msg_thread.join(timeout=1.0)
         try:
             self.__client_sock.close(0)
         except Exception as e:
-            print("socket close error:", e)
+            Trace.log(f"socket close error: {e}", name="syspy.passThrough.err")
         try:
             self.context.term()
         except Exception as e:
-            print("context term error:", e)
-        print("passThrough closed.")
+            Trace.log(f"context term error: {e}", name="syspy.passThrough.err")
+        Trace.log("passThrough closed.", name="syspy.passThrough")
 
 
     def setCallBack(self, callback):
@@ -82,10 +86,10 @@ class passThrough:
                 if self.__client_sock in sockets:
                     self.__receive()
         except Exception as e:
-            print("passThrough exception:", e)
+            Trace.log(f"passThrough exception: {e}", name="syspy.passThrough.err")
 
         finally:
-            print("finished passThrough")
+            Trace.log("finished passThrough", name="syspy.passThrough")
 
     def __receive(self):
         with self.__lock:

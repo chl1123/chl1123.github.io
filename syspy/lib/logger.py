@@ -7,6 +7,19 @@ from typing import Any
 log_dir = '/opt/.data/diagnosis/rbk/logs/scripts/'
 
 
+def _log_delete_failure(log_file: str, exc: Exception) -> None:
+    """记录日志文件清理失败。
+
+    本模块在 syspy/__init__.py 中早于 Trace 绑定导入，因此只能延迟导入；
+    日志轮转发生在任意阶段，不能因为 Trace 不可用而再次抛异常。
+    """
+    try:
+        from syspy.lib.trace import Trace
+        Trace.log(f"Failed to delete old log file {log_file}: {exc}", name="syspy.logger.err")
+    except Exception:
+        pass
+
+
 class BackupCountRotatingFileHandler(RotatingFileHandler):
     def __init__(self, base_filename: str, maxBytes: int, backupCount: int, encoding: str = None,
                  totalBackupCount: int = 50):
@@ -85,7 +98,7 @@ class BackupCountRotatingFileHandler(RotatingFileHandler):
                 try:
                     os.remove(os.path.join(log_dir, log_file))
                 except Exception as e:
-                    print(f"Failed to delete old log file {log_file}: {e}")
+                    _log_delete_failure(log_file, e)
 
         if self.total_backup_count > 0:
             # 获取所有以 base_filename 开头的文件
@@ -103,7 +116,7 @@ class BackupCountRotatingFileHandler(RotatingFileHandler):
                     try:
                         os.remove(os.path.join(log_dir, log_file))
                     except Exception as e:
-                        print(f"Failed to delete old log file {log_file}: {e}")
+                        _log_delete_failure(log_file, e)
 
 
 class Logger:
