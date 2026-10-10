@@ -1363,6 +1363,7 @@ class FingerAction(BaseAction):
         self.maxTry = ConfigParams.finger_max_try
         self.count = 0
         self.overlimit_count = 0
+        self._overlimit_stretch_target = None
 
     def run(self, m):
         super().run(m)
@@ -1383,8 +1384,11 @@ class FingerAction(BaseAction):
             if Di.getDi(ConfigParams.overlimit_detect_di):
                 self.overlimit_alarm = True
                 if time.time() - self.start_time >= ConfigParams.overlimit_detect_time:
-                    self.overlimit_count += 1
                     self.start_time = time.time()
+                    if self._try_extend_for_overlimit():
+                        self.overlimit_count = 0
+                        return
+                    self.overlimit_count += 1
                     if self.overlimit_count >= ConfigParams.overlimit_detect_times:
                         Navigation.setTaskError("StretchObstacle", _TR(
                             f"Fork overlimit photoelectric sensor detected obstacle. Push the box manually to clear the overlimit, or increase stretch compensation"))
@@ -1393,6 +1397,9 @@ class FingerAction(BaseAction):
                             self.action_status = ActionStatus.FAILED
                 return
             if self.overlimit_alarm:
+                if self._overlimit_stretch_target is not None:
+                    Motor.resetMotor(ConfigParams.stretch_motor_name)
+                    self._overlimit_stretch_target = None
                 Navigation.clearTaskError("StretchObstacle")
                 self.overlimit_alarm = False
                 self.overlimit_count = 0
@@ -1501,6 +1508,47 @@ class FingerAction(BaseAction):
         self._motor_started = False
         self.overlimit_alarm = False
         self.overlimit_count = 0
+        self._overlimit_stretch_target = None
+
+    def _try_extend_for_overlimit(self):
+        """取货合指被超限光电挡住时，每次向外补伸1cm，直到最大长度。"""
+        if self.agv.operation not in ("load", "inTake", "exTake"):
+            return False
+        max_length = ConfigParams.max_stretch_length
+        if max_length is None:
+            return False
+        current = self.agv.stretch_real_pos
+        if current >= max_length - 0.001:
+            if self._overlimit_stretch_target is not None:
+                Motor.resetMotor(ConfigParams.stretch_motor_name)
+                self._overlimit_stretch_target = None
+            return False
+
+        if (self._overlimit_stretch_target is not None
+                and current < self._overlimit_stretch_target - 0.003):
+            Motor.setMotorPosition(
+                ConfigParams.stretch_motor_name,
+                self._overlimit_stretch_target,
+                ConfigParams.stretch_motor_speed,
+            )
+            return False
+
+        target = min(current + 0.01, max_length)
+        if target <= current + 0.001:
+            return False
+        self.agv.stretch_motor.reset()
+        Motor.setMotorPosition(
+            ConfigParams.stretch_motor_name,
+            target,
+            ConfigParams.stretch_motor_speed,
+        )
+        self._overlimit_stretch_target = target
+        Trace.log(
+            f"取货合指被超限光电阻挡，伸缩补伸1cm: "
+            f"current={current:.4f}, target={target:.4f}, max={max_length:.4f}",
+            name=f"{MOD}.motor",
+        )
+        return True
 
     def _prepare_auto_pre_timing(self):
         start = [self.agv.left_finger_real_pos, self.agv.right_finger_real_pos]
