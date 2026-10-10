@@ -10,6 +10,7 @@ import json
 import sys
 import tempfile
 import stat
+import threading
 from enum import Enum
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -174,6 +175,8 @@ class ScriptParam:
     event_task_config = False
     file_instance = {}
     file_callback = {}  
+    # 对外参数路径的统一顶层段，如 script.motorIoConfig.jackMaxHeight
+    SCRIPT_PARAM_ROOT = "script"
 
 
 
@@ -191,6 +194,10 @@ class ScriptParam:
         self.config_full_params = {}
         self._actions = []
         self.__config_validator = None
+        # 已注册的脚本参数读写方法名，避免重复注册
+        self.__registered_methods = set()
+        # 保护 config_full_params 的读改写，getScriptParam/setScriptParam 会被 RPC 线程调用
+        self.__lock = threading.RLock()
         script_file=script_file.replace("/params","")
         ScriptParam.file_instance[script_file] = self
         if callback is not None:
@@ -203,7 +210,47 @@ class ScriptParam:
         script_file=script_file.replace(".py","")
         return ScriptParam.file_instance.get(script_file,None)
 
+    def _register_script_param_methods(self, *method_names: str) -> None:
+        """把本实例的脚本参数读写方法注册到 RPC 服务，重复调用只注册一次
+
+        脚本无需显式调用注册接口：
+        - 生成配置参数（调用 builderConfig()）时自动注册 getScriptParam；
+        - 设置配置变更回调（调用 setConfigChangeCallBack()）时自动注册 setScriptParam。
+
+        注册只写类级 RpcServer.FUNCS，Module.init() 启动服务时一次性上报，
+        因此可以早于 Service.init() 调用；服务未就绪或注册失败时只记录日志，
+        不影响脚本启动。
+        """
+        from syspy.lib.trace import Trace
+
+        registered = self.__registered_methods
+        todo = [name for name in method_names if name not in registered]
+        if not todo:
+            return
+
+        try:
+            server = Service.server()
+        except Exception as error:
+            Trace.log(f"register {todo} skipped: {error}", name="syspy.param")
+            return
+
+        for name in todo:
+            function = getattr(self, name, None)
+            if function is None:
+                continue
+            try:
+                server.register_function(function, name, True)
+            except Exception as error:
+                Trace.log(f"register {name} failed: {error}", name="syspy.param")
+                continue
+            registered.add(name)
+
     def builderConfig(self):
+        """创建配置参数构建器；调用即表明该脚本要生成配置参数
+
+        同时自动注册 getScriptParam，使脚本不需要额外注册即可被 SPG 查询。
+        """
+        self._register_script_param_methods("getScriptParam")
         return ParamBuilder(self.config_file, "Script Configuration Parameters", "config")
 
     def builderInput(self):
@@ -235,9 +282,331 @@ class ScriptParam:
         validator = ParamValidator(input_def)
         return validator.validate(input_params or {})
 
+    @staticmethod
+    def _strip_script_prefix(path: str) -> str:
+        """去掉参数路径顶层的 script 段，得到脚本内部的参数路径
+
+        对外接口的参数路径统一以 script 开头（如
+        script.motorIoConfig.jackMaxHeight），用于与设备、机型等其他参数
+        命名空间区分；读写时忽略该段，脚本内部仍按 motorIoConfig.jackMaxHeight
+        索引 config_full_params，不做任何转换。
+
+        script 段之后可再接脚本名（如 script.straddleLiftFork.motorIoConfig.jackMaxHeight），
+        该段仅用于对外标识，同样在解析时忽略，因此这里只剥掉最外层的 script 段。
+
+        Args:
+            path (str): 调用方传入的参数路径。
+
+        Returns:
+            str: 去掉 script 段后的参数路径（可能仍带脚本名段）。
+
+        Raises:
+            ValueError: 路径不以 script. 开头，或去掉后为空。
+        """
+        prefix = f"{ScriptParam.SCRIPT_PARAM_ROOT}."
+        if not path.startswith(prefix):
+            raise ValueError(
+                f"param path must start with '{ScriptParam.SCRIPT_PARAM_ROOT}.', "
+                f"got: {path}"
+            )
+        stripped = path[len(prefix):]
+        if not stripped:
+            raise ValueError("param path cannot be empty")
+        return stripped
+
+    def _resolve_inner_path(self, full_path: str) -> str:
+        """把对外参数路径解析成 config_full_params 的内部键
+
+        先按剥掉 script 段后的路径直接查；查不到且还剩至少两段时，再剥掉
+        紧随其后的脚本名段重试。因此下面两种写法等价：
+        - script.motorIoConfig.jackMaxHeight
+        - script.straddleLiftFork.motorIoConfig.jackMaxHeight
+
+        Args:
+            full_path (str): 调用方传入的参数路径。
+
+        Returns:
+            str: config_full_params 的内部键。
+
+        Raises:
+            ValueError: 路径非法，或参数不存在。
+        """
+        stripped = self._strip_script_prefix(full_path)
+        if stripped in self.config_full_params:
+            return stripped
+
+        segments = stripped.split('.')
+        if len(segments) >= 2:
+            without_script_name = '.'.join(segments[1:])
+            if without_script_name in self.config_full_params:
+                return without_script_name
+
+        raise ValueError(f"Parameter not found: {full_path}")
+
+    def _ensure_config_loaded(self) -> None:
+        """确保配置参数已加载，未加载则读一次
+
+        getScriptParam/setScriptParam 可能早于脚本自身的 loadConfig() 被调用，
+        这里自动加载一次；仍加载不出内容（如配置文件缺失）时报错。
+        调用方需已持有 self.__lock。
+
+        Raises:
+            RuntimeError: 配置参数无法加载。
+        """
+        if self.config_full_params:
+            return
+        try:
+            self.loadConfig()
+        except Exception as error:
+            raise RuntimeError(f"Script config parameters are not loaded: {error}")
+        if not self.config_full_params:
+            raise RuntimeError("Script config parameters are not loaded")
+
+    def _get_config_validator(self) -> 'ParamValidator':
+        """获取配置参数定义校验器，优先复用 loadConfig() 已构建的实例"""
+        if self.__config_validator is not None:
+            return self.__config_validator
+        if not self.config_file or not os.path.exists(self.config_file):
+            raise FileNotFoundError(f"Config file not found: {self.config_file}")
+        with open(self.config_file, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        self.__config_validator = ParamValidator(config_data)
+        return self.__config_validator
+
+    def getScriptParam(self, params: Optional[List[str]] = None) -> Dict[str, Any]:
+        """查询当前生效的脚本配置参数
+
+        由 PyIDE 按脚本路由到本方法，因此不需要传入脚本路径。
+
+        数据来源是内存中的 config_full_params，因此包含本次任务下发的临时覆盖；
+        配置尚未加载时自动调用 loadConfig() 读一次，仍失败才报错。
+
+        Args:
+            params (Optional[List[str]]): 要查询的参数路径列表，点号分隔，顶层
+                固定为 script（如 "script.motorIoConfig.jackMaxHeight"），
+                其后可再接脚本名（如 "script.straddleLiftFork.motorIoConfig.jackMaxHeight"），
+                两种写法等价。为空时返回全部配置参数。
+
+        Returns:
+            Dict[str, Any]: {params}，params 为 路径 -> 值 的字典。传入 params
+                时按原样回显调用方给的路径（含 script 段），不传时返回的键为
+                脚本内部路径（不带 script 段）。
+
+        Raises:
+            ValueError: 参数路径不以 script. 开头，或查询的参数不存在。
+            RuntimeError: 脚本配置参数尚未加载。
+
+        Examples:
+        ```python
+        from syspy import ScriptParam
+        param_loader = ScriptParam(__file__)
+        param_loader.getScriptParam(
+            ["script.motorIoConfig.jackMaxHeight"],
+        )
+        # {"params": {"script.motorIoConfig.jackMaxHeight": 0.4}}
+        ```
+        """
+        with self.__lock:
+            self._ensure_config_loaded()
+
+            if not params:
+                result = dict(self.config_full_params)
+            else:
+                result = {}
+                for name in params:
+                    full_path = str(name).strip()
+                    inner_path = self._resolve_inner_path(full_path)
+                    result[full_path] = self.config_full_params[inner_path]
+
+            return {"params": result}
+
+    def setScriptParam(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """设置脚本配置参数，写入内存并落盘，随后通知脚本重新加载配置
+
+        由 PyIDE 按脚本路由到本方法，因此不需要传入脚本路径。
+
+        语义为"修改这个脚本的配置参数"：即使当前处于任务覆盖期间，改的也是
+        配置参数本身——内存和配置文件同时更新，任务覆盖仍然优先生效。
+
+        Args:
+            params (Dict[str, Any]): 参数路径 -> 新值。键为点号分隔的完整路径，
+                顶层固定为 script（如 "script.motorIoConfig.jackMaxHeight"），
+                其后可再接脚本名（如 "script.straddleLiftFork.motorIoConfig.jackMaxHeight"），
+                两种写法等价，读写时会忽略掉 script 与脚本名段；写入前按参数定义
+                做类型与范围校验，任一参数非法则整体拒绝，不做部分写入。
+
+        Returns:
+            Dict[str, Any]: {applied, persisted}，applied 为
+                路径 -> {old, new} 的改动明细，键与传入的 params 一致。
+
+        Raises:
+            ValueError: 参数路径不以 script. 开头、params 为空或非字典、
+                路径不存在、参数只读，或取值校验失败。
+            RuntimeError: 脚本配置参数无法加载。
+
+        Examples:
+        ```python
+        from syspy import ScriptParam
+        param_loader = ScriptParam(__file__)
+        param_loader.setScriptParam(
+            {"script.motorIoConfig.jackMaxHeight": 0.5},
+        )
+        ```
+        """
+        if not params or not isinstance(params, dict):
+            raise ValueError("params must be a non-empty dict of path -> value")
+
+        with self.__lock:
+            self._ensure_config_loaded()
+
+            validator = self._get_config_validator()
+            param_index = validator.param_index
+
+            applied: Dict[str, Any] = {}
+            # 对外回显路径（含 script 段） -> 脚本内部路径，落盘与内存都用内部路径
+            echo_paths: Dict[str, str] = {}
+            # 先整体校验，全部通过后再写入，保证不会只改一半
+            for name, value in params.items():
+                full_path = str(name).strip()
+                inner_path = self._resolve_inner_path(full_path)
+
+                param_def = self._resolve_param_def(param_index, inner_path, full_path)
+                if param_def.get('isReadOnly') or param_def.get('permission'):
+                    raise ValueError(f"Parameter is read-only: {full_path}")
+
+                validated_value = validator._validate_single(param_def, value, full_path)
+                echo_paths[full_path] = inner_path
+                applied[inner_path] = {
+                    "old": self.config_full_params.get(inner_path),
+                    "new": validated_value,
+                }
+
+            # 先落盘，成功后再改内存；盘上失败则内存不会出现“新值但未持久化”的割裂态
+            persisted = self._persist_config_values(applied)
+            for inner_path, change in applied.items():
+                self.config_full_params[inner_path] = change["new"]
+
+            # 通知脚本重新加载配置
+            self._notify_config_changed()
+
+            return {
+                "applied": {
+                    echo_path: applied[inner_path]
+                    for echo_path, inner_path in echo_paths.items()
+                },
+                "persisted": persisted,
+            }
+
+    def _resolve_param_def(
+            self,
+            param_index: Dict[str, Dict[str, Any]],
+            path: str,
+            display_path: str = None,
+    ) -> Dict[str, Any]:
+        """按完整路径或叶子 key 解析参数定义，叶子 key 有歧义时报错
+
+        Args:
+            param_index (Dict[str, Dict[str, Any]]): 参数定义索引，键为脚本内部路径。
+            path (str): 脚本内部的参数路径（已去掉 script 段）。
+            display_path (str): 用于报错的路径，默认与 path 相同；外部接口应传入
+                调用方原样的路径，使报错信息与调用方入参一致。
+        """
+        shown = display_path or path
+        param_def = param_index.get(path)
+        if param_def is not None and param_def.get('type'):
+            if param_def.get('type') == ParamType.ARRAY:
+                raise ValueError(f"Parameter is a group, not a value node: {shown}")
+            return param_def
+
+        if '.' not in path:
+            raise ValueError(f"Parameter not found: {shown}")
+
+        leaf_key = path.rsplit('.', 1)[-1]
+        candidates = {
+            id(defined): defined
+            for indexed_path, defined in param_index.items()
+            if defined.get('type')
+            and defined.get('type') != ParamType.ARRAY
+            and indexed_path.endswith('.' + leaf_key)
+        }
+        if not candidates:
+            raise ValueError(f"Parameter not found: {shown}")
+        if len(candidates) > 1:
+            raise ValueError(
+                f"Ambiguous parameter path: {shown}. "
+                "Use the full dotted path (script.group.param)"
+            )
+        return next(iter(candidates.values()))
+
+    def _persist_config_values(self, applied: Dict[str, Dict[str, Any]]) -> bool:
+        """把新值写回配置文件叶子节点并原子落盘
+
+        每次落盘都重新读盘，避免用可能已过期的定义缓存覆盖盘上的其他改动。
+
+        Returns:
+            bool: 是否已写入配置文件。
+        """
+        if not self.config_file:
+            return False
+
+        definition: Dict[str, Any] = {}
+        if os.path.exists(self.config_file) and os.path.getsize(self.config_file):
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                definition = json.load(f)
+
+        touched = False
+        for full_path, change in applied.items():
+            if self._set_defined_value(definition, full_path.split('.'), change["new"]):
+                touched = True
+
+        if not touched:
+            return False
+
+        _atomic_write_text(
+            self.config_file,
+            json.dumps(definition, indent=2, ensure_ascii=False),
+        )
+        return True
+
+    @staticmethod
+    def _set_defined_value(definition: Dict[str, Any], segments: List[str], value: Any) -> bool:
+        """按路径在配置定义树中就地更新叶子节点的值
+
+        顶层为 groups 列表；只有定义了 type 且非 array 的节点才是真正的参数，
+        分组/数组父节点不写值，避免把标量写进 groups 造成定义损坏。
+        """
+        node: Dict[str, Any] = {"children": definition.get('groups', [])}
+        for index, segment in enumerate(segments):
+            children = node.get('children')
+            if not isinstance(children, list):
+                return False
+            node = next(
+                (child for child in children if isinstance(child, dict) and child.get('key') == segment),
+                None,
+            )
+            if node is None:
+                return False
+            if index == len(segments) - 1:
+                if not node.get('type') or node.get('type') == ParamType.ARRAY:
+                    return False
+                node['value'] = value
+                return True
+        return False
+
+    def _notify_config_changed(self) -> None:
+        """通知脚本配置已改变，回调不存在时只记录日志"""
+        from syspy.lib.trace import Trace
+        Trace.log("setScriptParam()", name="syspy.param")
+        callback = ScriptParam.file_callback.get(self.script_file)
+        if callback:
+            callback()
+
     @classmethod
     def setConfigChangeCallBack(cls, callback: Callable[[], None]):
         """设置脚本配置参数改变回调
+
+        同时自动注册 setScriptParam，使脚本不需要额外注册即可被 SPG 修改；
+        按调用者所在文件定位实例，因此需先创建 ScriptParam(__file__)。
 
         Args:
             callback (Callable[[], None]): 回调方法
@@ -246,6 +615,9 @@ class ScriptParam:
         caller_file = caller_frame.filename.replace(".py","")
         ScriptParam.file_callback[caller_file] = callback
         Service.server().register_function(callback, "script_config_changed", True)
+        instance = ScriptParam.file_instance.get(caller_file)
+        if instance is not None:
+            instance._register_script_param_methods("setScriptParam")
 
     def _extract_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """从参数定义中提取值"""
@@ -1406,6 +1778,42 @@ class ParamValidator:
 
         except ValueError as e:
             errors.append(str(e))
+
+    def _validate_single(self, param_def: Dict[str, Any], value: Any, full_path: str) -> Any:
+        """按参数定义校验并转换单个值，不符合定义时抛 ValueError
+
+        供 setScriptParam 在写入前做类型与范围校验，与 validate() 共用同一套
+        转换规则，避免两处校验口径不一致。
+
+        Args:
+            param_def (Dict[str, Any]): 参数定义节点。
+            value (Any): 待校验的值。
+            full_path (str): 参数完整路径，仅用于报错。
+
+        Returns:
+            Any: 转换后的值。
+        """
+        param_type = param_def.get('type')
+        if not param_type or param_type == ParamType.ARRAY:
+            raise ValueError(f"Parameter is not a value node: {full_path}")
+
+        if param_def.get('required', False) and value is None:
+            raise ValueError(f"Missing required parameter: {full_path}")
+        if value is None:
+            return None
+
+        if param_type in (ParamType.INT, ParamType.INT32, ParamType.INT64,
+                          ParamType.UINT, ParamType.UINT32, ParamType.UINT64):
+            return self._validate_number(value, param_type, param_def, full_path)
+        if param_type in (ParamType.FLOAT, ParamType.DOUBLE):
+            return self._validate_float(value, param_type, param_def, full_path)
+        if param_type in (ParamType.BOOL, ParamType.COMBO_BOX_BOOL):
+            return self._validate_bool(value, full_path)
+        if param_type == ParamType.STRING:
+            return self._validate_string(value, param_def, full_path)
+        if param_type == ParamType.IP:
+            return self._validate_ip(value, full_path)
+        return value
 
     def _validate_number(
             self,
