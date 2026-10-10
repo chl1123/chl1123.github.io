@@ -17,7 +17,7 @@ from typing import List
 
 from syspy.utils.time import Timer
 from syspy import Module, Logger, Di, Do, Motor, Navigation, ScriptStatus, Controller, Odometer, Recognize, \
-    RobotParam, Trace, AutoPreInterface, AutoPreSequenceAction, is_simulation, _TR
+    RobotParam, RobotError, Trace, AutoPreInterface, AutoPreSequenceAction, is_simulation, _TR
 from syspy.lib.net_protocol import parseModbus, NetProtocol
 from syspy.bin import Container
 from syspy.lib.module import SafeMoveStatus, ModuleBase
@@ -36,6 +36,7 @@ MOD = "ctu"
 AUTO_PRE_POSITION_SETTLE_TIME = 1.0
 AUTO_PRE_FINGER_BUDGET = 3.0
 AUTO_PRE_DI_BUDGET = 0.1
+TIMEOUT_RECOVERY_TIMEOUT = 15.0
 
 # 取货结束后货物保留在 999；这里只跨任务保存重建延迟入背篓动作所需的最小数据。
 _pending_fork_store = None
@@ -1390,6 +1391,7 @@ class FingerAction(BaseAction):
                         return
                     self.overlimit_count += 1
                     if self.overlimit_count >= ConfigParams.overlimit_detect_times:
+                        self.agv.timeout_deferred_stretch_obstacle = True
                         Navigation.setTaskError("StretchObstacle", _TR(
                             f"Fork overlimit photoelectric sensor detected obstacle. Push the box manually to clear the overlimit, or increase stretch compensation"))
                         self.overlimit_count = 0
@@ -1401,6 +1403,7 @@ class FingerAction(BaseAction):
                     Motor.resetMotor(ConfigParams.stretch_motor_name)
                     self._overlimit_stretch_target = None
                 Navigation.clearTaskError("StretchObstacle")
+                self.agv.timeout_deferred_stretch_obstacle = False
                 self.overlimit_alarm = False
                 self.overlimit_count = 0
                 Trace.log("超限光电障碍物已消除，自动清除告警，继续合指抓取", name=f"{MOD}.motor")
@@ -2048,6 +2051,9 @@ class ContainerRobot(ModuleBase):
         self.suspend_start_time = None
         self._last_safe_move_log = None
         self.business_timeout_started = False
+        self.timeout_recovery_active = False
+        self.timeout_recovery_start = None
+        self.timeout_deferred_stretch_obstacle = False
         self.auto_pre_enabled = False
         self.auto_pre_stage = 2
         self.goods_id = ""
@@ -2129,6 +2135,7 @@ class ContainerRobot(ModuleBase):
         self.operation_init = False
         # 框架动作队列引擎(action_list 作暂存源, 经 _sync_task 镜像到此队列执行)
         self.action_task = ActionTask(mod=MOD)
+        self.timeout_recovery_task = ActionTask(mod=f"{MOD}.timeoutRecovery")
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
 
@@ -2138,6 +2145,7 @@ class ContainerRobot(ModuleBase):
     def reset_for_new_task(self):
         """复位任务级状态，保留 ModuleBase 回调和移动安全检查状态。"""
         self.action_task.reset()
+        self.timeout_recovery_task.reset()
         self.check_safe_height = 0
         self.rec_box = None
         self.zeroing = None
@@ -2151,6 +2159,9 @@ class ContainerRobot(ModuleBase):
         self.start_time = time.time()
         self.suspend_start_time = None
         self.business_timeout_started = False
+        self.timeout_recovery_active = False
+        self.timeout_recovery_start = None
+        self.timeout_deferred_stretch_obstacle = False
         self.auto_pre_enabled = False
         self.auto_pre_stage = 2
         self.goods_id = ""
@@ -2309,6 +2320,76 @@ class ContainerRobot(ModuleBase):
         self.business_timeout_started = True
         Trace.log("AutoPre physical actions started; business timeout started", name=f"{MOD}.autoPre")
 
+    def _start_timeout_recovery(self):
+        """脚本总超时后停止原队列，先打开手指，再收回伸缩机构。"""
+        if self.timeout_deferred_stretch_obstacle:
+            Navigation.clearTaskError("StretchObstacle")
+        self._stop_mechanisms_for_suspend()
+        if not self.action_task.is_done:
+            self.action_task.cancel(reason="script timeout recovery")
+        self.timeout_recovery_task.reset()
+        self.timeout_recovery_task.build([
+            FingerAction(self, 1, "timeout_recovery_finger_open"),
+            StretchAction(self, 0, "timeout_recovery_stretch_retract"),
+        ])
+        self.timeout_recovery_start = time.time()
+        self.timeout_recovery_active = True
+        Trace.log(
+            "Script timeout recovery started: opening fingers and retracting stretch mechanism",
+            name=f"{MOD}.motor",
+        )
+
+    def _finish_timeout_recovery(self, recovered):
+        """恢复结束后统一上报超时错误，并结束任务。"""
+        if not self.timeout_recovery_task.is_done:
+            if recovered:
+                self.timeout_recovery_task.reset()
+            else:
+                self.timeout_recovery_task.cancel(reason="script timeout recovery finished")
+        self._stop_mechanisms_for_suspend()
+        if recovered:
+            desc = _TR(
+                "Script task timed out; fingers opened and stretch mechanism retracted. "
+                "Stretch mechanism recovery completed"
+            )
+            Navigation.setTaskError("StretchNotZeroed", desc)
+            Trace.log("Script timeout recovery completed", name=f"{MOD}.motor")
+        else:
+            desc = _TR(
+                "Script task timed out and mechanism recovery did not complete within 15 seconds. "
+                "Check the finger and stretch mechanisms manually"
+            )
+            RobotError.setSystemError("StretchNotZeroedOrFingerNotOpened", desc, True)
+            Trace.log("Script timeout recovery failed", name=f"{MOD}.err")
+        Navigation.setTaskError("ScriptTimeout", desc)
+        if self.timeout_deferred_stretch_obstacle:
+            Navigation.setTaskError("StretchObstacle", _TR(
+                "Fork overlimit photoelectric sensor detected obstacle during the timed-out task"
+            ))
+            self.timeout_deferred_stretch_obstacle = False
+        self.timeout_recovery_active = False
+        self.timeout_recovery_start = None
+        self.business_timeout_started = False
+        self.status = ScriptStatus.FAILED
+
+    def _run_timeout_recovery(self):
+        self.timeout_recovery_task.step(self)
+        self.current_action = self.timeout_recovery_task.current
+        finger_opened = (
+            ConfigParams.has_finger_motor
+            and Di.getDi(ConfigParams.left_finger_up_di)
+            and Di.getDi(ConfigParams.right_finger_up_di)
+        )
+        stretch_retracted = abs(self.stretch_real_pos) <= ConfigParams.safe_stretch_length
+        recovered = finger_opened and stretch_retracted
+        elapsed = time.time() - self.timeout_recovery_start
+        if recovered and self.timeout_recovery_task.status == ActionStatus.FINISHED:
+            self._finish_timeout_recovery(True)
+        elif self.timeout_recovery_task.status == ActionStatus.FAILED:
+            self._finish_timeout_recovery(recovered)
+        elif elapsed >= TIMEOUT_RECOVERY_TIMEOUT:
+            self._finish_timeout_recovery(recovered)
+
     def run(self):
         """分发、执行任务"""
         self.status = ScriptStatus.RUNNING
@@ -2316,36 +2397,43 @@ class ContainerRobot(ModuleBase):
         self.update_report_info()
         self.report_info["getCountRun"] = self.counter
 
-        # 根据货叉货物检测光电更新货叉有无货信息；仿真由 Action 维护货物数据。
-        if is_simulation():
-            pass
-        elif ConfigParams.goods_check_di != "":
-            if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
-                # 队列执行途中(取/放货)999 的绑定由动作队列负责,此时“有货但数据为空”是
-                # 收叉与绑定之间的正常瞬态,不应拦截;仅在空闲/任务起始态才判为数据异常。
-                queue_running = self.action_task.status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED)
-                if (Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999")
-                        and self.operation not in RECOVERY_OPERATIONS and not queue_running):
-                    Navigation.setTaskError("ForkHasGoods",
-                        _TR(f"Fork photoelectric detected goods on fork, but data shows no goods, manual verification required"))
-                    self.status = ScriptStatus.FAILED
-                elif not Di.getDi(ConfigParams.goods_check_di):
-                    Container.unbindContainer("999")
-                    _clear_pending_fork_store()
-                    self.containers = Container.getContainers()
-        else:
-            Navigation.setTaskError("GoodsCheckDiError",
-                _TR(f"Please configure goods_check_di parameter properly in script parameters!"))
-            self.status = ScriptStatus.FINISHED
+        if not self.timeout_recovery_active:
+            # 根据货叉货物检测光电更新货叉有无货信息；仿真由 Action 维护货物数据。
+            if is_simulation():
+                pass
+            elif ConfigParams.goods_check_di != "":
+                if self.stretch_real_pos < 0.05:  # 手臂未伸出状态下检测有效
+                    # 队列执行途中(取/放货)999 的绑定由动作队列负责,此时“有货但数据为空”是
+                    # 收叉与绑定之间的正常瞬态,不应拦截;仅在空闲/任务起始态才判为数据异常。
+                    queue_running = self.action_task.status in (ActionStatus.RUNNING, ActionStatus.SUSPENDED)
+                    if (Di.getDi(ConfigParams.goods_check_di) and not Container.hasGoods("999")
+                            and self.operation not in RECOVERY_OPERATIONS and not queue_running):
+                        Navigation.setTaskError("ForkHasGoods",
+                            _TR(f"Fork photoelectric detected goods on fork, but data shows no goods, manual verification required"))
+                        self.status = ScriptStatus.FAILED
+                    elif not Di.getDi(ConfigParams.goods_check_di):
+                        Container.unbindContainer("999")
+                        _clear_pending_fork_store()
+                        self.containers = Container.getContainers()
+            else:
+                Navigation.setTaskError("GoodsCheckDiError",
+                    _TR(f"Please configure goods_check_di parameter properly in script parameters!"))
+                self.status = ScriptStatus.FINISHED
 
-        if self.enable_motor and not self.motor_calib_state:
-            self.motor_calib()
+            if self.enable_motor and not self.motor_calib_state:
+                self.motor_calib()
 
-        if self.business_timeout_started and time.time() - self.start_time > ConfigParams.timeout:
-            Navigation.setTaskError("ScriptTimeout", _TR(f"Script task execution timeout. Please re-issue the task！"))
-            self.status = ScriptStatus.FAILED
+            if (self.status == ScriptStatus.RUNNING
+                    and self.business_timeout_started
+                    and time.time() - self.start_time > ConfigParams.timeout):
+                self._start_timeout_recovery()
 
-        if self.motor_calib_state:
+        if self.timeout_recovery_active:
+            self._run_timeout_recovery()
+
+        if (self.motor_calib_state
+                and self.status == ScriptStatus.RUNNING
+                and not self.timeout_recovery_active):
             if self.operation is not None and self.operation != 'none':
                 if not check_debug_task(self.operation):
                     self.status = ScriptStatus.FAILED
@@ -3454,7 +3542,10 @@ class ContainerRobot(ModuleBase):
         if (Module.getStatus() == ScriptStatus.RUNNING
                 and self.status == ScriptStatus.RUNNING):
             self.suspend_start_time = time.time()
-            self.action_task.suspend()
+            if self.timeout_recovery_active:
+                self.timeout_recovery_task.suspend()
+            else:
+                self.action_task.suspend()
             self._stop_mechanisms_for_suspend()
             self.status = ScriptStatus.SUSPENDED
             self._log_task_control("suspend")
@@ -3468,7 +3559,11 @@ class ContainerRobot(ModuleBase):
                 paused_seconds = time.time() - self.suspend_start_time
                 self.start_time += paused_seconds
                 self.suspend_start_time = None
-            self.action_task.resume()
+            if self.timeout_recovery_active:
+                self.timeout_recovery_start += paused_seconds
+                self.timeout_recovery_task.resume()
+            else:
+                self.action_task.resume()
             self.status = ScriptStatus.RUNNING
             self._log_task_control("resume", paused_seconds)
 
@@ -3484,7 +3579,10 @@ class ContainerRobot(ModuleBase):
             Motor.isMotorStop(name)
             Motor.resetMotor(name)
         Do.setDo(self.fill_light_do, False)
-        self.action_task.cancel()
+        if self.timeout_recovery_active:
+            self._finish_timeout_recovery(False)
+        else:
+            self.action_task.cancel()
         self.status = ScriptStatus.FAILED
 
     def update_move_task_params(self):
