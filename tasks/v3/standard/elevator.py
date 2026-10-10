@@ -20,8 +20,8 @@ from third import (
     EntryMotionPhase,
     create_protocol,
     enum_value,
+    get_elevator_data,
     load_workspace_topology,
-    map_device_data,
     resolve_map_point,
 )
 from third.elevator_protocol import ProtocolRejected, ProtocolUnavailable
@@ -122,21 +122,11 @@ def _load_map_point(map_name, point_name):
 
 
 def _resolve_ride_context(args):
-    topology = load_workspace_topology(_TOPOLOGY_PATH)
     device_id = str(args["deviceId"])
-    elevators = [
-        elevator for elevator in topology.get("elevatorList", [])
-        if isinstance(elevator, dict)
-        and elevator.get("isEnabled", True) is not False
-        and str(elevator.get("instanceName", "")) == device_id
-    ]
-    if len(elevators) != 1:
-        raise ValueError(
-            "enabled elevator {} must exist exactly once in workspace_topology.json".format(
-                device_id
-            )
-        )
-    elevator = elevators[0]
+    # ``get_elevator_data`` owns the not-found/ambiguous diagnosis and the
+    # topology reload, so an unknown device is reported instead of silently
+    # yielding a ride with no protocol configuration.
+    elevator = get_elevator_data(_TOPOLOGY_PATH, device_id)
     source_workspace = str(Map.getCurrentWorkspace() or "")
     if not source_workspace:
         raise ValueError("current map must bind exactly one workspace")
@@ -167,10 +157,7 @@ def _resolve_ride_context(args):
 
     target_map = _workspace_map_name(target_workspace)
     target_switch_pose = _load_map_point(target_map, target_switch)
-    protocol_site = map_device_data(device_id, source_workspace)
-    if not protocol_site.get("jsonObject") and elevator.get("jsonObject"):
-        # Keep topology JSON usable during the map-message transition.
-        protocol_site = {"jsonObject": dict(elevator.get("jsonObject") or {})}
+    protocol_site = {"jsonObject": dict(elevator.get("jsonObject") or {})}
     context = ElevatorRideContext(
         device_id=device_id,
         target_workspace=target_workspace,

@@ -209,6 +209,35 @@ def _current_map_name():
     return str(getattr(header, "mapName", "") or "")
 
 
+def get_elevator_data(path, device_id, require_enabled=True):
+    """Resolve one ``elevatorList`` entry from the workspace topology.
+
+    Elevators are registered in ``workspace_topology.json``; unlike gates they
+    are absent from the per-map ``0.smap``, so a map-site lookup can only ever
+    return an empty payload.  A missing or ambiguous device is reported here
+    instead of degrading into "no protocol configuration".
+    """
+    device_id = str(device_id or "").strip()
+    if not device_id:
+        raise ValueError("elevator deviceId is required")
+    topology = load_workspace_topology(path)
+    matches = [
+        elevator for elevator in topology.get("elevatorList", [])
+        if isinstance(elevator, dict)
+        and str(elevator.get("instanceName", "")) == device_id
+        and (not require_enabled or elevator.get("isEnabled", True) is not False)
+    ]
+    if not matches:
+        raise ValueError(
+            "elevator {} not found in elevatorList of {}".format(device_id, path)
+        )
+    if len(matches) > 1:
+        raise ValueError(
+            "elevator {} is ambiguous in elevatorList of {}".format(device_id, path)
+        )
+    return dict(matches[0])
+
+
 def map_gate_data(device_id, workspace=""):
     """Resolve one ``autoGateList`` entry for a gate device.
 
