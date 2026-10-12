@@ -110,6 +110,7 @@ class LoraOperation(str, Enum):
     CONTROL = "CONTROL"
     KEEP_ALIVE = "KEEP_ALIVE"
     RELEASE = "RELEASE"
+    ACK = "ACK"
 
 
 @dataclass(frozen=True)
@@ -462,6 +463,8 @@ class LoraRpcTransport:
     def _decode_terminal(self, response, matcher):
         if str(response.get("status")) != "OK" or not response.get("ok"):
             self._raise_terminal(response)
+        if matcher is None:
+            return None
         response_hex = response.get("responseFrameHex") or response.get("data")
         if not isinstance(response_hex, str) or not response_hex:
             raise LoraTransportError("BehavFactory returned an empty LoRa response")
@@ -702,6 +705,70 @@ class LoraRpcTransport:
                 yield result
         finally:
             self._rpc.unsubscribe_lora_rx(subscriber)
+
+    def _send_payload(self, request, request_id, operation):
+        if not isinstance(operation, LoraOperation):
+            raise TypeError("operation must be LoraOperation")
+        if request_id is None:
+            request_id = str(self._request_id_factory())
+        if not isinstance(request_id, str) or not request_id:
+            raise ValueError("request_id must be a non-empty string")
+        raw = LoraFrameCodec.encode(request)
+        write_timeout_ms = max(1, min(30000, int(round(self.timeout * 1000))))
+        queue_timeout_ms = max(1, min(30000, int(round(self.queue_timeout * 1000))))
+        payload = {
+            "version": 1,
+            "requestId": request_id,
+            "device": self.device,
+            "operation": operation.value,
+            "requestFrameHex": raw.hex(),
+            "expectResponse": False,
+            "responseTimeoutMs": write_timeout_ms,
+            "maxAttempts": 1,
+            "retryMode": "NO_RETRY",
+            "queueTimeoutMs": queue_timeout_ms,
+            "totalTimeoutMs": queue_timeout_ms + write_timeout_ms + 500,
+        }
+        self._log_frame("TX", raw)
+        return payload
+
+    def send(self, request: LoraFrame, *, request_id=None,
+             operation=LoraOperation.ACK):
+        """等待本地串口写入完成，返回结果字典；不等待对端回复、不自动重发。
+
+        request_id 可由收到事件的设备世代和 sequence 构造，供幂等去重。
+        OK 仅表示本地写入成功，不表示对端已收到。
+        """
+        payload = self._send_payload(request, request_id, operation)
+        _, result = self._submit_and_wait(
+            "loraTransactRequest", payload, None, "write"
+        )
+        return result
+
+    def submit_send(self, request: LoraFrame, *, request_id=None,
+                    operation=LoraOperation.ACK):
+        """只提交单向发送，返回客户端 requestId，不轮询也不持有事务锁。
+
+        返回 ID 仅表示已接受；可通过 getLoraResultByClient 查询或 cancel(ID)
+        取消。调用方负责异步请求生命周期。提交响应丢失时仍可能已入队，
+        应使用相同 request_id 重试。close() 不取消这些异步请求。
+        """
+        payload = self._send_payload(request, request_id, operation)
+        request_json = json.dumps(payload, separators=(",", ":"))
+        submission = None
+        for attempt in range(self.submission_retries):
+            submission = self._call("loraTransactRequest", request_json)
+            if submission is not None:
+                break
+            if attempt + 1 < self.submission_retries:
+                self._sleep(self.poll_interval)
+        submission = self._require_response("loraTransactRequest", submission)
+        if submission.get("done"):
+            self._decode_terminal(submission, None)
+        elif (not submission.get("ok")
+              or submission.get("status") not in self._PENDING_STATUSES):
+            self._raise_terminal(submission)
+        return payload["requestId"]
 
     def transact(self, request: LoraFrame, matcher: Callable[[LoraFrame], bool]):
         if not isinstance(matcher, LoraMatchSpec):
