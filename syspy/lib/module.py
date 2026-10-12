@@ -1,6 +1,7 @@
 import json
 import math
 import time
+import inspect
 from copy import deepcopy
 from enum import IntEnum
 from threading import Lock
@@ -238,12 +239,41 @@ class Module:
         cls.setStatus(ScriptStatus.RUNNING)
 
     @classmethod
-    def __cancel(cls):
+    def __cancel(cls, smart: bool = False) -> bool:
+        """取消任务回调（MF/服务端调用）。
+
+        契约：脚本主类的 cancel(smart) 返回任务是否“已经取消”——
+        True 表示本次取消被脚本接受、任务进入终态；
+        False 表示脚本拒绝本次（智能）取消，任务继续执行。
+
+        无返回值（None）视为已接受，兼容历史脚本。
+
+        smart 缺省 False（普通取消）：未适配的旧 SDK 不带该入参调用时，行为与
+        历史完全一致，所有脚本都必须接受。智能取消由服务端显式传 smart=True。
+
+        Args:
+            smart (bool): 是否智能取消。缺省 False（普通取消，无条件接受）。
+
+        Returns:
+            (bool): 任务是否已取消。
+        """
         if cls.getStatus() in [ScriptStatus.RUNNING, ScriptStatus.NEARTOGOAL, ScriptStatus.SUSPENDED]:
             if cls.__cancel_callback is not None:
-                cls.__cancel_callback()
-            else:
-                cls.setStatus(ScriptStatus.FAILED)
+                callback = cls.__cancel_callback
+                try:
+                    parameters = inspect.signature(callback).parameters
+                except (TypeError, ValueError):
+                    parameters = {}
+                accepts_smart = "smart" in parameters or any(
+                    parameter.kind == inspect.Parameter.VAR_KEYWORD
+                    for parameter in parameters.values()
+                )
+                cancelled = callback(smart=smart) if accepts_smart else callback()
+                return True if cancelled is None else bool(cancelled)
+            cls.setStatus(ScriptStatus.FAILED)
+            return True
+        # 状态不在可取消集合内：视为已经结束，上层无需再等
+        return True
 
     @classmethod
     def __getTask(cls):
@@ -331,7 +361,12 @@ class Module:
         cls.__unbind_container_callback = callback
 
     @classmethod
-    def setCancelCallback(cls, callback: Callable[[], None]):
+    def setCancelCallback(cls, callback: Callable[..., Optional[bool]]):
+        """注册取消回调。
+
+        回调可使用 ``callback(smart: bool) -> bool``，也可保留历史的
+        ``callback()`` 形式；返回值表示任务是否已取消。
+        """
         cls.__cancel_callback = callback
 
     @classmethod
@@ -496,7 +531,7 @@ class ModuleBase(ABC):
     def __init__(self):
         Module.setSuspendCallback(self.suspend)
         Module.setResumeCallback(self.resume)
-        Module.setCancelCallback(self.cancel)
+        Module.setCancelCallback(self.__adaptCancel)
         Module.setSafeMoveCheckCallback(self.__safeMoveCheck)
         Module.setModbusCallback(self.__modbus)
         Module.bindContainerCallback(self.bindContainer)
@@ -521,10 +556,39 @@ class ModuleBase(ABC):
         if Module.getStatus() == ScriptStatus.SUSPENDED:
             Module.setStatus(ScriptStatus.RUNNING)
 
+    def __adaptCancel(self, smart: bool = False) -> bool:
+        """把 Module 的 cancel 回调适配到脚本主类的 cancel(smart)。
+
+        主类 cancel 可声明 ``smart`` 入参以区分普通取消与智能取消：
+        ``smart=True`` 时返回 False 即拒绝本次取消，任务继续执行。
+        未声明 ``smart`` 入参的历史脚本按普通取消调用，行为不变。
+        """
+        try:
+            parameters = inspect.signature(self.cancel).parameters
+        except (TypeError, ValueError):
+            parameters = {}
+        accepts_smart = "smart" in parameters or any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+        if accepts_smart:
+            cancelled = self.cancel(smart=smart)
+        else:
+            cancelled = self.cancel()
+        # 无返回值视为已取消，兼容历史脚本
+        return True if cancelled is None else bool(cancelled)
+
     @abstractmethod
-    def cancel(self):
-        """取消任务方法（必须）：导航取消时如果脚本任务状态为RUNNING或SUSPENDED会调用该方法"""
+    def cancel(self, smart: bool = False) -> bool:
+        """取消任务方法（必须）：导航取消时如果脚本任务状态为RUNNING或SUSPENDED会调用该方法
+
+        可选声明 ``smart`` 入参：``cancel(self, smart: bool = False) -> bool``。
+        ``smart=True``（智能取消）时返回 False 表示拒绝取消、任务继续执行；
+        返回 True 或无返回值表示接受取消。``smart=False``（普通取消，也是未声明
+        该入参时的唯一调用形式）必须无条件接受。
+        """
         Module.setStatus(ScriptStatus.FAILED)
+        return True
 
     def setSafeMoveStatus(self, status: SafeMoveStatus):
         """设置移动安全检查状态
