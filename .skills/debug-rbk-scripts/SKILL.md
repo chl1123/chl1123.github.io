@@ -67,8 +67,9 @@ discovery command). If it is unavailable, ask the reporter for their SDK path or
 8. Reproduce with a unique task ID through an existing flow test where possible. Poll the exact task ID, not merely the latest global status.
 9. Cancel a running navigation through HTTP `/cancelNavigate`. Do not kill the persistent Python script process.
 10. During iterative debugging, read the active trace with `ptcat`. When durable evidence is needed, collect the test report, console output, task IDs, status transitions, and an immediately finalized trace. Read [references/tracing.md](references/tracing.md), or run `scripts/collect-rbk-evidence.sh`.
-11. For DI, sensor, SDK-message, or ZMQ latency, read [references/message-latency.md](references/message-latency.md). Separate publisher-to-reader visibility, API-call duration, action response, and task cleanup before assigning a cause.
-12. Restore temporary defect-reproduction patches. Run `py_compile`, `git diff --check`, targeted tests, and a final state query.
+11. To isolate a script-side or syspy defect, or to verify a syspy change, run the script directly against the live RBK with plain `python3` instead of going through MF/PyIDE. Read [references/standalone-probes.md](references/standalone-probes.md) first: it covers the `SCRIPTS_DIR` path trap that makes `cd <scripts dir> && python3 x.py` fail on symlinked installations, the minimal probe skeleton, and how to read the resulting channel from the trace.
+12. For DI, sensor, SDK-message, or ZMQ latency, read [references/message-latency.md](references/message-latency.md). Separate publisher-to-reader visibility, API-call duration, action response, and task cleanup before assigning a cause.
+13. Restore temporary defect-reproduction patches. Run `py_compile`, `git diff --check`, targeted tests, and a final state query.
 
 ## Reporting a Finding
 
@@ -110,6 +111,7 @@ Example:
 - Preserve unrelated worktree changes and untracked files.
 - Compare only timestamps from compatible clock domains. Do not subtract `dataNsec` or `perf_counter_ns` from wall-clock trace timestamps.
 - Do not infer parameter loss from an empty `get_task` response alone. Prove whether the task used command-line startup or `update_cmd`, and capture the request at MF, PyIDE, and syspy boundaries.
+- Do not `cd` into the scripts directory to run a Python probe. On installations where `/opt/.data/rbk/resources/scripts` is a symlink, `__file__` resolves to the real path and `param_server._get_prefix_dir` rejects it with `ValueError: script path error`. Put the literal `/opt/.data/...` path on `sys.path` from another cwd instead ([references/standalone-probes.md](references/standalone-probes.md)).
 
 ## HTTP Documentation MCP
 

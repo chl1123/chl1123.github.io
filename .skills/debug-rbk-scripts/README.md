@@ -35,6 +35,7 @@ references/
   mf-script-rpc.md            # MoveFactory <-> PyIDE <-> syspy RPC 链路
   script-debugging.md         # 脚本/电机/fork/容器排查
   message-latency.md          # DI/传感器/消息延迟测量
+  standalone-probes.md        # 不经 MF/PyIDE，用 python3 直接跑脚本探测
   http-api.md                 # RBK HTTP OpenAPI MCP 工作流
 scripts/
   rbk-triage.sh               # 由时间窗口生成 ptcat/日志命令
@@ -54,6 +55,7 @@ agents/openai.yaml            # skill 元信息
 | 电机、DI/DO、传感器、电池 | `rbk.device.DSPChassis` |
 | RBK 整体崩溃 | `syslog` |
 | 脚本进程崩溃 | `logs/ide/*.log` → `logs/scripts/*.log` |
+| 单独验证脚本/syspy 改动 | 用 `python3` 直连 RBK，见 [`references/standalone-probes.md`](references/standalone-probes.md) |
 
 权威通道表随 SDK 发布为 `trace.cfg`。位置因机器而异，请用查找而非写死路径：
 

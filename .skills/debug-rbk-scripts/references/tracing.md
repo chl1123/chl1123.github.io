@@ -126,6 +126,69 @@ ptcat -b '20260730.15:23:55' -e '20260730.15:23:57' \
 
 Avoid broad text filters such as `msg|message|DI`; they include unrelated high-frequency channels and can truncate the useful output. `ptcat` output may arrive outside timestamp order when records come from different buffers. Sort by the event timestamp or use a suitable `-w` reorder window before calculating intervals.
 
+### `ptcat` output columns
+
+A line looks like:
+
+```text
+[20261013.10:06:27.265.369.108][rbk.script.utils_rpc][Rs.probe.py][xx-7b87915c][0][295703]: {…}
+[20261013.10:04:37.865.081.577][rbk.script.utils_rpc][Rs][I]: {"init":"complete"}
+```
+
+| Column | Field | Meaning |
+| --- | --- | --- |
+| `20261013.10:06:27.265.369.108` | `tsstr` | event timestamp |
+| `rbk.script.utils_rpc` | `cats` | category |
+| `Rs.probe.py` | `name` | event name (the channel you filter with `-n`) |
+| `xx-7b87915c` | track id | which lane the event is drawn on; **not** a client id |
+| `0` | `depth` | slice nesting depth |
+| `295703` | `dur` | slice duration, ns |
+| `[I]` | level | only on `TR_LOG` lines |
+
+`TR_EVENT` emits a **slice** (start plus duration), `TR_LOG` emits an **instant log**
+line. That is why the two kinds print a different number of columns: a `TR_LOG` line
+has the level instead of track/depth/dur. Do not read the track id as an identity.
+Use `-j` when you want the field names explicitly:
+
+```bash
+ptcat -j -g "rbk.script.utils_rpc" -n "^Rs\\." "$T" | head -1
+```
+
+### Name matching is regex substring, not exact
+
+`-n` and `-g` take a C++ `std::regex` literal matched anywhere in the field, so
+`-n "Rs"` matches `Rs`, `RsError`, and `Rs.probe.py` alike. Anchor or qualify when you
+need precision: `-n "^Rs$"` for server lifecycle events only, `-n "^Rs\\."` for
+per-caller request events only, `-n "<script name>"` to pull one script's traffic.
+
+### Script RPC channels are split per caller
+
+Request and error events carry the calling script in the channel name:
+
+```text
+Rb.probe.py     request slice, one per non-silent RPC
+RsError.jack.py request error (parse failure, crash, send failure)
+Rs              server lifecycle and counters (bind, init, ioLoop, io stat) — no caller
+RsError         errors raised before/after a caller is known (socket recv/send)
+```
+
+The channel name uses the script's **basename**, while the `caller` field keeps the
+full script id (for example `tasks/v3/standard/module/jack.py`). So to find who is
+flooding one interface:
+
+```bash
+# Every caller that used one method
+ptcat -g "rbk.script.utils_rpc" -n "^Rs\\." "$T" | rg 'NetProtocol::setModbusData'
+
+# One script's requests only
+ptcat -g "rbk.script.utils_rpc" -n "Rs\\.jack\\.py" "$T"
+```
+
+The `kSilentRpcMethods` set in `rpcServer.cpp` (`Trace::traceLog`, `Trace::traceLogD`,
+`MoveFactory::setInfo`) deliberately emits no `Rs.*` event, so high-frequency trace
+writes do not amplify into the trace. An RPC call with no matching `Rs.*` event is
+usually a silenced method, not a lost request.
+
 For publisher-to-script timing, state transitions, clock-domain rules, and causal limits, read [message-latency.md](message-latency.md).
 
 `GET /perf` can initiate an additional performance capture and create a `rbk+perf_*.pft` file. Do not call it during routine log flushes unless that capture is intended. Treat `/debug` and undocumented query endpoints as version-specific until verified.

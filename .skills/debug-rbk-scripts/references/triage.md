@@ -81,8 +81,10 @@ Category: `rbk.script.utils_rpc`.
 | --- | --- | --- |
 | `Rc` | RPC **client** side (`rbk::utils::RpcClient`, used by MoveFactory/SDK to call into PyIDE/scripts). Emitted from `rpcClient.cpp`; `scriptExecute`, `startScript`, `stopScript`, `scriptExists` events | Did MF/SDK actually send the request, with which `scriptName`/`args`/`executeType`? |
 | `RcError` | Client-side failures: `connect`, `sendMessage`, `response.parse_error`, and `callFunc` returning a JSON-RPC `error` | Did the send fail, or did the peer return a JSON-RPC `error`? |
-| `Rs` | RPC **server** side (`rbk::utils::RpcServer`, bound by RBK plugins, e.g. MoveFactory `scriptReport`/motor calls). `req` holds the raw request body; `io,stat` reports `recv/sent/inflight/overloadDrop` | Did the receiving plugin get the request unchanged, before its handler ran? |
-| `RsError` | Server-side failures: `receiveError`, `sendResponse`, `pollError`, dispatch exceptions | Did the receiver fail to receive, parse, or reply? `overloadDrop` shows overload drops. |
+| `Rs` | RPC **server** side (`rbk::utils::RpcServer`, bound by RBK plugins, e.g. MoveFactory `scriptReport`/motor calls). Server lifecycle and counters only: `bind`/`init`/`ioLoop`/`io,stat` (`recv/sent/inflight/overloadDrop`). Has **no** caller, so it stays unnamed | Did the server start, and is it dropping requests under load? |
+| `Rs.<script>.py` | **Per-caller** request slices: one per non-silent RPC, `caller` holds the full script id, `req` the raw body. Basename in the channel, full id in `caller` (e.g. `Rs.jack.py` with `caller=tasks/v3/standard/module/jack.py`) | Which script called this interface, and with what body? |
+| `RsError` | Server-side failures raised before/after a caller is known: `receiveError`, `sendResponse`, `pollError` | Did the socket layer fail to receive or reply? |
+| `RsError.<script>.py` | Errors attributable to a caller: `formatError` (parse failure), `crash` (handler exception), `sendFrameError`, `sendMultipartException` | Which script's request failed to parse, crash, or fail to reply? |
 | `BinMsgChannel` | Binary message channel exceptions | Did the raw-message channel throw? |
 | `RpcServer` | `bindLog`/`putValue`/`getValue` wrapper messages | Did value registration or binding fail? |
 
@@ -94,12 +96,24 @@ the trace as `Rc`/`Rs`. Locate which side is missing before reading Python: a re
 `Rc` but absent in `Rs` never reached the receiving plugin; present in both with
 different bodies means a routing or parse loss.
 
+`ptcat -n` is a **regex substring** match, not anchored, so `-n 'Rs'` matches `Rs`,
+`RsError`, and `Rs.jack.py` together. Qualify it when you want one kind:
+
 ```bash
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'Rc'      trace.pft.zst
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'RcError' trace.pft.zst
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'Rs'      trace.pft.zst
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'RsError' trace.pft.zst
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n 'Rc'         trace.pft.zst
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n 'RcError'    trace.pft.zst
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n '^Rs$'       trace.pft.zst   # lifecycle/counters
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n '^Rs\\.'     trace.pft.zst   # per-caller requests
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n '^RsError'   trace.pft.zst
+
+# Which script is flooding one interface
+ptcat -b "$B" -e "$E" -g 'rbk\\.script\\.utils_rpc' -n '^Rs\\.' trace.pft.zst \
+  | rg 'NetProtocol::setModbusData'
 ```
+
+Methods in `kSilentRpcMethods` (`Trace::traceLog`, `Trace::traceLogD`,
+`MoveFactory::setInfo`) intentionally emit no `Rs.<script>.py` event, so a call with no
+matching request slice is usually silenced rather than lost.
 
 For a script-defined channel such as `fork`, `actions`, `elevator`, or `loc_angle`,
 filter by that channel name inside the same category instead of by `Rc`/`Rs`:
