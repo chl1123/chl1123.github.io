@@ -33,8 +33,11 @@ def _get_prefix_dir(file):
         raise ValueError(f"script file error. It must be in the {PY_SUFFIX} file")
     script_right_dir, script_file_name = script_dir.rsplit('/', 1)
     config_dir = SCRIPTS_DIR + "params/" + script_right_dir
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
+    # 必须用 exist_ok 而不是先 exists 再 makedirs：前者是原子的，后者是 TOCTOU。
+    # 目录名只由脚本所在子目录决定（如 params/syspy 被所有 import syspy 的脚本共用），
+    # 多个脚本进程同时首次 import 时会先后通过 exists 检查，后到者建目录失败，
+    # 整个脚本以 FileExistsError 退出并被上报为 py@PyCrashed。
+    os.makedirs(config_dir, exist_ok=True)
     prefix_dir = config_dir + '/' + script_file_name.replace(PY_SUFFIX, '')
     return prefix_dir
 
