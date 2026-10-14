@@ -388,9 +388,9 @@ class ScriptParam:
                 两种写法等价。为空时返回全部配置参数。
 
         Returns:
-            Dict[str, Any]: {params}，params 为 路径 -> 值 的字典。传入 params
-                时按原样回显调用方给的路径（含 script 段），不传时返回的键为
-                脚本内部路径（不带 script 段）。
+            Dict[str, Any]: {params}，params 为 路径 -> 值 的字典。所有返回的键
+                都带 script 前缀（如 "script.motorIoConfig.jackMaxHeight"），
+                与传入 params 时的回显格式一致，可直接喂回 setScriptParam()。
 
         Raises:
             ValueError: 参数路径不以 script. 开头，或查询的参数不存在。
@@ -404,13 +404,20 @@ class ScriptParam:
             ["script.motorIoConfig.jackMaxHeight"],
         )
         # {"params": {"script.motorIoConfig.jackMaxHeight": 0.4}}
+
+        # 不传 params 时返回全部，键同样带 script 前缀
+        param_loader.getScriptParam()
+        # {"params": {"script.motorIoConfig.jackMaxHeight": 0.4, ...}}
         ```
         """
         with self.__lock:
             self._ensure_config_loaded()
 
             if not params:
-                result = dict(self.config_full_params)
+                # 全量与指定路径统一带 script 前缀，调用方无需区分两种形态
+                root = self.SCRIPT_PARAM_ROOT
+                result = {f"{root}.{key}": value
+                          for key, value in self.config_full_params.items()}
             else:
                 result = {}
                 for name in params:
