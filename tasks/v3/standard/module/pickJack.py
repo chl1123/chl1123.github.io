@@ -1,9 +1,8 @@
-      
 # -*- coding: utf-8 -*-
-# @Date : 2026/7/21
+# @Date : 2026/10/14
 # @Author : zhaopengfei
 # @Coding : 配送顶升车
-# @Update : feat: 配送车脚本同步顶升车改动
+# @Update : fix: 修复偶发goBezier不结束
 
 import json
 import math
@@ -85,6 +84,7 @@ def float_to_modbus_poll_regs(value: float):
     reg2 = (b3 << 8) + b2
     return [reg1, reg2]
 
+
 class _SingletonDBManager:
     _instance = None
     _db = None
@@ -103,6 +103,7 @@ class _SingletonDBManager:
 
     def _init_db(self):
         raise NotImplementedError
+
 
 # ============================================================================
 # 顶升次数统计管理类
@@ -157,6 +158,7 @@ class JackCountManager(_SingletonDBManager):
 # 创建全局实例
 jack_count_manager = JackCountManager()
 
+
 # ============================================================================
 # 顶升电机标零状态管理类
 # ============================================================================
@@ -197,6 +199,7 @@ class JackCalibManager(_SingletonDBManager):
 
 # 创建全局实例
 jack_calib_manager = JackCalibManager()
+
 
 # ============================================================================
 # 货架尺寸优先级管理器
@@ -377,8 +380,10 @@ class RackSizeManager:
             self._save_metadata(metadata)
             debug_trace(f"RackSizeManager: 清空 LastUsedAt（参数已修改）for [{recfile}]", name=f"{MOD}.cfg")
 
+
 # 创建全局实例
 rack_size_manager = RackSizeManager()
+
 
 # --- ConfigParams 类（放在前面） ---
 class ConfigParams:
@@ -454,9 +459,9 @@ class ConfigParams:
     jack_motor_enabled = RobotParam.getDevice(
         "Model-000", f"moduleType.{module_type}.jackMotor")
     jack_motor_name = (
-            RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor.{jack_motor_enabled}.motor")
-            if jack_motor_enabled is True or str(jack_motor_enabled).lower() == "on" else ""
-        )
+        RobotParam.getDevice("Model-000", f"moduleType.{module_type}.jackMotor.{jack_motor_enabled}.motor")
+        if jack_motor_enabled is True or str(jack_motor_enabled).lower() == "on" else ""
+    )
     DOMotor: bool = False
     motor_func = ""
     reset_by_speed = ""
@@ -746,7 +751,8 @@ class ConfigParams:
                                                                desc=_TR("Forward/backward adjustment along X axis.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                             with builder.CHILD(key="multiLine", name=_TR("Multi Line"),
-                                                               desc=_TR("Back-and-forth sweep adjustment in a region.")):
+                                                               desc=_TR(
+                                                                   "Back-and-forth sweep adjustment in a region.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="adjustRegion",
@@ -757,7 +763,8 @@ class ConfigParams:
                                                             BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
                                                     with builder.CHILD(key="lineAngleThreshold",
                                                                        name=_TR("Line Angle Threshold"),
-                                                                       desc=_TR("Max rotation angle during sweep (deg).")):
+                                                                       desc=_TR(
+                                                                           "Max rotation angle during sweep (deg).")):
                                                         builder.TYPE(ParamType.FLOAT)
                                                         builder.DEFAULTVALUE(10.0)
                                                         builder.UNIT("deg")
@@ -810,7 +817,8 @@ class ConfigParams:
                                                                _TR("pgvXAdjust only.")):
                                                 builder.TYPE(ParamType.STRING)
                     with builder.CHILD(key="pgvSpin", name=_TR("Spin Hold During Adjust"),
-                                       desc=_TR("Hold fork direction during PGV secondary adjustment (spin vehicles).")):
+                                       desc=_TR(
+                                           "Hold fork direction during PGV secondary adjustment (spin vehicles).")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(True)
                     with builder.CHILD(key="pgvReachDist", name=_TR("Reach Distance Accuracy"),
@@ -869,10 +877,9 @@ class ConfigParams:
         cls.bezier_max_decele = cls.config.get("bezierMaxDecele", 0.2)
         cls.bezier_decele_dist = cls.config.get("bezierDeceleDist", 1)
         cls.bezier_curvature_limit = cls.config.get("bezierCurvatureLimit", 1.3)
-        cls.bezier_path_dist_accuracy = cls.config.get("bezierPathDistAccuracy", 0.01)
-        cls.bezier_path_angle_accuracy = cls.config.get("bezierPathAngleAccuracy", 0.05)
+        cls.bezier_path_dist_accuracy = cls.config.get("bezierPathDistAccuracy", 0.005)
+        cls.bezier_path_angle_accuracy = cls.config.get("bezierPathAngleAccuracy", 0.5)
         cls.bezier_min_speed = cls.config.get("bezierMinSpeed", 0.05)
-
 
         # Polyline导航配置
         cls.polyline_back_dist = cls.config.get("polylineBackDist", 0.55)
@@ -922,7 +929,7 @@ class ConfigParams:
             files = [
                 name for name in os.listdir(cls.recognition_dir)
                 if name.lower().endswith(".srec")
-                and os.path.isfile(os.path.join(cls.recognition_dir, name))
+                   and os.path.isfile(os.path.join(cls.recognition_dir, name))
             ]
             files.sort()
             debug_trace(
@@ -986,7 +993,7 @@ DEBUG_ONLY_TASKS = [
     "jackHeight",  # 指定高度顶升
     "goBezier",  # 贝塞尔导航
     "PGVSecondaryAdjust",  # PGV二次调整
-    "pressIoButton", # I/O控制顶升
+    "pressIoButton",  # I/O控制顶升
     "getLM",  # 获取地标位置
     "laserAreaDeduction",  # 激光区域扣除
     "createOrDeleteDeductedArea",  # 创建/删除扣除区域
@@ -1055,7 +1062,8 @@ def create_end_height(builder: ParamBuilder):
 
 
 def create_recfile(builder: ParamBuilder):
-    with builder.CHILD(key="insertShelfDir", name=_TR("Insert Shelf Direction"), desc=_TR("Direction to go under the shelf.")):
+    with builder.CHILD(key="insertShelfDir", name=_TR("Insert Shelf Direction"),
+                       desc=_TR("Direction to go under the shelf.")):
         builder.TYPE(ParamType.STRING)
         builder.REQUIRED(False)
         builder.DEFAULTVALUE("A")
@@ -1107,7 +1115,8 @@ def create_secondary_adjust(builder: ParamBuilder):
                                                                desc=_TR("Forward/backward adjustment along X axis.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                             with builder.CHILD(key="multiLine", name=_TR("Multi Line"),
-                                                               desc=_TR("Back-and-forth sweep adjustment in a region.")):
+                                                               desc=_TR(
+                                                                   "Back-and-forth sweep adjustment in a region.")):
                                                 builder.TYPE(ParamType.ARRAY)
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="adjustRegion",
@@ -1118,7 +1127,8 @@ def create_secondary_adjust(builder: ParamBuilder):
                                                             BindItem(BindType.Shape.RECTANGLE, no_rotate=True))
                                                     with builder.CHILD(key="lineAngleThreshold",
                                                                        name=_TR("Line Angle Threshold"),
-                                                                       desc=_TR("Max rotation angle during sweep (deg).")):
+                                                                       desc=_TR(
+                                                                           "Max rotation angle during sweep (deg).")):
                                                         builder.TYPE(ParamType.FLOAT)
                                                         builder.DEFAULTVALUE(10.0)
                                                         builder.UNIT("deg")
@@ -1258,7 +1268,8 @@ class InputParams:
                         create_jack_unload(builder)
 
                 # 屏幕接口：升降电机点动/长按
-                with builder.CHILD(key="lift", name=_TR("Lift Motor"), desc=_TR("Lift motor jog or move (screen interface).")):
+                with builder.CHILD(key="lift", name=_TR("Lift Motor"),
+                                   desc=_TR("Lift motor jog or move (screen interface).")):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
                         with builder.CHILD(key="jogStep", name=_TR("Jog Step"), desc=_TR("Jog step for lift motor.")):
@@ -1266,7 +1277,8 @@ class InputParams:
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
                             builder.DEFAULTVALUE(0.1)
-                        with builder.CHILD(key="position", name=_TR("Position"), desc=_TR("Target position for lift motor.")):
+                        with builder.CHILD(key="position", name=_TR("Position"),
+                                           desc=_TR("Target position for lift motor.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.UNIT("m")
                             builder.SINGLESTEP(0.01)
@@ -1323,23 +1335,27 @@ class InputParams:
                                                 with builder.CHILDREN():
                                                     with builder.CHILD(key="frontAndBack",
                                                                        name=_TR("Front And Back"),
-                                                                       desc=_TR("Forward/backward adjustment along X axis.")):
+                                                                       desc=_TR(
+                                                                           "Forward/backward adjustment along X axis.")):
                                                         builder.TYPE(ParamType.ARRAY)
                                                     with builder.CHILD(key="multiLine",
                                                                        name=_TR("Multi Line"),
-                                                                       desc=_TR("Back-and-forth sweep adjustment in a region.")):
+                                                                       desc=_TR(
+                                                                           "Back-and-forth sweep adjustment in a region.")):
                                                         builder.TYPE(ParamType.ARRAY)
                                                         with builder.CHILDREN():
                                                             with builder.CHILD(key="adjustRegion",
                                                                                name=_TR("Adjust Region"),
-                                                                               desc=_TR("Rectangular adjustment region.")):
+                                                                               desc=_TR(
+                                                                                   "Rectangular adjustment region.")):
                                                                 builder.TYPE(ParamType.BIND_TYPE)
                                                                 builder.BINDTYPE(
                                                                     BindItem(BindType.Shape.RECTANGLE,
                                                                              no_rotate=True))
                                                             with builder.CHILD(key="lineAngleThreshold",
                                                                                name=_TR("Line Angle Threshold"),
-                                                                               desc=_TR("Max rotation during sweep (deg).")):
+                                                                               desc=_TR(
+                                                                                   "Max rotation during sweep (deg).")):
                                                                 builder.TYPE(ParamType.FLOAT)
                                                                 builder.DEFAULTVALUE(
                                                                     config_params.pgv_line_angle_threshold)
@@ -1458,7 +1474,8 @@ class InputParams:
                                                    _TR("Uses the world coordinate system.")):
                                     builder.TYPE(ParamType.STRING)
 
-                    with builder.CHILD(key="createOrDeleteDeductedArea", name=_TR("[Debug] Create Or Delete Deducted Area"),
+                    with builder.CHILD(key="createOrDeleteDeductedArea",
+                                       name=_TR("[Debug] Create Or Delete Deducted Area"),
                                        desc=_TR("Creates or deletes a laser deducted area for debugging.")):
                         builder.TYPE(ParamType.COMBO_BOX)
                         # builder.DEFAULTVALUE("create")
@@ -1493,28 +1510,33 @@ class InputParams:
                     with builder.CHILD(key="goDist", name=_TR("[Debug] Go Dist"), desc=_TR("Go straight distance.")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name=_TR("Go Path X"),
-                                           desc=_TR("The dist of the target point to which robot will go in a straight line.")):
+                                           desc=_TR(
+                                               "The dist of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
 
-                    with builder.CHILD(key="goPath", name=_TR("[Debug] Go Path"), desc=_TR("Go straight to target position.")):
+                    with builder.CHILD(key="goPath", name=_TR("[Debug] Go Path"),
+                                       desc=_TR("Go straight to target position.")):
                         builder.TYPE(ParamType.ARRAY)
                         with builder.CHILD(key="goPathX", name=_TR("Go Path X"),
-                                           desc=_TR("The coordinate x of the target point to which robot will go in a straight line.")):
+                                           desc=_TR(
+                                               "The coordinate x of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
                         with builder.CHILD(key="goPathY", name=_TR("Go Path Y"),
-                                           desc=_TR("The coordinate y of the target point to which robot will go in a straight line.")):
+                                           desc=_TR(
+                                               "The coordinate y of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("m")
                             builder.DEFAULTVALUE(0)
                         with builder.CHILD(key="goPathTheta", name=_TR("Go Path Theta"),
-                                           desc=_TR("The theta of the target point to which robot will go in a straight line.")):
+                                           desc=_TR(
+                                               "The theta of the target point to which robot will go in a straight line.")):
                             builder.TYPE(ParamType.FLOAT)
                             builder.REQUIRED(True)
                             builder.UNIT("rad")
@@ -2131,6 +2153,7 @@ class Jack(ModuleBase):
             # 顶升完成后绑定容器，设置货物模型
             self.action_list.append(BindContainer("0", "shelf", self.recfile, self.insert_shelf_dir,
                                                   is_backwards=self.is_backwards))
+
     def laser_area_deduction(self):
         if not self.operation_init:
             self.operation_init = True
@@ -2592,7 +2615,9 @@ class Jack(ModuleBase):
 
             # atSite=True 或 skill_name=action：原地，跳过旋转/识别/导航，直接二次调整 + 顶升
             if self.at_site or self.is_action:
-                debug_trace(f"jack_load: in-place (at_site={self.at_site}, is_action={self.is_action}), skip nav, direct adjust+jack", name=MOD)
+                debug_trace(
+                    f"jack_load: in-place (at_site={self.at_site}, is_action={self.is_action}), skip nav, direct adjust+jack",
+                    name=MOD)
                 self._append_load_actions(None)
             else:
                 # 获取AP点
@@ -3003,8 +3028,6 @@ class Jack(ModuleBase):
         self.jack_emc = Controller.getEmc()
         self.jack_height = (Motor.getMotorPos(config_params.jack_motor_name)
                             if config_params.jack_motor_name else 0.0)
-
-
 
         cur_action = self.action_task.current
         self.report_info.update({
@@ -3657,6 +3680,7 @@ class GetGoodsDirFromPGV(ActionBase):
                   f"fallback to insert_dir", name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
 
+
 class ClearPolicy(ActionBase):
     """清除导航策略 """
 
@@ -3676,6 +3700,7 @@ class ClearPolicy(ActionBase):
             Navigation.clearPolicy()
             debug_trace("ClearPolicy: 已清除导航策略，恢复绕行设置", name=MOD)
             self.action_status = ActionStatus.FINISHED
+
 
 class RobotRotate(ActionBase):
     """底盘旋转"""
@@ -4183,7 +4208,6 @@ class GoBezier(ActionBase):
                         name=f"{MOD}.nav")
 
         if self.action_status in (ActionStatus.INIT, ActionStatus.RUNNING):
-
             self.action_status = self.go_bezier.run()
 
         # 只在状态变化时输出
@@ -4304,7 +4328,8 @@ class RecShelf(ActionBase):
             self.attempts = 0
             self.do_rec = False
             Recognize.resetRec()
-            debug_trace(f"RecShelf: 切换文件 [{self.current_file_idx + 1}/{len(self.shelf_files)}]: {self.recfile}", name=f"{MOD}.rec")
+            debug_trace(f"RecShelf: 切换文件 [{self.current_file_idx + 1}/{len(self.shelf_files)}]: {self.recfile}",
+                        name=f"{MOD}.rec")
             Trace.log(f"[RACK] 切换识别文件 [{self.current_file_idx + 1}/{len(self.shelf_files)}]: {self.recfile}")
             return True
         return False
@@ -4412,7 +4437,8 @@ class RecShelf(ActionBase):
 
     def run(self, j: Jack):
         self.action_status = ActionStatus.RUNNING
-        debug_trace(f"RecShelf: [{self.current_file_idx + 1}/{len(self.shelf_files)}] file={self.recfile}", name=f"{MOD}.rec")
+        debug_trace(f"RecShelf: [{self.current_file_idx + 1}/{len(self.shelf_files)}] file={self.recfile}",
+                    name=f"{MOD}.rec")
         rec_status = Recognize.getRecStatus()
         debug_trace(f"{rec_status=}", name=f"{MOD}.rec")
 
@@ -4470,6 +4496,7 @@ class RecShelf(ActionBase):
             "matchedRecFiles": [item["recfile"] for item in self.successful_results],
         }
         Module.reportInfo(j.report_info)
+
 
 class RecTargetObs(ActionBase):
     """识别货架"""
@@ -4532,6 +4559,7 @@ class GetApPosAdjustedViaPgv(ActionBase):
 
     def reset(self):
         self.action_status = ActionStatus.RUNNING
+
 
 class UpdateRackLastUsed(ActionBase):
     """
@@ -5200,5 +5228,5 @@ def main():
 if __name__ == '__main__':
     main()
 
-    
-    
+
+
