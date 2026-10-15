@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Date : 2026/7/21
+# @Date : 2026/10/14
 # @Author : zhaopengfei
 # @Coding : 随动顶升车
-# @Update :m-7037482506 feat: 1.适配新setGoodsPolyShape接口改动 2.修改JackLoad和jackLoad为load和unload
+# @Update : feat: 适配识别放货
 
 import json
 import math
@@ -1103,6 +1103,34 @@ def create_secondary_adjust(builder: ParamBuilder):
 
 
 def create_jack_unload(builder: ParamBuilder):
+    with builder.CHILD(key="recognize", name=_TR("Recognize"),
+                       desc=_TR("Enable recognition before navigating to unload.")):
+        builder.TYPE(ParamType.COMBO_BOX_BOOL)
+        builder.DEFAULTVALUE("off")
+        with builder.CHILDREN():
+            with builder.CHILD(key="off", name=_TR("OFF"), desc=_TR("Unload Without Recognition.")):
+                builder.TYPE(ParamType.ARRAY)
+            with builder.CHILD(key="on", name=_TR("ON"), desc=_TR("Unload With Recognition.")):
+                builder.TYPE(ParamType.ARRAY)
+                with builder.CHILDREN():
+                    with builder.CHILD(key="recFile", name=_TR("Rec File"), desc=_TR("File for recognizing.")):
+                        builder.TYPE(ParamType.BIND_TYPE)
+                        builder.BINDTYPE(BindType.App.RECOGNITION)
+                        builder.REQUIRED(True)
+                    with builder.CHILD(key="insertShelfDir", name=_TR("Insert Shelf Direction"),
+                                       desc=_TR("Recognition side; empty uses the recognition file.")):
+                        builder.TYPE(ParamType.STRING)
+                        builder.REQUIRED(False)
+                        builder.DEFAULTVALUE("")
+                    with builder.CHILD(key="recDist", name=_TR("Recognition Retry Distance"),
+                                       desc=_TR("Back out before retrying an empty recognition; 0 disables moving retries.")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.UNIT("m")
+                        builder.DEFAULTVALUE(0.0)
+                    with builder.CHILD(key="recRetryMax", name=_TR("Recognition Retry Max"),
+                                       desc=_TR("Maximum number of moving recognition retries.")):
+                        builder.TYPE(ParamType.INT)
+                        builder.DEFAULTVALUE(3)
     create_secondary_adjust(builder)
 
 
@@ -1649,6 +1677,10 @@ class Jack(ModuleBase):
         self._first_rec_extended = False
         self._second_rec_extended = False
         self._bezier_rec_extended = False
+        # goBezier 调试流程的识别阶段独立于 jackBezierReturn
+        self._go_bezier_rec_extended = False
+        self._unload_actions_extended = False
+        self._unload_second_rec_extended = False
         # 第一次无识别结果时, 前进 recDist 再识别的已重试次数
         self._rec_retry_count = 0
         # 识别文件
@@ -2105,8 +2137,12 @@ class Jack(ModuleBase):
         self.recfile = self.task_args.get("recFile", None)
         if isinstance(self.recfile, str) and self.recfile.startswith("recognition/"):
             self.recfile = self.recfile[len("recognition/"):]
-        self.insert_shelf_dir = self.task_args.get("insertShelfDir", "B")
-        # 第一次无识别结果时, 向前进 recDist(m) 再识别(仅当任务参数传入 recDist 时启用; 不传=按原逻辑直接报错)
+        self.recognition_object_key = (
+            RobotParam.getConfig("recognition", "recognitionObject", self.recfile)
+            if self.recfile else None
+        ) or "shelf"
+        self.insert_shelf_dir = self._resolve_insert_shelf_dir(self.recfile)
+        # 无识别结果时，远离目标后退 recDist(m) 再识别；0 表示不移动重试。
         self.rec_dist = self.task_args.get("recDist", 0.0)
         self.rec_retry_max = int(self.task_args.get("recRetryMax", 3))
         self.at_site = (self._get_script_stage() != 3) and (not self.is_recognize)
@@ -2601,6 +2637,25 @@ class Jack(ModuleBase):
             self.laser_area_deduct_info = self.laser_area_deduct(self.recfile, "shelf")
             debug_print(f"self.laser_area_deduct_info={self.laser_area_deduct_info}")
 
+    def _resolve_insert_shelf_dir(self, recfile):
+        """任务方向优先，否则读取传入识别文件所选对象的首个识别面。"""
+        side = self.task_args.get("insertShelfDir")
+        source = "task"
+        if not side and recfile:
+            key = f"recognitionObject.{self.recognition_object_key}.recognitionSide"
+            count = RobotParam.getConfigCloneSize("recognition", key, recfile)
+            for i in range(count or 0):
+                candidate = RobotParam.getConfig("recognition", f"{key}._{i}", recfile)
+                if candidate in ("A", "B", "C", "D"):
+                    side = candidate
+                    source = f"{key}._{i}"
+                    break
+        if not side:
+            side = "B"
+            source = "default"
+        Trace.log(f"insertShelfDir={side} source={source} recfile={recfile}", name=f"{MOD}.cfg")
+        return side
+
     def get_back_distance_info(self, recfile, object_key: str = "shelf", side_name: str = "A"):
         """
         返回指定识别对象(object_key)下某个side(side_name)的后退距离开关与数值：
@@ -2611,12 +2666,14 @@ class Jack(ModuleBase):
         }
         """
         # 路径前缀：recognitionObject.{object_key}.recognitionSide
+        if recfile == self.recfile and object_key == "shelf":
+            object_key = self.recognition_object_key
         recognition_side_key = f"recognitionObject.{object_key}.recognitionSide"
 
         # 1) 获取 clone 数量，遍历查到指定 side
         side_count = RobotParam.getConfigCloneSize("recognition", recognition_side_key, recfile)
         target_idx = None
-        for i in range(side_count):
+        for i in range(side_count or 0):
             cur_side = RobotParam.getConfig("recognition", f"{recognition_side_key}._{i}", recfile)
             if cur_side == side_name:
                 target_idx = i
@@ -2946,54 +3003,66 @@ class Jack(ModuleBase):
         self.action_list.append(Spin(jack_target, "robot"))
 
     def jack_unload(self):
+        """recognize=on: 识别并导航到位后放货；off: 原有原地放货。"""
+        if self.is_recognize:
+            self.go_bezier()
+            if self.status == ScriptStatus.FAILED:
+                return
+            if (not self._unload_actions_extended
+                    and self._action_finished("GoBezierApproach")):
+                self._unload_actions_extended = True
+                self._append_unload_actions()
+        elif not self.operation_init:
+            self.operation_init = True
+            self._append_unload_actions()
+
+    def _append_unload_actions(self):
         """
         完整放货流程：二次调整 → 二维码二次调整 → 下降顶升盘 → 删除激光扣除区域
         支持边走边动：如果预动作已经完成顶升下降，则跳过下降步骤
         """
-        if not self.operation_init:
-            self.operation_init = True
-            debug_trace("unload starting", name=MOD)
+        debug_trace("unload starting", name=MOD)
 
-            # 二次调整
-            if self.is_secondary_adjust:
-                self.action_list.append(GetPGVData(self.pgv_scan_device))
-                self.action_list.append(PGVSecondaryAdjust(
-                    code_adjust_type=self.pgv_code_adjust_type,
-                    scan_device=self.pgv_scan_device,
-                    angle_adjust_type=self.pgv_angle_adjust_type,
-                    position_adjust_type=self.pgv_position_adjust_type,
-                    code_number=self.pgv_code_number,
-                    line_angle_threshold=self.pgv_line_angle_threshold,
-                    adjust_region=self.pgv_adjust_region,
-                    pgv_spin=self.pgv_spin,
-                    pgv_reach_dist=self.pgv_reach_dist,
-                    pgv_reach_angle=self.pgv_reach_angle,
-                    pgv_max_speed=self.pgv_max_speed,
-                    pgv_max_rot_speed=self.pgv_max_rot_speed,
-                ))
-                self.action_list.append(GetGoodsDirFromPGV())
+        # 二次调整
+        if self.is_secondary_adjust:
+            self.action_list.append(GetPGVData(self.pgv_scan_device))
+            self.action_list.append(PGVSecondaryAdjust(
+                code_adjust_type=self.pgv_code_adjust_type,
+                scan_device=self.pgv_scan_device,
+                angle_adjust_type=self.pgv_angle_adjust_type,
+                position_adjust_type=self.pgv_position_adjust_type,
+                code_number=self.pgv_code_number,
+                line_angle_threshold=self.pgv_line_angle_threshold,
+                adjust_region=self.pgv_adjust_region,
+                pgv_spin=self.pgv_spin,
+                pgv_reach_dist=self.pgv_reach_dist,
+                pgv_reach_angle=self.pgv_reach_angle,
+                pgv_max_speed=self.pgv_max_speed,
+                pgv_max_rot_speed=self.pgv_max_rot_speed,
+            ))
+            self.action_list.append(GetGoodsDirFromPGV())
 
-            # === 放货前料架角度调整 ===
-            if (self.unload_container_dir is not None
-                    and config_params.spin_motor_name
-                    and config_params.jack_plate_shape != "circle"):
-                self._adjust_container_for_unload()
+        # === 放货前料架角度调整 ===
+        if (self.unload_container_dir is not None
+                and config_params.spin_motor_name
+                and config_params.jack_plate_shape != "circle"):
+            self._adjust_container_for_unload()
 
-            # 检查是否是边走边动模式下已经完成了顶升下降
-            current_height = Motor.getMotorPos(config_params.jack_motor_name)
-            if self.pre_action_completed and current_height <= 0.005:
-                # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
-                debug_trace(f"unload: pre-action done height={current_height:.4f}m, skip lower", name=MOD)
-                self.action_list.append(UnbindContainer("0"))
-            else:
-                # 正常模式或边走边动未完成，执行下降顶升盘
-                self.action_list.append(
-                    JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed))
-                # 下降完成后解绑容器，清除货物模型
-                self.action_list.append(UnbindContainer("0"))
+        # 检查是否是边走边动模式下已经完成了顶升下降
+        current_height = Motor.getMotorPos(config_params.jack_motor_name)
+        if self.pre_action_completed and current_height <= 0.005:
+            # 边走边动模式下顶升已经下降完成，跳过下降步骤，但仍需清除货物模型
+            debug_trace(f"unload: pre-action done height={current_height:.4f}m, skip lower", name=MOD)
+            self.action_list.append(UnbindContainer("0"))
+        else:
+            # 正常模式或边走边动未完成，执行下降顶升盘
+            self.action_list.append(
+                JackHeight(config_params.jack_motor_name, 0, config_params.jack_motor_speed))
+            # 下降完成后解绑容器，清除货物模型
+            self.action_list.append(UnbindContainer("0"))
 
-            # === 放货完成后删除激光扣除区域 ===
-            self.action_list.append(DeleteLaserDeductArea())
+        # === 放货完成后删除激光扣除区域 ===
+        self.action_list.append(DeleteLaserDeductArea())
 
     def go_ap_site(self):
         if not self.operation_init:
@@ -3018,14 +3087,105 @@ class Jack(ModuleBase):
             self.operation_init = True
             if not self.ap_id:
                 self.ap_id = Navigation.moveTask().get("targetName", None)
+            if not self.ap_id:
+                Navigation.setTaskError("NoAP", _TR("No target AP configured for goBezier"))
+                self.status = ScriptStatus.FAILED
+                return
             self.ap_world_pos = Navigation.getLM(self.ap_id, True)  # AP在世界坐标系下的位置
+            if not self.ap_world_pos:
+                Navigation.setTaskError("NoAP", _TR("Target AP not found for goBezier"))
+                self.status = ScriptStatus.FAILED
+                return
             debug_trace(f'go_bezier AP_pos={self.ap_world_pos}', name=f"{MOD}.nav")
+
+            # 先把车体朝向 AP，识别区域随后使用稳定的车体方向。
+            robot_loc = Loc.getPose()
+            ap_to_robot_angle = math.atan2(
+                self.ap_world_pos[1] - robot_loc["y"],
+                self.ap_world_pos[0] - robot_loc["x"])
+            target_angle = ap_to_robot_angle + (math.pi if self.is_backwards else 0.0)
+            self.action_list.append(RobotRotate(target_angle, Coordinate.WORLD, False))
+
+            if not self.recfile:
+                Navigation.setTaskError(
+                    "NoRecFile", _TR("goBezier requires a recognition file to locate the shelf"))
+                self.status = ScriptStatus.FAILED
+                return
             self.action_list.append(
-                GoBezier(self.ap_world_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
-                         self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
-                         self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
-                         self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy,
-                         self.min_speed))
+                RecShelf(self.recfile, f"GoBezierRec{self._rec_retry_count}", side=self.insert_shelf_dir,
+                         is_backwards=self.is_backwards,
+                         allow_empty=self.opt == "unload" and bool(self.rec_dist)))
+
+        # 识别完成后再以货架真实世界坐标执行 Bezier 钻入。
+        if (not self._go_bezier_rec_extended
+                and self._action_finished(f"GoBezierRec{self._rec_retry_count}")):
+            self._go_bezier_rec_extended = True
+            if not self.rec_result:
+                if (self.opt == "unload" and self.rec_dist
+                        and self._rec_retry_count < self.rec_retry_max):
+                    self._rec_retry_count += 1
+                    step = abs(self.rec_dist) if self.is_backwards else -abs(self.rec_dist)
+                    debug_trace(f"unload: no recognition result, back out {step}m, "
+                                f"retry {self._rec_retry_count}/{self.rec_retry_max}", name=f"{MOD}.rec")
+                    self.action_list.append(GoPath([step, 0, 0], "robot", not self.is_backwards))
+                    self.action_list.append(
+                        RecShelf(self.recfile, f"GoBezierRec{self._rec_retry_count}",
+                                 side=self.insert_shelf_dir, is_backwards=self.is_backwards,
+                                 allow_empty=True))
+                    self._go_bezier_rec_extended = False
+                    return
+                Navigation.setTaskError("RecFailed", _TR("Shelf recognition returned no result"))
+                self.status = ScriptStatus.FAILED
+                return
+            debug_trace(f"go_bezier recognition result={self.rec_result}", name=f"{MOD}.rec")
+
+            if self.opt == "unload":
+                pose = Loc.getPose()
+                result_robot = pos2Base(self.rec_result, [pose["x"], pose["y"], math.radians(pose["yaw"])])
+                # 倒走时目标位于车后，用行驶方向上的距离判断是否过近。
+                ahead_distance = -result_robot[0] if self.is_backwards else result_robot[0]
+                if ahead_distance < 1.0:
+                    step = 0.3 if self.is_backwards else -0.3
+                    self.action_list.append(GoPath([step, 0, 0], "robot", not self.is_backwards))
+                    self.action_list.append(
+                        RecShelf(self.recfile, "UnloadSecondRec", side=self.insert_shelf_dir,
+                                 is_backwards=self.is_backwards))
+                    return
+            self._append_recognized_bezier_approach()
+
+        if (self.opt == "unload" and not self._unload_second_rec_extended
+                and self._action_finished("UnloadSecondRec")):
+            self._unload_second_rec_extended = True
+            if not self.rec_result:
+                Navigation.setTaskError("RecFailed", _TR("Shelf recognition returned no result"))
+                self.status = ScriptStatus.FAILED
+                return
+            self._append_recognized_bezier_approach()
+
+    def _append_recognized_bezier_approach(self):
+        """以最新识别结果构建到位导航，供直接识别和二次识别共用。"""
+        # 与 jack_load 保持一致：识别结果是货架基准点，实际钻入深度由
+        # 识别文件当前 side 的 backDistance 决定。goBezier 的配置默认值
+        # 通常为 0，不能直接传给 GoBezier，否则会停在识别基准点附近。
+        if not self.back_dist:
+            recfile_back_dist = self.get_back_distance_info(
+                self.recfile, "shelf", self.insert_shelf_dir)
+            if recfile_back_dist.get("enableBackDistance") == "on":
+                self.back_dist = recfile_back_dist.get("backDistance") or 0.24
+            else:
+                self.back_dist = 0.24
+            debug_trace(
+                f"go_bezier back_dist resolved from recfile: {self.back_dist}",
+                name=f"{MOD}.nav")
+        if self.status == ScriptStatus.FAILED:
+            return
+        approach = GoBezier(self.rec_result, self.back_dist, self.adjust_dist_for_curvature_limit,
+                     self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
+                     self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
+                     self.curvature_limit, self.path_dist_accuracy, self.path_angle_accuracy,
+                     self.min_speed)
+        approach.action_name = "GoBezierApproach"
+        self.action_list.append(approach)
 
     def go_polyline(self):
         if not self.operation_init:
@@ -3538,7 +3698,15 @@ class Jack(ModuleBase):
                     debug_trace(f"pre-action infer operation={operation}", name=MOD)
 
                 # unload时启用边走边动：在导航过程中慢慢降下顶升
-                if operation == 'unload' or new_final_bin_task == 'unload':
+                recognize = self.full_action_args.get('recognize', False)
+                needs_recognition = (recognize.strip().lower() == 'on'
+                                     if isinstance(recognize, str) else bool(recognize))
+                if (operation == 'unload' or new_final_bin_task == 'unload') and needs_recognition:
+                    # 识别放货保持举升，等待实际 binTask 启动后识别、导航并下降。
+                    self.pre_action_mode = False
+                    self.pre_action_completed = False
+                    self.result = None
+                elif operation == 'unload' or new_final_bin_task == 'unload':
                     self.pre_action_mode = True
                     self.pre_action_completed = False
                     self.pre_action_step = [False] * 5
@@ -5340,6 +5508,9 @@ def main():
             j._first_rec_extended = False
             j._second_rec_extended = False
             j._bezier_rec_extended = False
+            j._go_bezier_rec_extended = False
+            j._unload_actions_extended = False
+            j._unload_second_rec_extended = False
             j._rec_retry_count = 0
             j.result = None  # 清空 result 防止完成后重复触发
             # 重置空载对齐状态（下次空载时重新检查）
