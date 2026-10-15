@@ -3062,11 +3062,53 @@ class LocDetectGoods(ActionBase):
     def _fail(self, error_code: str, message: str):
         self.error_code = error_code
         self.fail_reason = message
+        Trace.log(
+            f"loc detect FAIL {error_code}: {message} | loc={self.loc_name} "
+            f"expect={self.expect_goods} got={self.detected_goods} "
+            f"rec_status={self.rec_status} attempts={self.attempts} "
+            f"result={self.detect_result}",
+            name="fork.action")
         Navigation.setTaskError(error_code, message)
         self.action_status = ActionStatus.FAILED
 
+    def _detect_failure_detail(self) -> str:
+        """识别失败时尽力带出 RBK 侧的错误信息，逻辑与 Rec.rec 一致。"""
+        if self.detect_result is not None:
+            return str(self.detect_result)
+        try:
+            results = Recognize.getRecResults()
+        except Exception as exc:  # noqa: BLE001
+            return f"getRecResults failed: {exc}"
+        if isinstance(results, dict):
+            error_type = results.get("error")
+            error_msg = results.get("logMsg")
+            if error_type or error_msg:
+                return f"error_type: {error_type}, error_msg: {error_msg}"
+        return str(results)
+
+    def _fail_detection(self):
+        """检测本身失败（rec_status 始终 -1/3，重试耗尽）。
+
+        必须与"检测成功但结果为空"区分开：后者由 _finish_detection 给出
+        TargetNotFilled/TargetFilled，而这里检测没有任何结果，无法判断库位是否
+        有货，因此报 LocDetectFailed 并由调用方失败，绝不能当作"无货"放行。
+        """
+        self.detected_goods = None
+        self.detect_result = self._detect_failure_detail()
+        self._fail(
+            "LocDetectFailed",
+            f"location 3D detection failed, {self.loc_name} goods state unknown, "
+            f"rec_status: {self.rec_status}, attempts: {self.attempts}/{self.MAX_ATTEMPTS}, "
+            f"detail: {self.detect_result}",
+        )
+
     def _finish_detection(self, has_goods: bool):
         self.detected_goods = has_goods
+        Trace.log(
+            f"loc detect done loc={self.loc_name} expect={self.expect_goods} got={has_goods} "
+            f"rec_status={self.rec_status} attempts={self.attempts} "
+            f"result={self.detect_result}",
+            name="fork.action")
         if has_goods == self.expect_goods:
             self.action_status = ActionStatus.FINISHED
             return
@@ -3080,6 +3122,11 @@ class LocDetectGoods(ActionBase):
         if not cfg.locDetect3dDevice:
             self._fail("LocDetectDeviceMissing", "location detection device is empty")
             return
+        roi = [cfg.obsAreaMinHeight, cfg.obsAreaMaxHeight, cfg.obsAreaLength, cfg.obsAreaWidth]
+        Trace.log(
+            f"loc detect issue loc={self.loc_name} device={cfg.locDetect3dDevice} "
+            f"target={self.target} targetInRobot={self.target_in_robot} roi={roi}",
+            name="fork.action")
         Recognize.recTargetObs(
             cfg.locDetect3dDevice,
             self.target_in_robot[0],
@@ -3103,11 +3150,19 @@ class LocDetectGoods(ActionBase):
             self._finish_detection(self._result_has_goods(self.detect_result))
         elif self.rec_status in (-1, 3):
             self.attempts += 1
+            Trace.log(
+                f"loc detect rec failed loc={self.loc_name} rec_status={self.rec_status} "
+                f"attempts={self.attempts}/{self.MAX_ATTEMPTS}",
+                name="fork.action")
             if self.attempts >= self.MAX_ATTEMPTS:
-                self._finish_detection(False)
+                self._fail_detection()
             else:
                 Recognize.resetRec()
-        Trace.log("loc detect goods run")
+        Trace.log(
+            f"loc detect run loc={self.loc_name} action_status={int(self.action_status)} "
+            f"rec_status={self.rec_status} attempts={self.attempts} "
+            f"expect={self.expect_goods} got={self.detected_goods}",
+            name="fork.action")
         self.action_state.update({
             "locName": self.loc_name,
             "target": self.target,
@@ -3122,6 +3177,9 @@ class LocDetectGoods(ActionBase):
     def reset(self):
         _init_action_runtime(self)
         self.target = Navigation.getLM(self.loc_name, True)
+        Trace.log(
+            f"loc detect init loc='{self.loc_name}' target={self.target} expect={self.expect_goods}",
+            name="fork.action")
         if not has_valid_target_pos(self.target):
             self._fail("TargetPointNotFound", f"{self.loc_name} does not exist")
             return
