@@ -6,7 +6,7 @@ import struct
 import time
 from typing import Any, Dict, List, Optional
 
-from syspy import Container, Di, Do, Laser, Motor, Navigation, Loc, NavSpeed, Recognize, RobotError, RobotParam, ScriptStatus, Trace, _TR
+from syspy import Container, Di, Do, Laser, Module, Motor, Navigation, Loc, NavSpeed, Recognize, RobotError, RobotParam, ScriptStatus, Trace, _TR
 from syspy.utils import Coordinate, OMNI_CHASSIS_TYPES
 from syspy.utils.time import Timer
 from syspy.script_data import ScriptData
@@ -47,8 +47,180 @@ def _config():
     return _CONFIG
 
 
-def _trace_log(text: str, *, name: str = f"{MOD}.action") -> None:
+# ----------------------------------------------------------------------------
+# 通道常量（见 docs/guide/spec/fork_logging.md §3）
+# 所有叉车日志必须使用固定通道，不得拼接 taskId / actionId / 时间戳。
+# ----------------------------------------------------------------------------
+CH_FORK = MOD                        # fork       脚本生命周期、阶段切换、任务级决策
+CH_TASK = f"{MOD}.task"              # fork.task  任务级数值快照（高频）
+CH_ACTIONS = f"{MOD}.taskActions"    # fork.taskActions Action 队列协议（由 ActionTask 写）
+CH_MOTOR = f"{MOD}.motor"            # fork.motor 电机事件与货叉数值（高频）
+CH_NAV = f"{MOD}.nav"                # fork.nav   导航事件与状态
+CH_POLICY = f"{MOD}.policy"          # fork.policy 策略下发/恢复/清除
+CH_REC = f"{MOD}.rec"                # fork.rec   识别事件
+CH_CFG = f"{MOD}.cfg"                # fork.cfg   配置加载与参数变更
+CH_ERR = f"{MOD}.err"                # fork.err   异常、超时、超限
+
+# 事件载荷中不落盘的值类型（大对象 / 不可 JSON 序列化对象）
+_TRACE_SCALARS = (int, float, bool, str)
+_TRACE_MAX_SEQ = 8
+
+
+class _SkipType:
+    __slots__ = ()
+
+    def __repr__(self):
+        return "_SKIP"
+
+
+_SKIP = _SkipType()
+
+
+def _trace_sanitize(value):
+    """过滤 None、大对象和不可序列化值，返回可安全落盘的值或 _SKIP。"""
+    if value is None:
+        return _SKIP
+    if isinstance(value, _TRACE_SCALARS):
+        return value
+    if isinstance(value, (list, tuple)):
+        items = [_trace_sanitize(v) for v in value[:_TRACE_MAX_SEQ]]
+        return [v for v in items if v is not _SKIP]
+    if isinstance(value, dict):
+        out = {}
+        for k, v in list(value.items())[:_TRACE_MAX_SEQ]:
+            sv = _trace_sanitize(v)
+            if sv is not _SKIP:
+                out[str(k)] = sv
+        return out
+    return _SKIP
+
+
+def _current_task_id() -> str:
+    """读取当前任务 ID；取不到时返回空字符串（不使用 None）。"""
+    try:
+        return str(Module.getTaskId() or "")
+    except Exception:  # noqa: BLE001 - 任务 ID 仅用于关联，读取失败不阻断日志
+        return ""
+
+
+def trace_context(ctx=None) -> dict:
+    """构建公共事件上下文。缺失字段用空字符串，不使用 None。
+
+    支持两类 ctx：
+      - Fork / 动作实例：从中提取 action_id、action_type、operation、reach_phase
+      - dict：直接按键取值
+    taskId 优先取 ctx，其次回退到 Module.getTaskId()。
+    """
+    out = {
+        "taskId": "",
+        "operation": "",
+        "phase": "",
+        "phaseId": "",
+        "actionId": "",
+        "actionType": "",
+    }
+    if ctx is None:
+        out["taskId"] = _current_task_id()
+        return out
+    is_dict = isinstance(ctx, dict)
+
+    def pick(*names):
+        for name in names:
+            value = ctx.get(name) if is_dict else getattr(ctx, name, None)
+            if value is not None:
+                return value
+        return None
+
+    # 动作实例用 action_id / action_type；任务侧用 task_id
+    task_id = pick("taskId", "task_id") or _current_task_id()
+    if task_id:
+        out["taskId"] = task_id if isinstance(task_id, str) else str(task_id)
+    operation = pick("operation", "opt", "operation_type")
+    if operation is not None:
+        out["operation"] = str(operation)
+    # reach 阶段（fork 的分段路径）作为 phase 上报
+    phase = pick("phase", "reach_phase")
+    if phase is not None:
+        out["phase"] = str(phase)
+    phase_id = pick("phaseId", "phase_id")
+    if phase_id is not None:
+        out["phaseId"] = str(phase_id)
+    action_id = pick("actionId", "action_id")
+    if action_id:
+        out["actionId"] = str(action_id)
+    action_type = pick("actionType", "action_type")
+    if action_type:
+        out["actionType"] = str(action_type)
+    return out
+
+
+def emit_event(event: str, *, channel: str = CH_FORK, ctx=None, **fields) -> None:
+    """落盘一条结构化事件。自动注入公共上下文并过滤大对象/None。"""
+    payload = {"event": event}
+    payload.update(trace_context(ctx))
+    for key, value in fields.items():
+        clean = _trace_sanitize(value)
+        if clean is not _SKIP:
+            payload[key] = clean
+    Trace.log(payload, output_console=False, name=channel)
+
+
+def emit_policy(policy_name: str, *, before: dict, after: dict, ctx=None,
+                trigger: str = "", channel: str = CH_POLICY, **rest) -> bool:
+    """落盘策略变更事件；无实际变化时不落盘，返回是否落盘。
+
+    只记录发生变化的键，避免整策略对象进入日志，也避免周期调用刷屏。
+    """
+    before = before or {}
+    after = after or {}
+    changed = {k: v for k, v in after.items() if k not in before or before[k] != v}
+    if not changed:
+        return False
+    emit_event(
+        "policyApplied",
+        channel=channel,
+        ctx=ctx,
+        policyName=policy_name,
+        trigger=trigger,
+        changedKeys=sorted(changed),
+        before={k: before.get(k) for k in changed},
+        after=changed,
+        **rest,
+    )
+    return True
+
+
+def emit_error(error_code: str, reason, *, ctx=None, channel: str = CH_ERR, **fields) -> None:
+    """落盘一条错误事件。"""
+    emit_event("error", channel=channel, ctx=ctx,
+               errorCode=error_code, reason=str(reason), **fields)
+
+
+def _trace_log(text: str, *, name: str = CH_FORK) -> None:
     Trace.log(str(text), name=name)
+
+
+def _trace_chart(payload: dict, *, name: str = CH_MOTOR) -> None:
+    """兼容旧写法：结构化 payload 落到指定数值通道。
+
+    `Trace.chart` 已废弃（见 docs/guide/spec/logging.md §1.2），统一改用
+    `Trace.log(dict, output_console=False, name=...)`；保留本函数以兼容历史调用点。
+    """
+    if not isinstance(payload, dict):
+        payload = {"event": "chartValue", "value": payload}
+    Trace.log(payload, output_console=False, name=name)
+
+
+def _policy_effective_value(key: str):
+    """读取策略键在 RBK 侧的当前生效值，用于区分"脚本意图值"与"实际生效值"。
+
+    取不到时返回 None（该键不进入日志），不影响策略下发本身。
+    """
+    policy_key = key[len("navigation."):] if key.startswith("navigation.") else key
+    try:
+        return RobotParam.getConfig("navigation", policy_key)
+    except Exception:  # noqa: BLE001 - 对照值读取失败不阻断策略下发
+        return None
 
 
 def get_weight_can_config(can_device):
@@ -428,7 +600,11 @@ def validate_module_pick_direction(cfg=None, *, tolerance_deg=MODULE_YAW_TOLERAN
 
 
 def apply_default_navigation_policy():
-    Navigation.appendCustomPolicy("policy", {"navigation.freeBypass": "off"})
+    """下发默认导航策略（关闭自由绕行）并落盘 fork.policy 事件。"""
+    policy = {"navigation.freeBypass": "off"}
+    before = {"navigation.freeBypass": _policy_effective_value("navigation.freeBypass")}
+    Navigation.appendCustomPolicy("policy", policy)
+    emit_policy("policy", before=before, after=policy, trigger="applyDefaultNavigationPolicy")
 
 
 def enable_falling_down_detect(ctx) -> bool:
@@ -1995,7 +2171,10 @@ class GoLiveRec(ActionBase):
             return self.action_status
 
         # Log current recognition and path planning status
-        Trace.log(f"[liveRecScript][{self.doing_rec}|{self.doing_path}]", True, True)
+        Trace.log(
+            {"event": "liveRecStep", "doingRec": bool(self.doing_rec),
+             "doingPath": bool(self.doing_path), "recfile": str(self.recfile)},
+            output_console=False, name=CH_REC)
 
         # Perform recognition if needed
         if self.doing_rec:
@@ -2006,7 +2185,14 @@ class GoLiveRec(ActionBase):
             if self.rec.action_status == ActionStatus.FINISHED:
                 self.doing_rec = False
                 self.rec_result = self.rec.result
-                Trace.log(f"rec result:{self.rec_result}")
+                Trace.log(
+                    {"event": "recognitionAccepted",
+                     "recfile": str(self.recfile),
+                     "worldResult": [round(float(self.rec_result["worldResult"][k]), 3)
+                                     for k in ("x", "y", "yaw")],
+                     "robotResult": [round(float(self.rec_result["robotResult"][k]), 3)
+                                     for k in ("x", "y", "yaw")]},
+                    output_console=False, name=CH_REC)
                 self.target_world = [self.rec_result["worldResult"]["x"], self.rec_result["worldResult"]["y"],
                                      self.rec_result["worldResult"]["yaw"], ]
             return self.action_status
@@ -2016,7 +2202,10 @@ class GoLiveRec(ActionBase):
             self.doing_path = False
             # Get current robot position
             pos = Loc.getPose()
-            Trace.log("pos: " + json.dumps(pos), False, True)
+            Trace.log(
+                {"event": "liveRecPos",
+                 "pos": [round(float(pos[i]), 3) for i in range(min(3, len(pos)))]},
+                output_console=False, name=CH_NAV)
 
             # Calculate path based on current position and recognition results
             path = Navigation.getRecPath(
@@ -2036,7 +2225,13 @@ class GoLiveRec(ActionBase):
                 slow_down_dist=0.5,
                 slow_down_speed=0.05,
                 liveRec=True)
-            Trace.log("path: " + json.dumps(path))
+            Trace.log(
+                {"event": "liveRecPathPlanned",
+                 "pathPointCount": len(path) if isinstance(path, (list, tuple)) else None,
+                 "aheadDist": float(self.ahead_dist),
+                 "minAheadDist": float(self.min_ahead_dist),
+                 "backDist": float(self.back_dist)},
+                output_console=False, name=CH_NAV)
 
             # Reset and prepare for movement
             if not Navigation.liveRecGoReset(
@@ -2046,16 +2241,20 @@ class GoLiveRec(ActionBase):
                     theta=self.rec_result["robotResult"]["yaw"],
                     tracker_id=self.rec_result["trackerId"],
                     paths=path):
-                Trace.log("liveRecGoReset fail!")
+                emit_error("LiveRecGoResetFailed", "liveRecGoReset returned false", ctx=self)
                 self.action_status = ActionStatus.FAILED
                 return self.action_status
             self.live_motion_started = True
 
-        Trace.log(Navigation.getLiveResult())
+        Trace.log(
+            {"event": "liveRecGoStatus", "liveResult": Navigation.getLiveResult()},
+            output_console=False, name=CH_NAV)
 
         # Execute the planned movement
         self.action_status = Navigation.liveRecGo()
-        Trace.log(f"liveRecGoStatus: {self.action_status}")
+        Trace.log(
+            {"event": "liveRecGoStep", "actionStatus": int(self.action_status)},
+            output_console=False, name=CH_NAV)
         return self.action_status
 
     def cancel(self):
@@ -2157,6 +2356,9 @@ class GoPathWithContactDi(ActionBase):
         self.set_policy = False
         self.clear_policy = False
         self.policy = {}
+        # 上一次实际下发的策略快照，用于 fork.policy 事件的 before/after 对比
+        self._last_applied_policy: Dict[str, Any] = {}
+        self._last_policy_name = ""
         self.motion_target = [world_pos[0], world_pos[1], world_pos[2]]
         self.policy_unloaded_obs_dist = RobotParam.getConfig(
             "navigation", "obstacleStop.obsStopUnload.obsStopDist"
@@ -2603,6 +2805,16 @@ class GoPathWithContactDi(ActionBase):
     def _set_obs_stop_dist(self, stop_dist: float) -> None:
         self.policy[self._active_obs_stop_dist_key()] = stop_dist
 
+    def _policy_effective_value(self, key: str):
+        """读取策略键在 RBK 侧的当前生效值（见模块级同名函数）。"""
+        return _policy_effective_value(key)
+
+    def _policy_kind(self, policy_name: str) -> str:
+        """根据策略名判定事件类型（applied / restored）。"""
+        if str(policy_name).endswith("RestorePolicy"):
+            return "policyRestored"
+        return "policyApplied"
+
     def _set_default_obs_stop_dist(self) -> None:
         self.policy[self._active_obs_stop_dist_key()] = self._default_obs_stop_dist()
 
@@ -2620,11 +2832,57 @@ class GoPathWithContactDi(ActionBase):
         return self.policy_unloaded_obs_dist
 
     def _apply_policy(self, policy_name: str, *, sleep_sec: float = 0.0, reset_path: bool = False) -> None:
+        # 下发前先取对照值：优先用上一次已下发的快照，否则读 RBK 当前生效值。
+        # 这样日志能区分「机器上原来是 1.5」与「上一次脚本下发的就是 0.2」。
+        before = dict(self._last_applied_policy) if self._last_applied_policy else {}
+        for key, value in self.policy.items():
+            if key not in before:
+                effective = self._policy_effective_value(key)
+                if effective is not None:
+                    before[key] = effective
+        started = time.time()
         Navigation.appendCustomPolicy(policy_name, self.policy)
         if sleep_sec > 0:
             time.sleep(sleep_sec)
         if reset_path:
             Navigation.goPathParam(dict())
+        self._trace_policy_change(policy_name, before, dict(self.policy), reset_path, started)
+        self._last_applied_policy = dict(self.policy)
+        self._last_policy_name = policy_name
+
+    def _trace_policy_change(self, policy_name, before, after, reset_path, started) -> None:
+        """策略下发后落盘 fork.policy 事件；值未变化时不落盘（避免周期刷屏）。"""
+        changed = {k: v for k, v in after.items() if k not in before or before[k] != v}
+        if not changed:
+            return
+        emit_event(
+            self._policy_kind(policy_name),
+            channel=CH_POLICY,
+            ctx=self,
+            policyName=policy_name,
+            trigger=self._policy_trigger(),
+            changedKeys=sorted(changed),
+            before={k: before.get(k) for k in changed},
+            after=changed,
+            resetPath=bool(reset_path),
+            policyValueCount=len(after),
+            elapsedMs=int((time.time() - started) * 1000),
+        )
+
+    def _policy_trigger(self) -> str:
+        """当前策略下发的触发原因（用于事后判定是哪个阶段改的策略）。"""
+        parts = []
+        if self.reach_phase_enabled:
+            parts.append(f"reachPhase:{self.reach_phase}")
+        else:
+            parts.append(f"operation:{self.operation_type or 'unknown'}")
+        try:
+            vx = NavSpeed.getSpeeds()[0]
+        except Exception:  # noqa: BLE001 - 速度仅用于标注触发原因，失败不阻断
+            vx = None
+        if vx is not None:
+            parts.append(f"vx:{round(float(vx), 4)}")
+        return "|".join(parts)
 
     def _configure_initial_policy(self) -> bool:
         # 近货阶段关闭自由绕行并使用取放货停车距离，防止局部规划绕开目标货物。
@@ -2742,7 +3000,6 @@ class GoPathWithContactDi(ActionBase):
             self._apply_policy("forwardPolicy")
             self.clear_policy = True
             self.set_policy = False
-            Trace.log(f"vx:{vx},set forward policy:{self.policy}", name=f"{MOD}.nav")
             return
         if vx <= 0 and not self.set_policy:
             near_motion_policy = getattr(self, "near_motion_policy", None)
@@ -2753,7 +3010,6 @@ class GoPathWithContactDi(ActionBase):
             self._apply_policy("policy", sleep_sec=0.2, reset_path=True)
             self.clear_policy = False
             self.set_policy = True
-            Trace.log(f"vx:{vx},set load policy:{self.policy}", name=f"{MOD}.nav")
 
     def _should_handle_unload_tip_di(self) -> bool:
         return bool(
@@ -3231,12 +3487,16 @@ class LocDetectGoods(ActionBase):
     def _fail(self, error_code: str, message: str):
         self.error_code = error_code
         self.fail_reason = message
-        Trace.log(
-            f"loc detect FAIL {error_code}: {message} | loc={self.loc_name} "
-            f"expect={self.expect_goods} got={self.detected_goods} "
-            f"rec_status={self.rec_status} attempts={self.attempts} "
-            f"result={self.detect_result}",
-            name="fork.action")
+        emit_error(
+            error_code,
+            message,
+            ctx=self,
+            loc=self.loc_name,
+            expect=self.expect_goods,
+            got=self.detected_goods,
+            recStatus=self.rec_status,
+            attempts=self.attempts,
+        )
         Navigation.setTaskError(error_code, message)
         self.action_status = ActionStatus.FAILED
 
@@ -3273,11 +3533,17 @@ class LocDetectGoods(ActionBase):
 
     def _finish_detection(self, has_goods: bool):
         self.detected_goods = has_goods
-        Trace.log(
-            f"loc detect done loc={self.loc_name} expect={self.expect_goods} got={has_goods} "
-            f"rec_status={self.rec_status} attempts={self.attempts} "
-            f"result={self.detect_result}",
-            name="fork.action")
+        emit_event(
+            "locationDetectFinished",
+            channel=CH_REC,
+            ctx=self,
+            loc=self.loc_name,
+            expect=self.expect_goods,
+            got=has_goods,
+            recStatus=self.rec_status,
+            attempts=self.attempts,
+            resultValid=True,
+        )
         if has_goods == self.expect_goods:
             self.action_status = ActionStatus.FINISHED
             return
@@ -3292,10 +3558,17 @@ class LocDetectGoods(ActionBase):
             self._fail("LocDetectDeviceMissing", "location detection device is empty")
             return
         roi = [cfg.obsAreaMinHeight, cfg.obsAreaMaxHeight, cfg.obsAreaLength, cfg.obsAreaWidth]
-        Trace.log(
-            f"loc detect issue loc={self.loc_name} device={cfg.locDetect3dDevice} "
-            f"target={self.target} targetInRobot={self.target_in_robot} roi={roi}",
-            name="fork.action")
+        emit_event(
+            "locationDetectStarted",
+            channel=CH_REC,
+            ctx=self,
+            loc=self.loc_name,
+            device=str(cfg.locDetect3dDevice),
+            target=[round(float(v), 3) for v in self.target[:3]] if self.target else [],
+            targetInRobot=[round(float(v), 3) for v in self.target_in_robot[:3]],
+            roi=roi,
+            expect=self.expect_goods,
+        )
         Recognize.recTargetObs(
             cfg.locDetect3dDevice,
             self.target_in_robot[0],
@@ -3319,19 +3592,34 @@ class LocDetectGoods(ActionBase):
             self._finish_detection(self._result_has_goods(self.detect_result))
         elif self.rec_status in (-1, 3):
             self.attempts += 1
-            Trace.log(
-                f"loc detect rec failed loc={self.loc_name} rec_status={self.rec_status} "
-                f"attempts={self.attempts}/{self.MAX_ATTEMPTS}",
-                name="fork.action")
+            emit_event(
+                "locationDetectRetry",
+                channel=CH_REC,
+                ctx=self,
+                loc=self.loc_name,
+                recStatus=self.rec_status,
+                attempt=self.attempts,
+                maxAttempts=self.MAX_ATTEMPTS,
+            )
             if self.attempts >= self.MAX_ATTEMPTS:
                 self._fail_detection()
             else:
                 Recognize.resetRec()
-        Trace.log(
-            f"loc detect run loc={self.loc_name} action_status={int(self.action_status)} "
-            f"rec_status={self.rec_status} attempts={self.attempts} "
-            f"expect={self.expect_goods} got={self.detected_goods}",
-            name="fork.action")
+        # 周期性状态快照改为变化才落盘，避免每 tick 写文本。
+        snapshot = (int(self.action_status), self.rec_status, self.attempts, self.detected_goods)
+        if snapshot != getattr(self, "_last_detect_snapshot", None):
+            self._last_detect_snapshot = snapshot
+            emit_event(
+                "locationDetectState",
+                channel=CH_REC,
+                ctx=self,
+                loc=self.loc_name,
+                actionStatus=int(self.action_status),
+                recStatus=self.rec_status,
+                attempts=self.attempts,
+                expect=self.expect_goods,
+                got=self.detected_goods,
+            )
         self.action_state.update({
             "locName": self.loc_name,
             "target": self.target,
@@ -3346,9 +3634,15 @@ class LocDetectGoods(ActionBase):
     def reset(self):
         _init_action_runtime(self)
         self.target = Navigation.getLM(self.loc_name, True)
-        Trace.log(
-            f"loc detect init loc='{self.loc_name}' target={self.target} expect={self.expect_goods}",
-            name="fork.action")
+        self._last_detect_snapshot = None
+        emit_event(
+            "locationDetectInit",
+            channel=CH_REC,
+            ctx=self,
+            loc=self.loc_name,
+            target=[round(float(v), 3) for v in self.target[:3]] if self.target else [],
+            expect=self.expect_goods,
+        )
         if not has_valid_target_pos(self.target):
             self._fail("TargetPointNotFound", f"{self.loc_name} does not exist")
             return

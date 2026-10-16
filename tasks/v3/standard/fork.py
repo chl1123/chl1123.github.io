@@ -60,8 +60,8 @@ def increment_fork_count():
     run_db.put(FORK_TODAY_COUNT_KEY, today_count + 1)
     run_db.put(FORK_LAST_DATE_KEY, today)
     Trace.log(
-        f"fork count total={total_count + 1} today={today_count + 1}",
-        name=f"{MOD}.motor",
+        {"event": "forkCountChanged", "totalCount": total_count + 1, "todayCount": today_count + 1},
+        output_console=False, name=CH_CFG,
     )
 
 param_loader: Optional[ScriptParam] = None
@@ -112,8 +112,13 @@ SELF_POSITION_MARKER = "SELF_POSITION"
 
 from standard.fork_utils import (
     ActionStatus,
+    CH_CFG,
+    CH_REC,
+    CH_TASK,
     ForkActionQueue,
     GoLiveRec,
+    emit_error,
+    emit_event,
     GoPathWithContactDi,
     LocDetectGoods,
     Rec,
@@ -2044,7 +2049,12 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             return
         prev_name = ScriptStatus(self.script_status).name
         next_name = ScriptStatus(new_status).name
-        Trace.log(f"status {prev_name} -> {next_name}", name="fork.task")
+        emit_event(
+            "scriptStatusChanged",
+            ctx=self,
+            **{"from": prev_name.lower(), "to": next_name.lower(),
+               "elapsedMs": int((time.time() - self.start_time) * 1000)},
+        )
         self.script_status = new_status
 
     def reset_task_state(self):
@@ -2108,11 +2118,17 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def _validate_task_args(self, input_params, validator):
         if not input_params:
             return None
-        Trace.log(f"check before, args:{input_params}", name="fork.task")
+        # 只记录输入键名，不落盘原始大对象；值摘要由后续 normalized 事件给出。
+        emit_event(
+            "scriptArgsReceived",
+            ctx=self,
+            argKeys=sorted(str(k) for k in input_params),
+            operation=str(input_params.get("operation", "") or ""),
+        )
         try:
             validated_args = validator.validate(input_params)
         except ValueError as exc:
-            Trace.log(f"check error:{exc}", name="fork.err")
+            emit_error("InvalidInputParams", exc, ctx=self)
             Navigation.setTaskError(
                 "InvalidInputParams",
                 f"invalid input params: {exc}",
@@ -2120,7 +2136,11 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             self.set_status(ScriptStatus.FAILED)
             return None
 
-        Trace.log(f"check ok, args:{json.dumps(validated_args, indent=2)}", name="fork.task")
+        emit_event(
+            "scriptArgsValidated",
+            ctx=self,
+            argKeys=sorted(str(k) for k in validated_args),
+        )
         return validated_args
 
     def _start_task_cycle(self, args):
@@ -2130,9 +2150,15 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.init_args = True
         self.operation_init = False
         self.task_args = dict(args or {})
+        emit_event(
+            "scriptStarted",
+            ctx=self,
+            operation=str((args or {}).get("operation", "")),
+            elapsedMs=0,
+            argKeys=sorted(str(k) for k in (args or {})),
+        )
         NavStatus.clearBlock()
         self.min_safe_height = 0.0
-        Trace.log(f"script args:{self.task_args}", name="fork.task")
         self._init_args()
         if self.script_status != ScriptStatus.RUNNING:
             return
@@ -2186,12 +2212,32 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         )])
         self._auto_pre_active = True
 
+    @staticmethod
+    def _failed_action_of(current_action, action_list):
+        """定位失败根因动作：优先当前动作，否则取队列里第一个 FAILED 动作。"""
+        if current_action is not None and getattr(current_action, "action_status", None) == ActionStatus.FAILED:
+            return current_action
+        for action in action_list:
+            if getattr(action, "action_status", None) == ActionStatus.FAILED:
+                return action
+        return current_action
+
     def _finish_task_cycle(self):
         final_status = self.script_status
         self.save_mileage(force=True)
         delete_deduct_area("PalletRobotDeductArea", Coordinate.WORLD)
         delete_deduct_area("noRecDeduct2World", Coordinate.WORLD)
-        Trace.log(f"script end, script_status: {final_status}", name="fork.task")
+        failed = final_status == ScriptStatus.FAILED
+        failed_action = self._failed_action_of(self.current_action, self.action_task.action_list)
+        emit_event(
+            "scriptFailed" if failed else "scriptFinished",
+            ctx=failed_action if failed and failed_action is not None else self,
+            operation=str(self.opt or ""),
+            status=ScriptStatus(final_status).name.lower(),
+            elapsedMs=int((time.time() - self.start_time) * 1000),
+            errorCode=getattr(failed_action, "error_code", "") if failed else "",
+            reason=getattr(failed_action, "fail_reason", "") if failed else "",
+        )
         self._disable_falling_down_detect()
         Module.setStatus(final_status)
         self.reset_task_state()
@@ -3311,15 +3357,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._sync_action_runtime()
 
         if prev_current is not None and prev_status == ActionStatus.INIT:
-            if self.current_action is prev_current and self.current_action.action_status == ActionStatus.RUNNING:
-                Trace.log(f"execute {self.current_action.action_name} start", output_console=True, output_time=True,
-                          name="fork.action")
+            # action 的 start / finished 已由 fork.taskActions 的 actionStateChanged 覆盖（含
+            # actionId、actionType、elapsedMs），此处不再重复写入 fork.action。
+            pass
         elif prev_current is not None and prev_status == ActionStatus.FINISHED:
-            Trace.log(f"execute {prev_current.action_name} finished", output_console=True, output_time=True,
-                      name="fork.action")
+            pass
         elif prev_current is not None and prev_status == ActionStatus.FAILED:
-            Trace.log(f"execute {prev_current.action_name} failed", output_console=True, output_time=True,
-                      name="fork.err")
+            emit_error(
+                getattr(prev_current, "error_code", "") or "ActionFailed",
+                getattr(prev_current, "fail_reason", "") or f"execute {prev_current.action_name} failed",
+                ctx=prev_current,
+                actionName=str(prev_current.action_name),
+                phase=str(self.opt or ""),
+            )
 
         chart_action = self.current_action or prev_current
         chart_index = self.action_id if self.current_action is not None else max(prev_index - 1, 0)
@@ -3331,8 +3381,17 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         if self.action_status == ActionStatus.FAILED:
             failed_action = self.current_action or prev_current
             if failed_action is not None:
-                Trace.log(f"execute {failed_action.action_name} failed", output_console=True, output_time=True,
-                          name="fork.err")
+                # 根因动作已在上面报过；此处只在动作自身未报错时补一条叉车层错误，
+                # 避免同一 errorCode 重复输出完整 reason。
+                if not getattr(failed_action, "_fork_err_reported", False):
+                    failed_action._fork_err_reported = True
+                    emit_error(
+                        getattr(failed_action, "error_code", "") or "ExecuteActionError",
+                        getattr(failed_action, "fail_reason", "")
+                        or f"execute action {format_action(failed_action)} failed",
+                        ctx=failed_action,
+                        actionName=str(failed_action.action_name),
+                    )
                 if not getattr(failed_action, "preserve_task_error", False):
                     Navigation.setTaskError(
                         "ExecuteActionError",
@@ -3549,8 +3608,18 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
              if p.get('key') == 'minSafeHeight'),
             0.0
         )
-        Trace.log(f"min_safe_height:{self.min_safe_height}", name="fork.task")
-        Trace.log(f"move task:{self.move_task}", name="fork.task")
+        # 平台下发的完整 move_task 体积大且包含无关字段，只落盘关键摘要。
+        Trace.log(
+            {"event": "executionParametersResolved", "skillName": str(self.move_task.get("skillName", "")),
+             "sourceName": str(self.move_task.get("sourceName", "")),
+             "targetName": str(self.move_task.get("targetName", "")),
+             "target": [round(float(self.move_task.get(k, 0.0)), 3)
+                        for k in ("targetX", "targetY", "targetAngle") if k in self.move_task],
+             "obsStopDist": self.move_task.get("obsStopDist"),
+             "obsExpansion": self.move_task.get("obsExpansion"),
+             "paramKeys": sorted(str(p.get("key", "")) for p in self.move_task.get("params", [])),
+             "minSafeHeight": float(self.min_safe_height)},
+            output_console=False, name=CH_TASK)
 
         self.recognize = any([input_recognize, is_enabled(movetask_recognize)])
 
@@ -3574,7 +3643,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             )
             self.set_status(ScriptStatus.FAILED)
             return
-        Trace.log("init args", name="fork.task")
+        emit_event(
+            "scriptArgsNormalized",
+            ctx=self,
+            recfile=str(getattr(self, "recfile", "")),
+            recSide=str(getattr(self, "recSide", "") or ""),
+            startHeight=float(getattr(self, "start_height", 0.0) or 0.0),
+            endHeight=float(getattr(self, "end_height", 0.0) or 0.0),
+            recHeight=float(getattr(self, "rec_height", 0.0) or 0.0),
+            startHeightProvided=bool(getattr(self, "start_height_provided", False)),
+            recognize=bool(getattr(self, "recognize", False)),
+            leaveLoc=bool(getattr(self, "leave_loc", False)),
+            forkSpeed=float(getattr(self, "forkSpeed", 0.0) or 0.0),
+        )
 
     def _check_timeout(self):
         self.script_runtime = time.time() - self.start_time
@@ -4015,7 +4096,12 @@ class HeavyFork(Fork):
             if obj.get("class") == "Bottom"
         ]
 
-        Trace.log(f"bottom_cages: {bottom_cages},top_cages: {top_cages}", True, True)
+        Trace.log(
+            {"event": "cageRecognitionSummary",
+             "bottomCount": len(bottom_cages), "topCount": len(top_cages),
+             "bottomCages": [[round(float(v), 3) for v in p] for p in bottom_cages[:2]],
+             "topCages": [[round(float(v), 3) for v in p] for p in top_cages[:2]]},
+            output_console=False, name=CH_REC)
 
         if len(bottom_cages) < 2:
             Navigation.setTaskError("Wrong bottom num", "")

@@ -9,14 +9,18 @@ from syspy.utils.param_server import BindType, ParamType
 
 from standard.fork import ConfigParams, Fork
 from standard.fork_utils import (
+    CH_POLICY,
     EPS,
     ActionStatus,
     GoPathWithContactDi as BaseGoPathWithContactDi,
     Rec,
     RunMotorByPosition,
     RunMotorBySpeed,
+    _policy_effective_value,
     _trace_log,
     _trace_chart,
+    emit_event,
+    emit_policy,
     _init_action_runtime,
     apply_tcp_target,
     build_path_adjust_plan,
@@ -1398,15 +1402,31 @@ class GoPathWithContactDi(BaseGoPathWithContactDi):
             Navigation.clearPolicy()
             self.clear_policy = True
             self.set_policy = False
-            _trace_log(f"vx:{vx},clear policy")
+            emit_event(
+                "policyCleared",
+                channel=CH_POLICY,
+                ctx=self,
+                policyName="policy",
+                trigger=f"operation:{self.operation_type or 'unknown'}|vx:{round(float(vx), 4)}",
+            )
             return
         if vx <= 0 and not self.set_policy:
-            _trace_log(f"vx:{vx},set policy")
+            before = {
+                key: _policy_effective_value(key) for key in self.policy
+            }
             Navigation.appendCustomPolicy("policy", self.policy)
             time.sleep(0.5)
             Navigation.goPathParam(dict())
             self.clear_policy = False
             self.set_policy = True
+            emit_policy(
+                "policy",
+                before=before,
+                after=dict(self.policy),
+                ctx=self,
+                trigger=f"operation:{self.operation_type or 'unknown'}|vx:{round(float(vx), 4)}",
+                resetPath=True,
+            )
 
     def _handle_motion_extensions(self) -> bool:
         if not self.distance_check_enabled or self.distance_check_done:

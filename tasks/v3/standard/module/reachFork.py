@@ -10,6 +10,7 @@ from syspy.utils.param_server import ParamType
 
 from standard.fork import ConfigParams, ReachFork as BaseReachFork
 from standard.fork_utils import (
+    CH_POLICY,
     ActionStatus,
     GoPathWithContactDi,
     Rec,
@@ -17,10 +18,12 @@ from standard.fork_utils import (
     RunMotorByPosition,
     calculate_recognition_pick_height,
     clamp,
+    emit_event,
     extract_recognition_height_z,
     load_pallet_z_offset,
     normalize_recognition_result_metadata,
     pos2World,
+    _policy_effective_value,
 )
 
 REACH_LASER_BLOCK_KEY = "ReachForkTipLaserObstacle"
@@ -593,8 +596,31 @@ class ReachRunReachMotorsByPosition(RunReachMotorsByPosition):
         self._restore_expansion_policy = {}
 
     def _policy(self, name, values):
+        before = dict(getattr(self, "_last_applied_policy", {}) or {})
+        for key in values:
+            if key not in before:
+                effective = _policy_effective_value(key)
+                if effective is not None:
+                    before[key] = effective
+        started = time.time()
         Navigation.appendCustomPolicy(name, values)
         Navigation.goPathParam(dict())
+        changed = {k: v for k, v in values.items() if k not in before or before[k] != v}
+        if changed:
+            emit_event(
+                "policyRestored" if str(name).endswith("RestorePolicy") else "policyApplied",
+                channel=CH_POLICY,
+                ctx=self,
+                policyName=name,
+                trigger=f"reachMotor:{getattr(self, 'target', '')}",
+                changedKeys=sorted(changed),
+                before={k: before.get(k) for k in changed},
+                after=changed,
+                resetPath=True,
+                policyValueCount=len(values),
+                elapsedMs=int((time.time() - started) * 1000),
+            )
+        self._last_applied_policy = dict(values)
 
     def _begin_policy(self):
         if self._device_policy_active or self.monitor_owned_by_path:
