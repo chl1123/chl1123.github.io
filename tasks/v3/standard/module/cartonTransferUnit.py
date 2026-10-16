@@ -1,4 +1,6 @@
       
+      
+
 # -*- coding: utf-8 -*-
 # @Date: 2026/9/20
 # @Author: sunjingan
@@ -113,6 +115,7 @@ class ConfigParams:
     rec_max_times = 10
     rec_box_max_times = 3
     persistent_recognition = False
+    shelf_wait_timeout = 15.0
 
     # 手指 DoMotor（从设备模型 fingerMotor 克隆读取，._0=左手指, ._1=右手指）
     has_finger_motor: bool = False
@@ -315,6 +318,10 @@ class ConfigParams:
                     with builder.CHILD(key="persistentRecognition", name=_TR("Persistent Recognition"), desc=_TR("Keep recognizing after the limit and report a clearable error")):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
+                    with builder.CHILD(key="shelfWaitTimeout", name=_TR("Shelf Wait Timeout"), desc=_TR("Maximum wait for occupied shelf to clear")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(15.0, min_value=0)
+                        builder.UNIT("s")
 
             # 电机组
             with builder.GROUP(key="motorConfig", name=_TR("Motor Configuration"),
@@ -495,6 +502,7 @@ class ConfigParams:
         cls.rec_max_times = cls.config.get("recMaxTimes", 10)
         cls.rec_box_max_times = cls.config.get("recBoxMaxTimes", 3)
         cls.persistent_recognition = cls.config.get("persistentRecognition", False)
+        cls.shelf_wait_timeout = cls.config.get("shelfWaitTimeout", 15.0)
 
         cls.lift_motor_speed = cls.config.get("liftMotorSpeed")
         cls.max_lift_height = cls.config.get("maxForkHeight")
@@ -744,7 +752,7 @@ class InputParams:
                         create_stretch_param(builder, _TR("Fork extension length when putting; auto-calculated from the recognition result if omitted"))
                         with builder.CHILD(key="recBoxLift", name=_TR("Rec Box Lift"),
                                            desc=_TR("Lift height for scanning the box code, used to check whether the slot already has goods before unloading")):
-                            builder.TYPE(ParamType.INT)
+                            builder.TYPE(ParamType.FLOAT)
                             builder.DEFAULTVALUE(-1)
                         with builder.CHILD(key="preFinger", name=_TR("Pre Finger"),
                                            desc=_TR("Open the fingers in advance when unloading, to prevent the fingers from getting stuck on the irregular box surface after pushing the box")):
@@ -1399,9 +1407,9 @@ class FingerAction(BaseAction):
                         return
                     self.overlimit_count += 1
                     if self.overlimit_count >= ConfigParams.overlimit_detect_times:
-                        self.agv.timeout_deferred_stretch_obstacle = True
                         Navigation.setTaskError("StretchObstacle", _TR(
                             f"Fork overlimit photoelectric sensor detected obstacle. Push the box manually to clear the overlimit, or increase stretch compensation"))
+                        self.agv.timeout_deferred_stretch_obstacle = True
                         self.overlimit_count = 0
                         if not ConfigParams.persistent_recognition:
                             self.action_status = ActionStatus.FAILED
@@ -1904,6 +1912,8 @@ class RecBoxCheckAction(BaseAction):
                 # 传送带上的货物可能尚未离开目标位。持续识别时保留货物在
                 # 货叉上，不进入恢复队列，直到后续一轮确认目标位为空。
                 self.agv.shelf_occupied = True
+                if self.agv.shelf_wait_start is None:
+                    self.agv.shelf_wait_start = time.time()
                 Navigation.setTaskError(
                     "ShelfHasGoods",
                     _TR("Goods detected on shelf, waiting for the target position to clear"),
@@ -1929,9 +1939,11 @@ class RecBoxCheckAction(BaseAction):
                 self.action_status = ActionStatus.FAILED
             else:
                 self.agv.shelf_occupied = False
+                self.agv.finish_shelf_wait()
                 Navigation.clearTaskError("ShelfHasGoods")
                 self.action_status = ActionStatus.FINISHED
         elif self.agv.rec_box.action_status is ActionStatus.FAILED:
+            self.agv.finish_shelf_wait()
             Do.setDo(self.agv.fill_light_do, False)
             self.action_status = ActionStatus.FINISHED
         else:
@@ -2059,9 +2071,7 @@ class ContainerRobot(ModuleBase):
         self.suspend_start_time = None
         self._last_safe_move_log = None
         self.business_timeout_started = False
-        self.timeout_recovery_active = False
-        self.timeout_recovery_start = None
-        self.timeout_deferred_stretch_obstacle = False
+        self.shelf_wait_start = None
         self.auto_pre_enabled = False
         self.auto_pre_stage = 2
         self.goods_id = ""
@@ -2077,6 +2087,9 @@ class ContainerRobot(ModuleBase):
         self.finger_info = dict()
         self.stretch_status = None
         self.stretch_real_pos = 0
+        self.timeout_recovery_active = False
+        self.timeout_recovery_start = None
+        self.timeout_deferred_stretch_obstacle = False
         self.lift_real_pos = 0
         self.rotate_real_pos = 0
         self.load_height = 0
@@ -2143,11 +2156,12 @@ class ContainerRobot(ModuleBase):
         self.operation_init = False
         # 框架动作队列引擎(action_list 作暂存源, 经 _sync_task 镜像到此队列执行)
         self.action_task = ActionTask(mod=MOD)
-        self.timeout_recovery_task = ActionTask(mod=f"{MOD}.timeoutRecovery")
         # safeMoveCheck 专用归零队列(与任务 action_task 隔离, 复用同一组归零动作定义)
         self.safe_zero_task = ActionTask(mod=MOD)
         self.station_zero_pending = False
         self.station_zero_start = None
+        # 脚本总超时后的机构恢复队列，与正常业务和移动安全检查互不覆盖。
+        self.timeout_recovery_task = ActionTask(mod=f"{MOD}.timeoutRecovery")
 
         self.first_full = True
         self.startup_zero_pending = not ContainerRobot.startup_zero_done
@@ -2169,14 +2183,15 @@ class ContainerRobot(ModuleBase):
         self.start_time = time.time()
         self.suspend_start_time = None
         self.business_timeout_started = False
-        self.timeout_recovery_active = False
-        self.timeout_recovery_start = None
-        self.timeout_deferred_stretch_obstacle = False
+        self.shelf_wait_start = None
         self.auto_pre_enabled = False
         self.auto_pre_stage = 2
         self.goods_id = ""
         self.lift_height = None
         self.stretch_length = None
+        self.timeout_recovery_active = False
+        self.timeout_recovery_start = None
+        self.timeout_deferred_stretch_obstacle = False
         self.is_auto_stretch = None
         self.rotate_pos = None
         self.finger_pos = None
@@ -2249,6 +2264,7 @@ class ContainerRobot(ModuleBase):
             # 重置识别前停稳计时 & 货架有货异常恢复状态
             self.motor_settle_start = None
             self.shelf_occupied = False
+            self.shelf_wait_start = None
             self.recovery_built = False
             self.recovery_c = None
             self.finger_pos = self.script_args.get("finger", 0)
@@ -2330,11 +2346,18 @@ class ContainerRobot(ModuleBase):
         self.business_timeout_started = True
         Trace.log("AutoPre physical actions started; business timeout started", name=f"{MOD}.autoPre")
 
+    def finish_shelf_wait(self):
+        if self.shelf_wait_start is not None:
+            # 等待货架清空不占用业务时间，保留等待前已消耗的预算。
+            self.start_time += time.time() - self.shelf_wait_start
+            self.shelf_wait_start = None
+
     def _start_timeout_recovery(self):
         """脚本总超时后停止原队列，先打开手指，再收回伸缩机构。"""
         if self.timeout_deferred_stretch_obstacle:
             Navigation.clearTaskError("StretchObstacle")
         self._stop_mechanisms_for_suspend()
+        self.shelf_wait_start = None
         if not self.action_task.is_done:
             self.action_task.cancel(reason="script timeout recovery")
         self.timeout_recovery_task.reset()
@@ -2369,7 +2392,7 @@ class ContainerRobot(ModuleBase):
                 "Script task timed out and mechanism recovery did not complete within 15 seconds. "
                 "Check the finger and stretch mechanisms manually"
             )
-            RobotError.setSystemError("StretchNotZeroedOrFingerNotOpened", desc, True)
+            Navigation.setTaskError("StretchNotZeroedOrFingerNotOpened", desc)
             Trace.log("Script timeout recovery failed", name=f"{MOD}.err")
         Navigation.setTaskError("ScriptTimeout", desc)
         if self.timeout_deferred_stretch_obstacle:
@@ -2436,8 +2459,18 @@ class ContainerRobot(ModuleBase):
             timeout = ConfigParams.timeout
             if self.auto_pre_enabled:
                 timeout += max(0.0, ConfigParams.auto_pre_advance_time)
-            elapsed = time.time() - self.start_time
+            now = time.time()
+            elapsed = (self.shelf_wait_start if self.shelf_wait_start is not None else now) - self.start_time
             if (self.status == ScriptStatus.RUNNING
+                    and self.shelf_wait_start is not None
+                    and now - self.shelf_wait_start >= ConfigParams.shelf_wait_timeout):
+                Trace.log(
+                    f"Shelf wait timeout triggered: elapsed={now - self.shelf_wait_start:.3f}s, "
+                    f"timeout={ConfigParams.shelf_wait_timeout:.3f}s",
+                    name=f"{MOD}.timeout",
+                )
+                self._start_timeout_recovery()
+            elif (self.status == ScriptStatus.RUNNING
                     and self.business_timeout_started
                     and elapsed > timeout):
                 Trace.log(
@@ -3591,6 +3624,8 @@ class ContainerRobot(ModuleBase):
             if self.suspend_start_time is not None:
                 paused_seconds = time.time() - self.suspend_start_time
                 self.start_time += paused_seconds
+                if self.shelf_wait_start is not None:
+                    self.shelf_wait_start += paused_seconds
                 self.suspend_start_time = None
             if self.timeout_recovery_active:
                 self.timeout_recovery_start += paused_seconds
@@ -3602,6 +3637,7 @@ class ContainerRobot(ModuleBase):
 
     def cancel(self):
         self._log_task_control("cancel")
+        self.shelf_wait_start = None
         if self.station_zero_pending:
             self.safe_zero_task.cancel()
             self.station_zero_pending = False
