@@ -1707,7 +1707,6 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     use_recfile_collision_policy = False
     task_trace_channel = f"{MOD}.task"
     motor_trace_channel = f"{MOD}.motor"
-    script_trace_channel = f"{MOD}.script"
 
     @classmethod
     def _resolve_runtime_init_options(
@@ -2083,18 +2082,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             "actionCount": int(self.action_task.total),
             "forkAutoFlag": False,
         }
-        self.script_trace_payload = {
-            "script.task_len": int(self.action_task.total),
-            "script.action_id": int(self.action_id),
-            "script.all_action_status": int(self.action_status),
-            "script.cur_action": "",
-            "script.cur_action_status": 0,
-            "script.script_status": int(self.script_status),
-        }
         self.motor_trace_payload = {
             "forkHeight": 0.0,
-            # forkHeightInPlace 为兼容期旧字段，新代码读 forkInPlace（见 docs/guide/spec/fork_logging.md §7.2）
-            "forkHeightInPlace": True,
             "forkInPlace": True,
             "forkMoving": False,
             "forkDirection": "idle",
@@ -3429,39 +3418,16 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                         f"execute action {format_action(failed_action)} failed!",
                     )
 
-        # script 状态独立 chart 通道
-        script_trace_payload = self.script_trace_payload
-        script_trace_payload["script.task_len"] = self.action_task.total
-        script_trace_payload["script.action_id"] = self.action_id
-        script_trace_payload["script.all_action_status"] = int(self.action_status)
-        script_trace_payload["script.cur_action"] = self.current_action.action_name if self.current_action else ""
-        script_trace_payload["script.cur_action_status"] = (
+        # script 状态已并入 fork.task，不再保留独立通道（见 docs/guide/spec/fork_logging.md §3.1）
+        task_snapshot = self.task_trace_payload
+        task_snapshot["scriptTaskLen"] = int(self.action_task.total)
+        task_snapshot["scriptCurrentAction"] = (
+            self.current_action.action_name if self.current_action else ""
+        )
+        task_snapshot["scriptCurrentActionStatus"] = (
             int(self.current_action.action_status) if self.current_action else 0
         )
-        script_trace_payload["script.script_status"] = int(self.script_status)
-        """
-        @NameZh @fork.script 叉车脚本动作时序
-        @NameEn @fork.script fork script action timeline
-        @KeyZh @script.task_len 动作队列长度
-        @KeyEn @script.task_len action queue length
-        @NumberType @script.task_len
-        @KeyZh @script.action_id 当前动作索引
-        @KeyEn @script.action_id current action index
-        @NumberType @script.action_id
-        @KeyZh @script.all_action_status 整体动作状态
-        @KeyEn @script.all_action_status overall action status
-        @NumberType @script.all_action_status
-        @KeyZh @script.cur_action 当前动作名称
-        @KeyEn @script.cur_action current action name
-        @StringType @script.cur_action
-        @KeyZh @script.cur_action_status 当前动作状态
-        @KeyEn @script.cur_action_status current action status
-        @NumberType @script.cur_action_status
-        @KeyZh @script.script_status 脚本状态
-        @KeyEn @script.script_status script status
-        @NumberType @script.script_status
-        """
-        Trace.log(script_trace_payload, False, True, name=self.script_trace_channel)
+        Trace.log(task_snapshot, output_console=False, name=self.task_trace_channel)
 
     def motor_jog_or_move(self, motor_type):
         """电机点动或长按操作"""
@@ -3800,8 +3766,6 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
         motor_trace_payload = self.motor_trace_payload
         motor_trace_payload["forkHeight"] = float(fork_height)
-        # forkHeightInPlace 为兼容期旧字段，新字段为 forkInPlace（spec §7.2）
-        motor_trace_payload["forkHeightInPlace"] = bool(self.fork_height_in_place)
         motor_trace_payload["forkInPlace"] = bool(self.fork_height_in_place)
         delta_height = getattr(self, "_fork_delta_this_tick", 0.0) or 0.0
         motor_trace_payload["forkMoving"] = abs(delta_height) > 1e-4
@@ -3824,11 +3788,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         @KeyEn @forkHeight current fork height
         @NumberType @forkHeight
         @Unit @forkHeight m
-        @KeyZh @forkHeightInPlace 货叉是否到位
-        @KeyEn @forkHeightInPlace fork in place
-        @BooleanType @forkHeightInPlace
-        @KeyZh @forkInPlace 货叉是否到位（规范字段）
-        @KeyEn @forkInPlace fork in place (spec field)
+        @KeyZh @forkInPlace 货叉是否到位
+        @KeyEn @forkInPlace fork in place
         @BooleanType @forkInPlace
         @KeyZh @forkMoving 货叉是否运动中
         @KeyEn @forkMoving whether fork is moving
