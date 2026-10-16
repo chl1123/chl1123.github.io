@@ -78,6 +78,10 @@ SCRIPT_OPTIONS = {
 }
 MOD = "fork"
 
+# fork.task 任务状态快照的落盘策略：状态未变时不重复落盘，
+# 但至少每 _TASK_SNAPSHOT_HEARTBEAT_SEC 秒落一条，避免下游看板长期收不到存活信号。
+_TASK_SNAPSHOT_HEARTBEAT_SEC = 5.0
+
 
 def _require_param_loader() -> ScriptParam:
     if param_loader is None:
@@ -338,7 +342,7 @@ class ConfigParams:
     @classmethod
     def reload_config(cls):
         """重新加载配置参数"""
-        Trace.log("Reloading config parameters", name="fork.cfg")
+        emit_event("configReloading", channel=CH_CFG)
         cfg = _require_param_loader().loadConfig()
         cls.config = cfg
 
@@ -347,7 +351,7 @@ class ConfigParams:
         cls.scriptDebug = cls._safe_bool(cfg.get("scriptDebug"), False)
         cls.autoPreAdvanceTime = max(0.0, cls._safe_float(cfg.get("autoPreAdvanceTime"), 1.0))
         if cls.scriptDebug:
-            Trace.log(f"Loaded config: {cls.config}", name="fork.cfg")
+            emit_event("configLoaded", channel=CH_CFG, config=dict(cls.config or {}))
 
         # --- fork
         cls.upMaxSpeedWithGoods = cfg.get("upMaxSpeedWithGoods")
@@ -464,7 +468,7 @@ class ConfigParams:
 
         cls._build_module_motor()
 
-        Trace.log(f"Updated config: {cls.config}", False, name="fork.cfg")
+        emit_event("configUpdated", channel=CH_CFG, config=dict(cls.config or {}))
 
     @staticmethod
     def _split_motor_names(value):
@@ -613,10 +617,14 @@ class ConfigParams:
         # 侧叉只对“需要横移才能取货”的方向生效（左/右）。后向安装（yaw=180）仍按正叉
         # 车处理：机构只是背对车头，goPath 的 backMode 已负责选择前进/后退。
         cls.module_side_pick = is_side_pick_direction(cls.module_pick_direction)
-        Trace.log(
-            f"module install yaw:{cls.module_yaw}deg, pickDirection:{cls.module_pick_direction}, "
-            f"sidePick:{cls.module_side_pick}, chassisType:{cls.chassis_type}",
-            name="fork.cfg",
+        emit_event(
+            "moduleInstallResolved",
+            channel=CH_CFG,
+            moduleYaw=float(cls.module_yaw),
+            pickDirection=str(cls.module_pick_direction),
+            sidePick=bool(cls.module_side_pick),
+            chassisType=str(cls.chassis_type),
+            moduleType=str(cls.module_type),
         )
         cls.fork_tip_width = float(RobotParam.getDevice("Model-000", f"moduleType.{cls.module_type}.forkWidth") or 0)
         cls.center_distance_between_forks = float(
@@ -738,7 +746,7 @@ class ConfigParams:
         for item in cls.expand_motor_items:
             cls._append_module_motor("expand", item["motorKey"], "expandMotor", item.get("side", ""))
 
-        Trace.log(f"moduleMotor built count={len(cls.moduleMotor)}", name=f"{MOD}.cfg")
+        emit_event("moduleMotorBuilt", channel=CH_CFG, motorCount=len(cls.moduleMotor))
 
     @classmethod
     def _append_module_motor(cls, motor_type, motor_name, config_type, side):
@@ -792,7 +800,7 @@ class ConfigParams:
         if not error_msg:
             return True
         Navigation.setTaskError("SideForkChassisUnsupported", error_msg)
-        Trace.log(f"side fork check failed: {error_msg}", name="fork.err")
+        emit_error("SideForkChassisUnsupported", error_msg)
         return False
 
     @classmethod
@@ -1893,6 +1901,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.last_pos = None
         # 上次 fork.motor 快照时间戳与本次 tick 的货叉位移，用于推导 forkSpeed
         self._trace_last_ts = None
+        # fork.task 快照变化触发：记录上次落盘的状态键与时间戳，用于去重与心跳
+        self._last_task_snapshot_key = None
+        self._last_task_trace_ts = 0.0
         self._fork_delta_this_tick = 0.0
         self.last_save_ts = time.time()
         self.save_interval = 5
@@ -2354,7 +2365,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         except Exception as exc:
             self._cancel_nav_fork_height_action()
             if not self._nav_fork_height_read_error:
-                Trace.log(f"read navigation task for fork travel height failed: {exc}", name="fork.err")
+                emit_error("NavForkHeightReadFailed", f"read navigation task for fork travel height failed: {exc}")
                 self._nav_fork_height_read_error = True
             return
 
@@ -2406,7 +2417,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             self._nav_fork_height_action = None
             self.fork_height_in_place = True
         elif action.action_status == ActionStatus.FAILED:
-            Trace.log(f"fork travel height failed, task_id={task_id}", name="fork.err")
+            emit_error("NavForkHeightFailed", f"fork travel height failed, task_id={task_id}")
             self._nav_fork_height_action = None
             self.fork_height_in_place = True
 
@@ -2628,9 +2639,10 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                     if motor.get("type") == operation
                 ]
                 if not motors:
-                    Trace.log(
+                    emit_error(
+                        "ModbusNoMotorConfigured",
                         f"modbus operation {operation} has no configured motor",
-                        name="fork.err",
+                        operation=str(operation),
                     )
                     return {"operation": operation, "position": 0.0}
 
@@ -2681,7 +2693,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 return pos, tcp_key  # 优先返回成功的结果
 
             # 如果走到这里，说明 AP 和 LM 都失败了
-            Trace.log(f"{station_id} not found, return {pos}", name="fork.err")
+            emit_error("StationNotFound", f"{station_id} not found, return {pos}", stationId=str(station_id))
         return pos, tcp_key
 
     def _has_usable_target_pos(self, target_pos):
@@ -3362,7 +3374,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
     def _execute_actions(self):
         if self.action_task.is_empty:
-            Trace.log(f"no action found", name="fork.err")
+            emit_error("NoActionFound", "no action found")
             return
 
         prev_index = self.action_id
@@ -3656,7 +3668,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def _check_timeout(self):
         self.script_runtime = time.time() - self.start_time
         if self.script_runtime > ConfigParams.timeout:
-            Trace.log(f"script timeout:{ConfigParams.timeout}", name="fork.err")
+            emit_error("ScriptTimeout", f"script timeout:{ConfigParams.timeout}")
             Navigation.setTaskError("ScriptTimeout", f"script timeout:{ConfigParams.timeout}, script failed")
             self.set_status(ScriptStatus.FAILED)
             self.action_task.cancel(reason=f"script timeout:{ConfigParams.timeout}")
@@ -3742,26 +3754,40 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         task_trace_payload["actionIndex"] = int(self.action_id)
         task_trace_payload["actionCount"] = int(self.action_task.total)
         task_trace_payload["forkAutoFlag"] = bool(fork_auto_flag)
-        """
-        @NameZh @fork.task 叉车任务执行状态
-        @NameEn @fork.task fork task execution status
-        @KeyZh @scriptStatus 脚本状态
-        @KeyEn @scriptStatus script status
-        @NumberType @scriptStatus
-        @KeyZh @actionStatus 动作状态
-        @KeyEn @actionStatus action status
-        @NumberType @actionStatus
-        @KeyZh @actionIndex 当前动作索引
-        @KeyEn @actionIndex current action index
-        @NumberType @actionIndex
-        @KeyZh @actionCount 动作总数
-        @KeyEn @actionCount total action count
-        @NumberType @actionCount
-        @KeyZh @forkAutoFlag 是否自动控制
-        @KeyEn @forkAutoFlag fork auto flag
-        @BooleanType @forkAutoFlag
-        """
-        Trace.log(task_trace_payload, output_console=False, name=self.task_trace_channel)
+        # fork.task 是任务级状态快照：状态未变时重复落盘无信息量，改为变化触发；
+        # 另设心跳上限，避免长期静止时下游看板收不到存活信号。
+        task_snapshot_key = (
+            task_trace_payload["scriptStatus"],
+            task_trace_payload["actionStatus"],
+            task_trace_payload["actionIndex"],
+            task_trace_payload["actionCount"],
+            task_trace_payload["forkAutoFlag"],
+        )
+        now_task_ts = time.time()
+        if (task_snapshot_key != self._last_task_snapshot_key
+                or now_task_ts - self._last_task_trace_ts >= _TASK_SNAPSHOT_HEARTBEAT_SEC):
+            """
+            @NameZh @fork.task 叉车任务执行状态
+            @NameEn @fork.task fork task execution status
+            @KeyZh @scriptStatus 脚本状态
+            @KeyEn @scriptStatus script status
+            @NumberType @scriptStatus
+            @KeyZh @actionStatus 动作状态
+            @KeyEn @actionStatus action status
+            @NumberType @actionStatus
+            @KeyZh @actionIndex 当前动作索引
+            @KeyEn @actionIndex current action index
+            @NumberType @actionIndex
+            @KeyZh @actionCount 动作总数
+            @KeyEn @actionCount total action count
+            @NumberType @actionCount
+            @KeyZh @forkAutoFlag 是否自动控制
+            @KeyEn @forkAutoFlag fork auto flag
+            @BooleanType @forkAutoFlag
+            """
+            Trace.log(task_trace_payload, output_console=False, name=self.task_trace_channel)
+            self._last_task_snapshot_key = task_snapshot_key
+            self._last_task_trace_ts = now_task_ts
 
         motor_trace_payload = self.motor_trace_payload
         motor_trace_payload["forkHeight"] = float(fork_height)

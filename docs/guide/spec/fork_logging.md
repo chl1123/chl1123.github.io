@@ -114,7 +114,7 @@
 
 **已决定保留**：`fork.task` 快照的 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount`（下游表单与看板仍在消费）。
 
-### 3.3 载荷体积与完整数据
+### 3.2 载荷体积与完整数据
 
 `Trace.log` 的 `output_console` **只控制终端打印**，不影响落盘：任何非 `debug=True` 的记录都会经 `Trace` 服务写入 trace。因此体积治理的正确手法是「终端静默、落盘保留」，而不是删字段：
 
@@ -125,7 +125,7 @@
 
 判定基准：读日志的人能否在不看代码、不重新跑任务的前提下复原现场输入。做不到就不能算「已摘要」。
 
-### 3.2 通道语义边界
+### 3.3 通道语义边界
 
 四条判据用于消除争议：
 
@@ -141,50 +141,44 @@
 ```json
 {
   "taskId": "RunScript-xxx",
-  "scriptName": "fork.py",
-  "modelType": "liftFork",
   "operation": "load",
-  "phase": "approach",
-  "phaseId": "approach-1",
+  "phase": "direct_path",
   "actionId": "GoPath-abc",
   "actionType": "GoPathWithContactDi",
-  "event": "phaseStarted"
+  "event": "navigationCommanded"
 }
 ```
 
 约束：
 
 - `taskId` 为空时使用空字符串，不使用 `None`，也不临时生成。
-- `actionId` 没有动作上下文时使用空字符串。
+- `actionId` 没有动作上下文时使用空字符串（动作构造期已预分配，见 §4.2）。
 - `phase` 使用固定枚举，不写自由文本。
+- **不设 `phaseId`**。早期草案曾设想的“phase + 子序号”两级标识在实际实现中无任何写入方，全通道 100% 为空；`phase` 本身的取值已足够定位（见 §4.1）。
 - `event` 使用固定 camelCase 枚举；详细说明另放 `reason`、`detail` 或结构化字段。
 - 字段类型必须稳定；单位通过字段名或 `unit` 约定，不在同一 key 中混用字符串和数字。
 - 顶层事件统一带 `traceSchemaVersion`（数值快照不带，避免放大体积）。
 
 ### 4.1 phase 枚举
 
-保持精简，并与 `OperationFlow` 批次、动作类型一一对应。无法在现场稳定区分的细分阶段不列入枚举，改用 `reason` 或 `detail` 表达。
+`phase` 映射自动作实例的 `reach_phase`（`trace_context()` 的 `pick("phase", "reach_phase")`），是 `GoPathWithContactDi` 分段路径的阶段名，**不是**操作流程批次。实车实测取值仅下列 4 种：
 
-| phase | 含义 | 与动作/批次的关系 |
-| --- | --- | --- |
-| `received` | 任务接收 | 脚本进入，尚无动作 |
-| `validated` | 参数校验完成 | `_init_args()` 结束 |
-| `prepare` | 起始位姿、货叉高度、DO 准备 | 起始动作批次 |
-| `recognition` | 识别与校验 | `Rec` / `RecPallet` / `RecCage` / `GoLiveRec` |
-| `approach` | 接近目标点 | `GoPath` / `GoBezier` |
-| `adjust` | 姿态与横向调整 | `RunReachMotorsByPosition`、对准动作 |
-| `insert` | 进叉 / 伸出 | `RunMotorByPosition`、`extendReachMotors` |
-| `contact` | 接触 DI 与后撤 | `GoPathWithContactDi` |
-| `lift` | 货叉升降 | 升降电机动作 |
-| `release` | 放货 / 落叉 | 卸货动作批次 |
-| `retract` | 退叉 / 收回 | `retractReachMotors` |
-| `leaveLocation` | 离库位 | 离库位动作批次 |
-| `navigation` | 站间导航 | `RunScript` 之外的路径任务 |
-| `finished` | 正常结束 | 终态 |
-| `failed` | 失败 | 终态 |
-| `cancelled` | 取消 | 终态 |
+| phase | 含义 |
+| --- | --- |
+| `direct_path` | 首段直行路径（未启用分段时全程都是该值） |
+| `align_path` | 分段路径的第一段：前置对齐位 |
+| `reach` | 分段路径的第二段：前移机构进叉 |
+| `final_path` | 分段路径的最后一段：终段接近 |
 
-`manualMotor`、`weightCheck`、`cleanup`、`unload` 等不再单列为 phase：手动电机操作归入其发生时的 phase 并置 `manual: true`；称重以 `weightCheck` 事件而非 phase 表达；清理作为 `finished` / `failed` 事件的 `cleanup` 子对象；卸货的放货与退叉已由 `release` / `retract` 覆盖。
+**注意**：无动作上下文的事件（脚本级 `scriptStarted` / `scriptFinished`、参数校验、`fork.cfg` 的配置加载等）`phase` 为空字符串 —— 这是预期行为，不要为了凑字段而填写。
+
+操作流程批次（`received` / `validated` / `prepare` / `recognition` / `lift` / `release` 等）早期草案曾计划纳入 `phase`，但实际实现改用具体事件名（`scriptArgsReceived` / `scriptArgsValidated` / `recognitionProgress` / `motorCommanded` 等）表达，语义更精确且不依赖枚举同步。**事件名优先，不要新增平行的 phase 枚举。**
+
+### 4.2 actionId 预分配
+
+`ActionBase.action_id` 原本只在 `ActionTask.build()` / `extend()` 经 `_assign_ids()` 分配，而动作的 `__init__` 早于装配。因此构造期发出的事件（`navigationCommanded`、`recognitionRegionSet`、`reachPhasePlanInitialized` 等）会**永远带空 `actionId`**，无法与 `fork.policy` / `fork.motor` 中同一次动作的事件关联。
+
+修复：`_init_action_runtime()` 在构造期预分配 `actionId`（复用 `ActionTask._gen_action_id`）。`_assign_ids()` 对已设置的 ID 原样保留，因此与既有装配逻辑兼容，且仍保留去重能力。
 
 ## 5. 各层生命周期协议
 
@@ -227,7 +221,6 @@
   "operation":"load",
   "from":"recognition",
   "to":"approach",
-  "phaseId":"approach-1",
   "elapsedMs":1450,
   "trigger":"recognitionAccepted"
 }
@@ -239,7 +232,6 @@
   "taskId":"...",
   "operation":"load",
   "phase":"approach",
-  "phaseId":"approach-1",
   "elapsedMs":2300,
   "actionCount":2,
   "result":"arrived"
@@ -498,7 +490,7 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 
 ### 9.2 ActionBase 补充字段
 
-建议在 `ActionBase` 或叉车 action mixin 中补充：`phase`、`phase_id`、`start_ts`、`end_ts`、`last_trace_status`、`trace_context()`、`result_description()`。
+建议在 `ActionBase` 或叉车 action mixin 中补充：`phase`、`start_ts`、`end_ts`、`last_trace_status`、`trace_context()`、`result_description()`。`actionId` 由 `_init_action_runtime` 在构造期预分配，见 §4.2。
 
 `ForkActionQueue` 负责把 phase 上下文传给动作，不由每个 action 自己推断当前 operation。
 
@@ -651,3 +643,5 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 7. 策略值的"RBK 当前生效值"通过 `RobotParam.getConfig` 读取是否存在延迟或缓存，能否作为 `before` 的可靠来源。
 8. 本节新增的 `fork.motor` 数值字段（`forkTarget`、`forkMoving`、`forkDirection`、`forkSpeed`、`minSafeHeight`、`loaded`）需要同步修订 [Module 日志记录规范](logging.md) §2.3 的叉车字段表，修订责任人与时间需确认。
 9. `tests/fork_flow.py` 与 `tests/fork_sim_inject.py` 目前只在 `origin/mazj` 分支，需确认是否合并到 `release` 以纳入常规仿真回归。
+10. **通道元数据声明的落地方式待定**。实测确认：SDK `tracecfg.py` 的注册名取自注释块里的 `@NameZh @<通道名>`，与 `Trace.log(name=...)` 的实参无关；但注释块必须紧邻一个含 `Trace.log`/`Trace.chart` 字样的语句才会被扫描。`fork.policy` / `fork.taskActions` / `fork.err` 三个通道全部经 `emit_event` / `emit_policy` / `emit_error` 包装写入，源码中不存在字面量 `Trace.log` 调用点，因此无法就地声明。三种方案待选：(a) 新增纯声明文件（如 `tasks/v3/standard/_trace_channels.py`，运行期不导入，仅函数体内提供注释块）；(b) 就地声明有调用点的 `fork.nav` / `fork.cfg`，其余放声明文件；(c) 只就地声明，放弃这三个通道的 UI 标签。需同时决定：声明文件是否可接受成为 `tasks/` 下的“死文件”（仅构建期使用、运行期永不执行）。
+11. **构建会扫到未启用的 v1 脚本**。实车 `trace.cfg` 仍残留 `fork.script` 条目，来源是 `tasks/standard/fork.py:3300` 的 `@NameZh @fork.script`（v1 版本，已不在 v3 链路上）。`tracecfg.py` 递归扫描整个 `scripts/` 目录且按文件名无关规则全量解析，是否需要在构建侧排除 `tasks/`（v1）或将 v1 声明一并清理，需与 SDK 侧确认。

@@ -75,38 +75,51 @@ class _SkipType:
         return "_SKIP"
 
 
+class _NullType:
+    """区分“字段存在但值为 None”与“值无法序列化”。"""
+    __slots__ = ()
+
+    def __repr__(self):
+        return "_NULL"
+
+
 _SKIP = _SkipType()
+_NULL = _NullType()
 
 
 def _trace_sanitize(value):
     """把值转换为可落盘结构。
 
-    只丢弃两类东西：None 与不可 JSON 序列化对象（这些值本身无法落盘）。
+    None 返回 _NULL（表示“有该字段但无值”，区别于数据丢失）；
+    不可 JSON 序列化对象返回 _SKIP（数据本身无法落盘）。
     序列超上限时不静默截断，而是保留前 N 项并附 truncated/totalCount 标注，
     使读者能明确知道数据被减过、以及原长度是多少。
     """
     if value is None:
-        return _SKIP
+        return _NULL
     if isinstance(value, _TRACE_SCALARS):
         return value
     if isinstance(value, (list, tuple)):
         kept = [_trace_sanitize(v) for v in value[:_TRACE_MAX_SEQ]]
-        items = [v for v in kept if v is not _SKIP]
+        items = [None if v is _NULL else v for v in kept if v is not _SKIP]
         if len(value) > _TRACE_MAX_SEQ:
             return {"items": items, "truncated": True, "totalCount": len(value)}
         return items
     if isinstance(value, dict):
         out = {}
-        skipped = 0
+        dropped = 0
         for key, item in value.items():
             sanitized = _trace_sanitize(item)
             if sanitized is _SKIP:
-                skipped += 1
+                dropped += 1
+                continue
+            if sanitized is _NULL:
+                out[str(key)] = None
                 continue
             out[str(key)] = sanitized
-        if skipped:
-            # 明确告知有多少字段因不可序列化被丢弃，不静默
-            out["_droppedFields"] = skipped
+        if dropped:
+            # 仅统计真正无法落盘的数据；None 已还原为 null，不算丢失
+            out["_droppedFields"] = dropped
         return out
     return _SKIP
 
@@ -131,7 +144,6 @@ def trace_context(ctx=None) -> dict:
         "taskId": "",
         "operation": "",
         "phase": "",
-        "phaseId": "",
         "actionId": "",
         "actionType": "",
     }
@@ -158,9 +170,6 @@ def trace_context(ctx=None) -> dict:
     phase = pick("phase", "reach_phase")
     if phase is not None:
         out["phase"] = str(phase)
-    phase_id = pick("phaseId", "phase_id")
-    if phase_id is not None:
-        out["phaseId"] = str(phase_id)
     action_id = pick("actionId", "action_id")
     if action_id:
         out["actionId"] = str(action_id)
@@ -171,9 +180,11 @@ def trace_context(ctx=None) -> dict:
 
 
 def emit_event(event: str, *, channel: str = CH_FORK, ctx=None, **fields) -> None:
-    """落盘一条结构化事件。自动注入公共上下文，丢弃 None 与不可序列化值。
+    """落盘一条结构化事件。自动注入公共上下文。
 
-    被丢弃的顶层字段数记在 _droppedFields 上，使读者知道本次载荷做过减法。
+    值为 None 的字段落成 null（字段存在但无值，不丢失信息）；
+    不可序列化对象会被丢弃，其数量记在 `_droppedFields` 上，
+    使读者能区分“本来就没有”与“有但无法落盘”。
     """
     payload = {"event": event}
     payload.update(trace_context(ctx))
@@ -183,7 +194,7 @@ def emit_event(event: str, *, channel: str = CH_FORK, ctx=None, **fields) -> Non
         if clean is _SKIP:
             dropped += 1
             continue
-        payload[key] = clean
+        payload[key] = None if clean is _NULL else clean
     if dropped:
         payload["_droppedFields"] = dropped
     Trace.log(payload, output_console=False, name=channel)
@@ -765,10 +776,14 @@ def load_recognition_assets(ctx, *, log_name="fork.task") -> bool:
         ctx.pallet_deduct_infos = transform_deduct_area_infos_by_rec_side(ctx.pallet_deduct_infos, ctx.recSide)
         ctx.carrier_shape = transform_pallet_shape_by_rec_side(ctx.carrier_shape, ctx.recSide)
         ctx.goods_shape = transform_pallet_shape_by_rec_side(ctx.goods_shape, ctx.recSide)
-        Trace.log(
-            f"transform pallet shapes by recSide:{ctx.recSide}, carrier_shape:{ctx.carrier_shape}, "
-            f"goods_shape:{ctx.goods_shape}, pallet_deduct_infos:{ctx.pallet_deduct_infos}",
-            name="fork.cfg",
+        emit_event(
+            "recSideTransformApplied",
+            channel=CH_CFG,
+            ctx=ctx,
+            recSide=str(ctx.recSide),
+            carrierShape=ctx.carrier_shape,
+            goodsShape=ctx.goods_shape,
+            palletDeductInfos=ctx.pallet_deduct_infos,
         )
 
     if any(v is None or v == "none" for v in ctx.rec_info.values()):
@@ -850,10 +865,12 @@ def load_pallet_z_offset(rec_file: str, rec_side=None) -> float:
             if rec_side:
                 break
     except Exception as exc:
-        Trace.log(
-            f"load recognition side zOffset failed, rec_file={rec_file}, "
-            f"rec_side={rec_side}, err={exc}",
-            name="fork.cfg",
+        emit_error(
+            "RecognitionSideZOffsetLoadFailed",
+            f"load recognition side zOffset failed, rec_file={rec_file}, rec_side={rec_side}, err={exc}",
+            channel=CH_CFG,
+            recFile=str(rec_file),
+            recSide=str(rec_side),
         )
 
     for path in (
@@ -865,9 +882,12 @@ def load_pallet_z_offset(rec_file: str, rec_side=None) -> float:
             if value is not None:
                 return float(value)
         except Exception as exc:
-            Trace.log(
+            emit_error(
+                "PalletZOffsetLoadFailed",
                 f"load pallet zOffset failed, rec_file={rec_file}, path={path}, err={exc}",
-                name="fork.cfg",
+                channel=CH_CFG,
+                recFile=str(rec_file),
+                paramPath=str(path),
             )
     return 0.0
 
@@ -930,7 +950,7 @@ def _parse_recognition_info_payload(info_data):
         try:
             info_data = json.loads(info_data)
         except (TypeError, ValueError, json.JSONDecodeError):
-            Trace.log(f"Failed to parse recognition info: {info_data}", name="fork.err")
+            emit_error("RecognitionInfoParseFailed", f"Failed to parse recognition info: {info_data}")
             return {}, [], 0.0
 
     result_angle = 0.0
@@ -942,7 +962,7 @@ def _parse_recognition_info_payload(info_data):
             try:
                 hole_info_data = json.loads(hole_info_data)
             except (TypeError, ValueError, json.JSONDecodeError):
-                Trace.log(f"Failed to parse hole_info: {hole_info_data}", name="fork.err")
+                emit_error("HoleInfoParseFailed", f"Failed to parse hole_info: {hole_info_data}")
                 hole_info_data = []
         if isinstance(hole_info_data, list):
             hole_info_list = hole_info_data
@@ -973,7 +993,7 @@ def _normalize_recognition_hole_info(result, hole_info_list):
             hole_z = float(hole_info.get("z", hole_info.get("robotResultZ", 0.0)) or 0.0)
             hole_width = float(hole_info.get("width", hole_info.get("holeWidth", 0.0)) or 0.0)
         except (TypeError, ValueError):
-            Trace.log(f"Invalid hole info: {hole_info}", name="fork.err")
+            emit_error("InvalidHoleInfo", f"Invalid hole info: {hole_info}")
             continue
 
         hole_in_pallet = pos2Base([robot_result_x, robot_result_y, 0.0], pallet_pos)
@@ -1032,7 +1052,7 @@ def normalize_recognition_result_metadata(result):
     try:
         result["angle"] = float(raw_angle)
     except (TypeError, ValueError):
-        Trace.log(f"Invalid recognition tilt angle: {raw_angle}", name="fork.err")
+        emit_error("InvalidRecognitionTiltAngle", f"Invalid recognition tilt angle: {raw_angle}")
         result["angle"] = 0.0
     return result
 
@@ -1336,7 +1356,14 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
 
             # 区域合法性检查
             if len(x_coords) < 3 or len(x_coords) != len(y_coords):
-                Trace.log(f"skip invalid area idx={area_idx}, device={devices}", name="fork.cfg")
+                emit_event(
+                    "deductAreaSkipped",
+                    channel=CH_CFG,
+                    reason="invalidPolygon",
+                    areaIndex=int(area_idx),
+                    devices=list(devices),
+                    pointCount=len(x_coords),
+                )
                 continue
 
             region_name = f"{prefix}{info_idx + 1}_{area_idx}"
@@ -1413,7 +1440,7 @@ def get_deduct_area(recfile):
         if devices and areas:
             result.append({"deduct_device": devices, "areas": areas})
 
-    Trace.log(f"pallet_deduct_infos: {result}", name="fork.cfg")
+    emit_event("palletDeductInfosResolved", channel=CH_CFG, palletDeductInfos=result)
     return result
 
 
@@ -1462,16 +1489,27 @@ def get_rec_side_info(recfile, rec_side):
         if rec_info is None:
             Navigation.setTaskError("RecSideError",
                                     f"Recognition side {rec_side} is not match in {recfile}, script failed")
-            Trace.log(f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}", name="fork.err")
+            emit_error(
+                "RecSideError",
+                f"input rec_side:{rec_side}, rec_info: None, rec_sides:{rec_sides}",
+                recSide=str(rec_side),
+                recfile=str(recfile),
+            )
             return None
     else:
         if len(rec_sides) == 0:
             Navigation.setTaskError("RecSideError", f"RecSide is not config in {recfile}, script failed")
-            Trace.log(f"no rec side in {recfile}", output_console=True, output_time=True, name="fork.err")
+            emit_error("RecSideError", f"no rec side in {recfile}", recfile=str(recfile))
             return None
         rec_info = rec_sides[0]
 
-    Trace.log(f"input rec_side:{rec_side}, rec_info:{rec_info}, rec_sides:{rec_sides}", name="fork.cfg")
+    emit_event(
+        "recSideInfoResolved",
+        channel=CH_CFG,
+        recSide=str(rec_side),
+        recInfo=rec_info,
+        recSides=rec_sides,
+    )
     return rec_info
 
 
@@ -1584,6 +1622,11 @@ def _action_chart_dict(action, idx: int) -> dict:
 def _init_action_runtime(action):
     action.start_time = time.time()
     action.action_state = {}
+    # 预分配 actionId：动作的 __init__ 早于 ActionTask 装配（_assign_ids），
+    # 若不在此分配，init 期发出的事件（navigationCommanded / recognitionRegionSet 等）
+    # 会永远带空 actionId。_assign_ids 对已设置的 actionId 会原样保留。
+    if not getattr(action, "action_id", ""):
+        action.action_id = ActionTask._gen_action_id(action.action_type)
 
 
 def format_action(action) -> str:
@@ -1879,7 +1922,16 @@ class Rec(ActionBase):
             self.hole_positions = _build_action_hole_positions(self.result)
             self.fork_height_at_recognition = Motor.getMotorPos(_config().fork_motor_name)
 
-            Trace.log(f"rec_result_list: {self.results_list}", name="fork.cfg")
+            emit_event(
+                "recognitionAccepted",
+                channel=CH_REC,
+                ctx=self,
+                resultCount=len(self.results_list),
+                results=self.results_list,
+                obstaclePolygon=self.obstacle_polygon,
+                recfile=str(self.recfile),
+                recognitionHeight=float(self.fork_height_at_recognition),
+            )
 
             self.action_status = ActionStatus.FINISHED
 
@@ -1935,12 +1987,18 @@ class Rec(ActionBase):
         except Exception:  # noqa: BLE001
             sim_result = None
         if sim_result is not None:
-            Trace.log(f"[sim] inject rec result for {recfile}: {sim_result}", name="fork.cfg")
+            emit_event(
+                "recognitionSimInjected",
+                channel=CH_REC,
+                ctx=self,
+                recfile=str(recfile),
+                simResult=sim_result,
+            )
             return True, 2, sim_result
         rec_status = Recognize.getRecStatus()
         if rec_status == 2:
             rec_result = Recognize.getRecResults()
-            Trace.log(f"raw results:{rec_result}", name="fork.cfg")
+            emit_event("recognitionRawResult", channel=CH_REC, ctx=self, rawResult=rec_result, recfile=str(recfile))
             if self.check_qr:
                 reco_list = rec_result.get("recoList", [])
                 is_valid_qr = False
@@ -1954,10 +2012,21 @@ class Rec(ActionBase):
                         rec_result.pop("resultImg")
                     Recognize.resetRec()
                     self.action_status = ActionStatus.FINISHED
-                    Trace.log(f"rec success (qrCode): {rec_result}", name="fork.cfg")
+                    emit_event(
+                        "recognitionQrAccepted",
+                        channel=CH_REC,
+                        ctx=self,
+                        recfile=str(recfile),
+                        result=rec_result,
+                    )
                     return True, rec_status, rec_result
 
-                Trace.log(f"rec got non-qrCode or empty objectMessage, retry. result={rec_result}", name="fork.err")
+                emit_error(
+                    "RecQrRetry",
+                    f"rec got non-qrCode or empty objectMessage, retry. result={rec_result}",
+                    ctx=self,
+                    recfile=str(recfile),
+                )
                 Recognize.resetRec()
                 self.rec_times += 1
                 if self.rec_times > self.max_rec_times:
@@ -1976,7 +2045,13 @@ class Rec(ActionBase):
                     # Trace.log(f"raw results:{results}")
                     error_type = results["error"]
                     error_msg = results["logMsg"]
-                    Trace.log(f"error_type: {error_type}", name="fork.err")
+                    emit_error(
+                        f"RecognitionError{error_type}",
+                        error_msg or f"recognition error_type: {error_type}",
+                        ctx=self,
+                        errorType=error_type,
+                        recfile=str(recfile),
+                    )
                     self.action_status = ActionStatus.FAILED
                     Navigation.setTaskError("RecFailed",
                                             f"Recognition failed, the maximum number of retries exceeded,error_type: {error_type}, error_msg: {error_msg}")
@@ -2251,7 +2326,7 @@ class GoLiveRec(ActionBase):
                 self.doing_rec = False
                 self.rec_result = self.rec.result
                 Trace.log(
-                    {"event": "recognitionAccepted",
+                    {"event": "liveRecTargetAccepted",
                      "recfile": str(self.recfile),
                      "worldResult": [round(float(self.rec_result["worldResult"][k]), 3)
                                      for k in ("x", "y", "yaw")],
@@ -3012,7 +3087,7 @@ class GoPathWithContactDi(ActionBase):
                 err_msg = self.fork_root_collision_model_error or "fork root collision model is invalid"
                 Navigation.setTaskError("ForkRootCollisionModelInvalid", err_msg)
                 self.action_status = ActionStatus.FAILED
-                Trace.log(err_msg, name="fork.err")
+                emit_error("ForkRootCollisionModelInvalid", err_msg, ctx=self)
                 return False
             if fork_root_collision_models:
                 self.policy["navigation.collisionDetection.collisionModel"] = fork_root_collision_models
@@ -3146,7 +3221,11 @@ class GoPathWithContactDi(ActionBase):
                     Navigation.stopRobotNow()
                     Navigation.setTaskError("ForkTipDiTrigger", "unload fork tip di triggered, goods detected")
                     self.di_triggered_stopped = True
-                    Trace.log("autoClearError: fork tip di triggered, stopped robot", name="fork.err")
+                    emit_error(
+                        "ForkTipDiTrigger",
+                        "autoClearError: fork tip di triggered, stopped robot",
+                        ctx=self,
+                    )
                 self.di_clear_start_time = None
             return
 
@@ -3185,7 +3264,7 @@ class GoPathWithContactDi(ActionBase):
         Navigation.stopRobotNow()
         Navigation.setTaskError("UnloadTipDiFail", "unload fork tip di triggered, fail task")
         self.action_status = ActionStatus.FAILED
-        Trace.log("failTask: fork tip di triggered, failed task", name="fork.err")
+        emit_error("UnloadTipDiFail", "failTask: fork tip di triggered, failed task", ctx=self)
         return True
 
     def _handle_unload_tip_di(self) -> bool:
