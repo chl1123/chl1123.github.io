@@ -447,7 +447,11 @@ def resolve_rec_center_to_robot(target_pos, r_loc):
     else:
         target2robot = pos2Base(target_pos, r_loc)
         rec_center2robot = pos2World([_config().module_x, 0, 0], target2robot)
-    Trace.log(f"rec center to robot :{rec_center2robot}", output_console=True, output_time=True, name="fork.task")
+    emit_event(
+        "recognitionRegionResolved",
+        channel=CH_REC,
+        recCenterToRobot=[round(float(v), 4) for v in rec_center2robot[:2]],
+    )
     return rec_center2robot
 
 
@@ -665,13 +669,21 @@ def update_back_laser_clear_region_by_height(ctx, fork_height, cfg):
             [cfg.fork_root_2D_lasers],
             Coordinate.ROBOT,
         )
-        Trace.log(f"set clear region:{ctx.chassis_clear_region},{cfg.chassis_area}", name="fork.task")
+        Trace.log(
+            {"event": "clearRegionSet", "region": str(ctx.chassis_clear_region),
+             "area": str(cfg.chassis_area), "coordinate": "robot"},
+            output_console=False, name=CH_CFG,
+        )
 
     elif fork_height > cfg.backLaserEnableHeight and not ctx.clear_fork_region_by_height:
         ctx.clear_fork_region_by_height = True
         ctx.set_fork_region_by_height = False
         Navigation.deleteClearRegion(ctx.chassis_clear_region, Coordinate.ROBOT)
-        Trace.log(f"delete clear region:{ctx.chassis_clear_region},{cfg.chassis_area}", name="fork.task")
+        Trace.log(
+            {"event": "clearRegionDeleted", "region": str(ctx.chassis_clear_region),
+             "area": str(cfg.chassis_area), "coordinate": "robot"},
+            output_console=False, name=CH_CFG,
+        )
 
 
 # ============================================================================
@@ -948,10 +960,12 @@ def _normalize_recognition_hole_info(result, hole_info_list):
             "width": hole_width,
         }
         normalized_holes.append(normalized_hole)
-        Trace.log(
-            f"hole robotResult=[{robot_result_x:.4f}, {robot_result_y:.4f}], "
-            f"palletCoord=[{hole_in_pallet[0]:.4f}, {hole_in_pallet[1]:.4f}]",
-            name="fork.task",
+        emit_event(
+            "recognitionHoleNormalized",
+            channel=CH_REC,
+            robotResult=[round(float(robot_result_x), 4), round(float(robot_result_y), 4)],
+            palletCoord=[round(float(hole_in_pallet[0]), 4), round(float(hole_in_pallet[1]), 4)],
+            width=round(float(hole_width), 4),
         )
     result["holeInfo"] = normalized_holes
     return normalized_holes
@@ -1042,11 +1056,13 @@ def validate_recognition_result_against_target(ctx, rec_world_pos):
 
     rec2ap_pos = pos2Base(rec_world_pos, ctx.target_pos)
     angle = math.degrees(rec2ap_pos[2])
-    Trace.log(
-        f"rec2ap_pos: {rec2ap_pos},rec_world_pos: {rec_world_pos},target_pos:{ctx.target_pos},angle2ap:{angle}",
-        output_console=True,
-        output_time=True,
-        name="fork.task",
+    emit_event(
+        "recognitionTargetComputed",
+        channel=CH_REC,
+        ctx=ctx,
+        rec2ap=[round(float(v), 4) for v in rec2ap_pos[:2]],
+        recWorld=[round(float(v), 4) for v in rec_world_pos[:3]],
+        angleToAp=round(float(angle), 4),
     )
     y = rec2ap_pos[1]
     if abs(angle) > _config().errorRecAngle != -1:
@@ -1066,10 +1082,13 @@ def load_goods_shape(ctx):
         pallet_entry_in_robot = pos2Base(ctx.recognized_pallet_world_pos, get_r_loc())
         entry_face_x = max(float(point["x"]) for point in ctx.carrier_shape)
         base_pos = pos2World([-entry_face_x, 0, 0], pallet_entry_in_robot)
-        Trace.log(
-            f"recognized pallet model base:{base_pos}, entry:{pallet_entry_in_robot}, "
-            f"palletWidth:{ctx.pallet_width}",
-            name="fork.task",
+        emit_event(
+            "recognitionPalletModelResolved",
+            channel=CH_REC,
+            ctx=ctx,
+            basePos=[round(float(v), 4) for v in base_pos[:2]],
+            entryInRobot=[round(float(v), 4) for v in pallet_entry_in_robot[:2]],
+            palletWidth=round(float(ctx.pallet_width), 4),
         )
 
     goods_point2robot = []
@@ -1305,7 +1324,11 @@ def set_deduct_area(area_infos, base_pos, prefix: str, coordinate):
                 coordinate,
             )
 
-            Trace.log(f"set clear region: {region_name}, devices={devices}", name="fork.task")
+            Trace.log(
+                {"event": "clearRegionSet", "region": str(region_name),
+                 "deviceCount": len(devices) if devices else 0},
+                output_console=False, name=CH_CFG,
+            )
 
 
 def get_deduct_area(recfile):
@@ -1791,7 +1814,15 @@ class Rec(ActionBase):
             "radius": self.rec_radius,
             "shape": "circle"
         }
-        Trace.log(f"region: {self.region}", name="fork.task")
+        emit_event(
+            "recognitionRegionSet",
+            channel=CH_REC,
+            ctx=self,
+            centerX=round(float(self.rec_center_x), 4),
+            centerY=round(float(self.rec_center_y), 4),
+            radius=round(float(self.rec_radius), 4),
+            recfile=str(self.recfile),
+        )
         self._last_wait_trace_status = None
         self._last_wait_trace_second = -1
 
@@ -1863,17 +1894,14 @@ class Rec(ActionBase):
         """
         Trace.log(
             {
+                "event": "recognitionProgress",
                 "recStatus": int(rec_status),
                 "recAttempts": int(self.attempts),
                 "recElapsed": round(elapsed, 3),
                 "recIssued": bool(rec_status != 0),
             },
             False,
-            name="fork.rec",
-        )
-        Trace.log(
-            f"rec waiting, file:{recfile}, status:{rec_status}, attempts:{self.attempts}, elapsed:{elapsed:.3f}s",
-            name="fork.task",
+            name=CH_REC,
         )
 
     def rec(self, recfile):
@@ -1987,15 +2015,28 @@ class GoTwoStraightLine(ActionBase):
                 self.temp_start = self.search_min_angle_str(self.max_angle, self.step)
             else:
                 self.temp_start = self.start_pos
-            Trace.log(f"points before set': {self.start_pos, self.temp_start, self.second_point, self.world_target}",
-                      name="fork.task")
+            emit_event(
+                "navigationWaypointsPlanned",
+                channel=CH_NAV,
+                ctx=self,
+                pointCount=4,
+                start=[round(float(v), 4) for v in self.start_pos[:3]],
+                tempStart=[round(float(v), 4) for v in self.temp_start[:3]],
+                secondPoint=[round(float(v), 4) for v in self.second_point[:3]],
+                worldTarget=[round(float(v), 4) for v in self.world_target[:3]],
+            )
 
             ScriptData.set('goTwoStraightLine',
                            {'points': [self.start_pos, self.temp_start, self.second_point, self.world_target]})
         # 如果执行原路返回
         else:
             points = ScriptData.get('goTwoStraightLine').get('points', [])
-            Trace.log(f"points after get:{points}", name="fork.task")
+            emit_event(
+                "navigationWaypointsLoaded",
+                channel=CH_NAV,
+                ctx=self,
+                pointCount=len(points) if isinstance(points, list) else 0,
+            )
             if not points:
                 self.action_status = ActionStatus.FAILED
                 Navigation.setTaskError("NoRoute", "no route before leave loc, script failed")
@@ -2384,7 +2425,20 @@ class GoPathWithContactDi(ActionBase):
         self.align_args = dict(args)
         self.final_world_pos = world_pos
 
-        Trace.log(f"go path with di target pos:{world_pos},args:{args}", name="fork.task")
+        emit_event(
+            "navigationCommanded",
+            channel=CH_NAV,
+            ctx=self,
+            target=[round(float(v), 4) for v in world_pos[:3]],
+            method=str(method),
+            backDist=args.get("back_dist"),
+            minAheadDist=args.get("min_ahead_dist"),
+            adjustDist=args.get("adjust_dist"),
+            maxCurve=args.get("max_curve"),
+            reachPhaseEnabled=bool(self.reach_phase_enabled),
+            checkDi=bool(self.check_di),
+            contactDiCount=len(self.contact_di),
+        )
         if self.reach_phase_enabled:
             self._initialize_reach_phase_plan(world_pos, method, args)
         # 三种路径模式在初始化阶段固定为一个 back_action，run 中只推进其状态机。
@@ -2425,13 +2479,18 @@ class GoPathWithContactDi(ActionBase):
             0.0,
             float(self.reach_phase_config.get("final_obs_dist_compensation", self.obs_dist_compensation) or 0.0),
         )
-        Trace.log(
-            f"enable staged reach path: align_method={self.align_method}, "
-            f"align_target={self.align_world_pos}, final_target={self.final_world_pos}, "
-            f"reach_motors={self.reach_motor_names}, align_use_geometry={self.reach_align_use_geometry}, "
-            f"align_long_thresh={self.reach_align_long_thresh}, final_back_mode={self.reach_final_back_mode}, "
-            f"final_obs_comp={self.reach_final_obs_dist_compensation}",
-            name="fork.task",
+        emit_event(
+            "reachPhasePlanInitialized",
+            channel=CH_NAV,
+            ctx=self,
+            alignMethod=str(self.align_method),
+            alignTarget=[round(float(v), 4) for v in self.align_world_pos[:3]],
+            finalTarget=[round(float(v), 4) for v in self.final_world_pos[:3]],
+            reachMotorCount=len(self.reach_motor_names),
+            alignUseGeometry=bool(self.reach_align_use_geometry),
+            alignLongThresh=round(float(self.reach_align_long_thresh), 4),
+            finalBackMode=self.reach_final_back_mode,
+            finalObsComp=round(float(self.reach_final_obs_dist_compensation), 4),
         )
 
     def _check_di_active(self) -> bool:
@@ -2484,7 +2543,13 @@ class GoPathWithContactDi(ActionBase):
         self.final_target = target_pos
         self.motion_target = target_pos
 
-        Trace.log(f"go path with di target pos:{target_pos}", name="fork.task")
+        emit_event(
+            "navigationTargetResolved",
+            channel=CH_NAV,
+            ctx=self,
+            target=[round(float(v), 4) for v in target_pos[:3]],
+            finalTarget=[round(float(v), 4) for v in self.final_world_pos[:3]],
+        )
         self.back_args = {
             "x": target_pos[0],
             "y": target_pos[1],
@@ -2547,11 +2612,14 @@ class GoPathWithContactDi(ActionBase):
             self.clear_policy = False
             self.set_policy = True
         self._build_go_path_back_action(self.final_world_pos, back_mode_override=self.reach_final_back_mode)
-        Trace.log(
-            f"staged reach path enter final goPath, target:{self.final_world_pos}, "
-            f"motion_target:{self.motion_target}, back_mode:{self.reach_final_back_mode}, "
-            f"obs_stop_dist:{self._get_effective_obs_stop_dist()}",
-            name="fork.task",
+        emit_event(
+            "navigationFinalPhaseEntered",
+            channel=CH_NAV,
+            ctx=self,
+            target=[round(float(v), 4) for v in self.final_world_pos[:3]],
+            motionTarget=[round(float(v), 4) for v in self.motion_target[:3]],
+            backMode=self.reach_final_back_mode,
+            obsStopDist=self._get_effective_obs_stop_dist(),
         )
 
     def _build_reach_phase_action(self):
@@ -2607,7 +2675,14 @@ class GoPathWithContactDi(ActionBase):
             args["max_curve"],
         )
         self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
-        Trace.log(f"goBezier target pos:{self.final_target}", name="fork.task")
+        emit_event(
+            "navigationBezierPlanned",
+            channel=CH_NAV,
+            ctx=self,
+            target=[round(float(v), 4) for v in self.final_target[:3]],
+            backDist=args["back_dist"],
+            maxCurve=args["max_curve"],
+        )
 
     def _build_straight_line_back_action(self, world_pos, back_dist, args):
         self.back_action = GoTwoStraightLine(
@@ -2621,7 +2696,13 @@ class GoPathWithContactDi(ActionBase):
         )
         self.final_target = pos2World([-args["back_dist"], 0, 0], world_pos)
         self.motion_target = pos2World([-back_dist, 0, 0], world_pos)
-        Trace.log(f"twoStraightLine target pos:{self.final_target}", name="fork.task")
+        emit_event(
+            "navigationStraightLinePlanned",
+            channel=CH_NAV,
+            ctx=self,
+            target=[round(float(v), 4) for v in self.final_target[:3]],
+            backDist=back_dist,
+        )
 
     def _get_fork_root_laser_keys(self) -> List[str]:
         return get_fork_root_laser_keys()
@@ -2719,7 +2800,13 @@ class GoPathWithContactDi(ActionBase):
 
         current_collision_device = self._load_collision_devices()
         original_collision_device = list(current_collision_device)
-        Trace.log(f"current_collision_device:{current_collision_device}", name="fork.task")
+        emit_event(
+            "collisionDeviceLoaded",
+            channel=CH_NAV,
+            ctx=self,
+            deviceCount=len(current_collision_device),
+            devices=list(current_collision_device)[:8],
+        )
 
         # 进入货物近场后，叉根激光和按配置关闭的叉尖 DI 不再参与全局碰撞检测；
         # 叉尖到位判断仍由本 action 独立处理，避免导航层与业务层重复抢停。
@@ -2954,10 +3041,16 @@ class GoPathWithContactDi(ActionBase):
         self.init = True
         # start_loc 仅用于运行状态记录；路径目标已经在 __init__ 中按当时位姿构建完成。
         self.start_loc = get_r_loc()
-        Trace.log(f"fork tip 2d laser:{_config().fork_tip_2D_lasers}", name="fork.task")
+        emit_event(
+            "forkTipLaserConfigured",
+            channel=CH_CFG,
+            ctx=self,
+            lasers=list(_config().fork_tip_2D_lasers),
+            detectionWidth=getattr(_config(), "laserDetectionWidth", None),
+            obsDist=self.obs_dist,
+        )
         if self.obs_dist is not None and _config().fork_tip_2D_lasers:
             for laser in _config().fork_tip_2D_lasers:
-                Trace.log(f"set2DLaserWidth:{laser}", name="fork.task")
                 Laser.set2DLaserWidth(laser, _config().laserDetectionWidth)
         Trace.log(
             f"fork tip di sensors:{_config().fork_tip_di_sensors}, "
@@ -3047,7 +3140,13 @@ class GoPathWithContactDi(ActionBase):
         Navigation.goPathParam(dict())
         self.di_triggered_stopped = False
         self.di_clear_start_time = None
-        Trace.log("autoClearError: fork tip di cleared, resumed robot", name="fork.task")
+        emit_event(
+            "obstacleBlockCleared",
+            channel=CH_NAV,
+            ctx=self,
+            reason="forkTipDiCleared",
+            resumed=True,
+        )
 
     def _handle_unload_tip_di_fail_task(self, di_triggered: bool) -> bool:
         # failTask 模式同样做 0.3 s 去抖，但触发后终止整个 action，不自动恢复。
@@ -3723,6 +3822,8 @@ class RunMotorByPosition(ActionBase):
         self.cur_position_at_init = self.cur_position
         self.delta = self.position - self.cur_position
         self._motor_reset_done = False
+        # 终态事件单次落盘守卫（避免 reset/cancel 重复输出 motorStopped）
+        self._motor_terminal_emitted = False
 
     def _reset_motor_once(self):
         if self.motor_name and not self._motor_reset_done:
@@ -3735,6 +3836,81 @@ class RunMotorByPosition(ActionBase):
             getattr(self, "_no_move_error_desc", "motor position not change"),
         )
 
+    def _motor_direction(self, delta=None) -> str:
+        """电机运动方向：up / down / forward / backward / idle，不使用 None。"""
+        value = self.delta if delta is None else delta
+        if value is None or abs(value) <= EPS:
+            return "idle"
+        return "up" if value > 0 else "down"
+
+    def _limit_di_state(self) -> dict:
+        """读取该电机的上下限位 DI 状态，取不到则不落盘该字段。"""
+        state = {}
+        for key, direction in (("upLimitDi", "up"), ("downLimitDi", "down")):
+            try:
+                di = get_motor_limit_di(self.motor_name, direction)
+            except Exception:  # noqa: BLE001 - 限位仅作诊断上下文
+                continue
+            if not di:
+                continue
+            try:
+                state[key] = bool(Di.getDi(di))
+            except Exception:  # noqa: BLE001
+                continue
+        return state
+
+    def _motor_loaded(self):
+        """当前是否载货（用于区分载货/空载速度与策略）。取不到时不落盘。"""
+        try:
+            return bool(Container.hasGoods())
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _emit_motor(self, event: str, **fields) -> None:
+        """电机事件统一出口，自动附带 taskId/actionId/actionType 与常用字段。"""
+        payload = {
+            "motor": str(self.motor_name),
+            "startPosition": round(float(self.cur_position_at_init or 0.0), 4),
+            "targetPosition": round(float(self.position), 4),
+        }
+        loaded = self._motor_loaded()
+        if loaded is not None:
+            payload["loaded"] = loaded
+        payload.update(fields)
+        emit_event(event, channel=CH_MOTOR, ctx=self, **payload)
+
+    def _emit_motor_commanded(self) -> None:
+        self._emit_motor(
+            "motorCommanded",
+            mode="speed" if is_do_motor_key(self.motor_name) else "position",
+            direction=self._motor_direction(),
+            commandSpeed=round(float(self.max_speed), 4),
+            stopDi=str(self.stop_di or ""),
+            positionTolerance=round(float(self.position_tolerance), 4),
+            minSafeHeight=round(float(self.min_safe_height or 0.0), 4),
+        )
+
+    def _emit_motor_terminal(self, event: str, **fields) -> None:
+        """终态事件：补齐 elapsedMs、实际位置、方向与限位 DI。"""
+        actual = self._actual_position()
+        if getattr(self, "_motor_terminal_emitted", False):
+            return
+        self._motor_terminal_emitted = True
+        self._emit_motor(
+            event,
+            actualPosition=round(float(actual or 0.0), 4),
+            direction=self._motor_direction(self.position - float(actual or 0.0)),
+            elapsedMs=int((time.time() - self.start_time) * 1000),
+            **fields,
+        )
+
+    def _actual_position(self):
+        """当前机构实际位置：叉车子类优先用本 tick 刚读到的货叉高度。"""
+        value = getattr(self, "cur_fork_height", None)
+        if value is None:
+            value = self.cur_position
+        return value
+
     def _start_motion(self):
         min_length, max_length = _config()._get_motor_limits(self.motor_name)
         self.position = clamp(self.position, min_length, max_length)
@@ -3743,10 +3919,10 @@ class RunMotorByPosition(ActionBase):
         self.delta = delta
         if abs(delta) <= self.position_tolerance:
             self.action_status = ActionStatus.FINISHED
-            Trace.log(
-                f"module motor does not need move: motor={self.motor_name}, current={self.cur_position}, "
-                f"target={self.position}, delta={delta}, tolerance={self.position_tolerance}",
-                name="fork.task",
+            self._emit_motor_terminal(
+                "motorReached",
+                delta=round(float(delta), 4),
+                stopReason="alreadyInPlace",
             )
             return
         if is_do_motor_key(self.motor_name):
@@ -3755,7 +3931,7 @@ class RunMotorByPosition(ActionBase):
         else:
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
-        Trace.log(f"module motor:{self.motor_name}, position:{self.position}", name="fork.task")
+        self._emit_motor_commanded()
 
     def _after_start_motion(self):
         hook = getattr(self, "_after_start_motion_hook", None)
@@ -3824,11 +4000,22 @@ class RunMotorByPosition(ActionBase):
             if self.stop_di and Di.getDi(self.stop_di):
                 self._after_reached()
                 self.action_status = ActionStatus.FINISHED
+                self._emit_motor_terminal(
+                    "motorReached",
+                    delta=round(float(self.position - (self.cur_position or 0.0)), 4),
+                    stopReason="stopDi",
+                    stopDi=str(self.stop_di),
+                )
         else:
             self.is_reach = Motor.isMotorReached(self.motor_name)
             if self.is_reach:
                 self._after_reached()
                 self.action_status = ActionStatus.FINISHED
+                self._emit_motor_terminal(
+                    "motorReached",
+                    delta=round(float(self.position - (self.cur_position or 0.0)), 4),
+                    stopReason="positionReached",
+                )
 
         now = time.time()
         if self.last_sample_time is not None and now - self.last_sample_time > 0.5:
@@ -3841,7 +4028,17 @@ class RunMotorByPosition(ActionBase):
                 max_pos = max(self.positions)
                 if abs(max_pos - min_pos) <= self.position_tolerance:
                     error_key, error_desc = self._no_move_error()
-                    _trace_log(f"{error_desc} between:{min_pos}m-{max_pos}m in {self.check_duration}s")
+                    self._emit_motor_terminal(
+                        "motorFailed",
+                        errorCode=str(error_key),
+                        reason=str(error_desc),
+                        stopReason="noMove",
+                        sampleCount=len(self.positions),
+                        minObserved=round(float(min_pos), 4),
+                        maxObserved=round(float(max_pos), 4),
+                        checkDurationSec=float(self.check_duration),
+                        **self._limit_di_state(),
+                    )
                     self.action_status = ActionStatus.FINISHED
 
             while self.motor_timestamps and now - self.motor_timestamps[0] > self.check_duration:
@@ -3853,6 +4050,7 @@ class RunMotorByPosition(ActionBase):
 
     def reset(self):
         self._reset_motor_once()
+        self._motor_terminal_emitted = False
         self.action_status = ActionStatus.RUNNING
         self.motor_timestamps.clear()
         self.positions.clear()
@@ -3864,6 +4062,10 @@ class RunMotorByPosition(ActionBase):
 
     def cancel(self):
         self._reset_motor_once()
+        if not getattr(self, "_motor_terminal_emitted", False) and self.motor_name \
+                and getattr(self, "init", False):
+            self._emit_motor_terminal("motorStopped", stopReason="cancelled")
+        self._motor_terminal_emitted = False
         self.motor_timestamps.clear()
         self.positions.clear()
         self.init = False
@@ -4151,10 +4353,16 @@ def _fork_configure_motion(action):
 
     if action.delta > EPS and _config().upDo:
         Do.setDo(_config().upDo, _config().upDoStatus)
-        Trace.log(f"fork moving up, set upDo:{_config().upDo} to {_config().upDoStatus}", name="fork.task")
+        emit_event(
+            "forkDoConfigured", channel=CH_MOTOR, ctx=action, direction="up",
+            doKey=str(_config().upDo), doStatus=bool(_config().upDoStatus),
+        )
     elif action.delta < -EPS and _config().downDo:
         Do.setDo(_config().downDo, _config().downDoStatus)
-        Trace.log(f"fork moving down, set downDo:{_config().downDo} to {_config().downDoStatus}", name="fork.task")
+        emit_event(
+            "forkDoConfigured", channel=CH_MOTOR, ctx=action, direction="down",
+            doKey=str(_config().downDo), doStatus=bool(_config().downDoStatus),
+        )
 
 
 def _fork_before_reach_check(action):
@@ -4164,6 +4372,15 @@ def _fork_before_reach_check(action):
             Navigation.setTaskError("ForkMoveTimeout", error_desc)
             RobotError.setSystemError("ForkMoveTimeout", error_desc, True)
             action.action_status = ActionStatus.FAILED
+            if hasattr(action, "_emit_motor_terminal"):
+                action._emit_motor_terminal(
+                    "motorFailed",
+                    errorCode="ForkMoveTimeout",
+                    reason=error_desc,
+                    stopReason="timeout",
+                    timeoutSec=float(action.timeout),
+                    **action._limit_di_state(),
+                )
             return
     _fork_check_back_laser_collision(action)
 
@@ -4174,13 +4391,18 @@ def _fork_after_reached(action):
     if action.delta > EPS and not action._count_recorded and callable(increment_fork_count):
         action._count_recorded = True
         increment_fork_count()
-    Trace.log(f"agv base shift config:{_config().base_shift}", name="fork.task")
     if _config().base_shift and abs(action.position - _config().max_height) < EPS:
         Navigation.wheelBaseShift(True)
-        Trace.log("base shift true", name="fork.task")
+        emit_event(
+            "chassisBaseShiftChanged", channel=CH_MOTOR, ctx=action,
+            shiftEnabled=True, reason="forkAtMaxHeight",
+        )
     elif _config().base_shift and abs(action.position - _config().min_height) < EPS:
         Navigation.wheelBaseShift(False)
-        Trace.log("base shift false", name="fork.task")
+        emit_event(
+            "chassisBaseShiftChanged", channel=CH_MOTOR, ctx=action,
+            shiftEnabled=False, reason="forkAtMinHeight",
+        )
 
 
 def _fork_reset_runtime(action):
@@ -4222,10 +4444,13 @@ class LiftForkMotorByPosition(RunMotorByPosition):
                 self.position = _config().max_height
             else:
                 self.action_status = ActionStatus.FINISHED
+                self._emit_motor_terminal("motorReached", stopReason="targetIsMidHeight")
                 return
             self.delta = self.position - self.cur_fork_height
             if abs(self.delta) <= self.position_tolerance:
                 self.action_status = ActionStatus.FINISHED
+                self._emit_motor_terminal(
+                    "motorReached", delta=round(float(self.delta), 4), stopReason="alreadyInPlace")
                 return
             _fork_configure_motion(self)
             Motor.setMotorSpeed(self.motor_name, vel, self.stop_di)
@@ -4237,11 +4462,13 @@ class LiftForkMotorByPosition(RunMotorByPosition):
             self.delta = self.position - self.cur_fork_height
             if abs(self.delta) <= self.position_tolerance:
                 self.action_status = ActionStatus.FINISHED
+                self._emit_motor_terminal(
+                    "motorReached", delta=round(float(self.delta), 4), stopReason="alreadyInPlace")
                 return
             _fork_configure_motion(self)
             Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
-        Trace.log(f"position:{self.position}", name="fork.task")
+        self._emit_motor_commanded()
 
 
 class GoodsAwareForkMotorByPosition(RunMotorByPosition):
@@ -4262,7 +4489,7 @@ class GoodsAwareForkMotorByPosition(RunMotorByPosition):
         _fork_configure_motion(self)
         Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
-        Trace.log(f"position:{self.position}", name="fork.task")
+        self._emit_motor_commanded()
 
 
 class ReachAwareForkMotorByPosition(RunMotorByPosition):
@@ -4282,10 +4509,11 @@ class ReachAwareForkMotorByPosition(RunMotorByPosition):
         tolerance = max(_config().reach_up_dist, _config().reach_down_dist, self.position_tolerance)
         if abs(self.delta) <= tolerance:
             self.action_status = ActionStatus.FINISHED
-            Trace.log(
-                f"fork motor does not need move: current={self.cur_fork_height}, target={self.position}, "
-                f"delta={self.delta}, tolerance={tolerance}",
-                name="fork.task",
+            self._emit_motor_terminal(
+                "motorReached",
+                delta=round(float(self.delta), 4),
+                stopReason="alreadyInPlace",
+                tolerance=round(float(tolerance), 4),
             )
             return
         _fork_check_back_laser_collision(self)
@@ -4293,7 +4521,7 @@ class ReachAwareForkMotorByPosition(RunMotorByPosition):
         _fork_configure_motion(self)
         Motor.setMotorPosition(self.motor_name, self.position, self.max_speed, self.stop_di)
         self._motor_reset_done = False
-        Trace.log(f"position:{self.position}", name="fork.task")
+        self._emit_motor_commanded()
 
 
 def _resolve_fork_motor_action_class():
@@ -4396,7 +4624,15 @@ class MoveChassisByY(ActionBase):
                 "reachAngle": math.radians(0.5),
                 "reachDist": 0.005,
             }
-            Trace.log(f"chassis args:{chassis_args}", name="fork.task")
+            emit_event(
+                "chassisPathPlanned",
+                channel=CH_NAV,
+                ctx=self,
+                maxSpeed=chassis_args.get("maxSpeed"),
+                maxRot=chassis_args.get("maxRot"),
+                backMode=chassis_args.get("backMode"),
+                reachDist=chassis_args.get("reachDist"),
+            )
             if self.x < 0:
                 chassis_args["backMode"] = 1
             self.chassis_move = GoPath(chassis_args)

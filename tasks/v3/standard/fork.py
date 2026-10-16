@@ -113,6 +113,7 @@ SELF_POSITION_MARKER = "SELF_POSITION"
 from standard.fork_utils import (
     ActionStatus,
     CH_CFG,
+    CH_ERR,
     CH_REC,
     CH_TASK,
     ForkActionQueue,
@@ -2510,7 +2511,6 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.suspended_at = time.time()
         self.set_status(ScriptStatus.SUSPENDED)
         Module.setStatus(ScriptStatus.SUSPENDED)
-        Trace.log("suspend", name="fork.task")
 
     def resume(self):
         if self.script_status != ScriptStatus.SUSPENDED:
@@ -2522,7 +2522,6 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._sync_action_runtime()
         self.set_status(ScriptStatus.RUNNING)
         Module.setStatus(ScriptStatus.RUNNING)
-        Trace.log("resume", name="fork.task")
 
     def cancel(self, smart: bool = False) -> bool:
         """取消任务（SDK 回调）。返回任务是否已取消。
@@ -2533,7 +2532,12 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         """
         allowed, reason = self.cancel_allowed(smart)
         if not allowed:
-            Trace.log(f"smart cancel ignored ({reason})", output_console=True, name="fork.task")
+            emit_event(
+                "smartCancelIgnored",
+                channel=CH_ERR,
+                ctx=self,
+                reason=str(reason),
+            )
             return False
 
         was_suspended = Module.getStatus() == ScriptStatus.SUSPENDED
@@ -2543,7 +2547,13 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._disable_falling_down_detect()
         if was_suspended:
             Module.setStatus(ScriptStatus.RUNNING)
-        Trace.log("cancel", name="fork.task")
+        emit_event(
+            "scriptCancelled",
+            ctx=self,
+            smart=bool(smart),
+            actionId=str(getattr(self.current_action, "action_id", "")),
+            elapsedMs=int((time.time() - self.start_time) * 1000),
+        )
         return True
 
     def reset(self):
@@ -2898,10 +2908,14 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             ConfigParams.max_height,
         )
         Trace.log(
-            f"recognition pick height:{self.load_recognition_pick_height}, raw:{raw_pick_height}, "
-            f"rec_z:{recognition_z}, zOffset:{z_offset}, "
-            f"forkHeightAtRec:{fork_height_at_recognition}, cameraMovesWithFork:{self.camera_moves_with_fork}",
-            name="fork.task",
+            {"event": "recognitionPickHeightResolved",
+             "pickHeight": round(float(self.load_recognition_pick_height), 4),
+             "rawPickHeight": round(float(raw_pick_height), 4),
+             "recZ": round(float(recognition_z), 4),
+             "zOffset": round(float(z_offset), 4),
+             "forkHeightAtRecognition": fork_height_at_recognition,
+             "cameraMovesWithFork": bool(self.camera_moves_with_fork)},
+            output_console=False, name=CH_REC,
         )
         return True
 
@@ -3214,8 +3228,13 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             rec_action, rec_result_dict, rec_world_pos, rec_robot_pos = resolved
             if not self._prepare_load_recognition_height(rec_action):
                 return
-            Trace.log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}",
-                      output_console=True, output_time=True, name="fork.task")
+            Trace.log(
+                {"event": "carrierShapeResolved",
+                 "carrierPointCount": len(self.carrier_shape or []),
+                 "goodsPointCount": len(self.goods_shape or []),
+                 "obstaclePolygonCount": len(self.obstacle_polygon_by_rec or [])},
+                output_console=False, name=CH_REC,
+            )
             method, args = build_path_adjust_plan(
                 back_dist=self.back_dist,
                 min_ahead_dist=ConfigParams.minAheadDist,
@@ -3257,7 +3276,11 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 self.set_status(ScriptStatus.FAILED)
                 return
             self._set_actions(self._build_leave_loc_operation_actions(target_pos))
-            Trace.log(f"task:{self.action_task}", name="fork.task")
+            Trace.log(
+                {"event": "leaveLocActionsBuilt", "actionCount": int(self.action_task.total),
+                 "actionTypes": [str(a.action_type) for a in self.action_task.action_list]},
+                output_console=False, name=CH_TASK,
+            )
 
     def unload(self):
         # 生成器式放货：识别/盲放 -> 进叉 -> 落叉释放 -> 收尾，全流程顶到底可读。
@@ -4019,8 +4042,13 @@ class HeavyFork(Fork):
             if resolved is None:
                 return
             pallet_rec, rec_result_dict, rec_world_pos, rec_robot_pos = resolved
-            Trace.log(f"carrier {self.carrier_shape, self.goods_shape, self.obstacle_polygon_by_rec}",
-                      output_console=True, output_time=True, name="fork.task")
+            Trace.log(
+                {"event": "carrierShapeResolved",
+                 "carrierPointCount": len(self.carrier_shape or []),
+                 "goodsPointCount": len(self.goods_shape or []),
+                 "obstaclePolygonCount": len(self.obstacle_polygon_by_rec or [])},
+                output_console=False, name=CH_REC,
+            )
             method, args = self._build_cage_stack_adjust_plan()
             rec_world_pos, method, args = self._resolve_recognition_approach_plan(
                 rec_world_pos,
