@@ -360,6 +360,7 @@ class ConfigParams:
     deduct_follow_orientation = True  # 扣除区是否按识别面设置初始朝向
     deduct_use_upside_pgv = False  # True 使用上视PGV角度；False 使用钻入面
     deduct_pgv_retry_max = 5  # 上视PGV读取角度的最大尝试次数
+    ground_support_robot_radius = 0.0  # 车体包围半径；启用地面扣除时必须配置
     pgv_code_adjust_type = "singleCode"  # "singleCode" | "codeNumber"
     pgv_scan_device = ""  # 绑定的扫码设备名称
     pgv_angle_adjust_type = "parallelToCode"  # 角度调整模式
@@ -533,6 +534,11 @@ class ConfigParams:
                 builder.TYPE(ParamType.ARRAY)
                 with builder.CHILDREN():
                     # --- Bezier ---
+                    with builder.CHILD(key="groundSupportRobotRadius", name=_TR("Ground Support Robot Radius"),
+                                       desc=_TR("Bounding radius covering the complete robot body. Required when groundSupportDeduction is configured.")):
+                        builder.TYPE(ParamType.FLOAT)
+                        builder.DEFAULTVALUE(0.0)
+                        builder.UNIT("m")
                     with builder.CHILD(key="bezierBackDist", name=_TR("[Bezier] Back Distance"),
                                        desc=_TR("Back distance before starting bezier.")):
                         builder.TYPE(ParamType.FLOAT)
@@ -841,6 +847,7 @@ class ConfigParams:
         cls.deduct_follow_orientation = cls.config.get("deductFollowOrientation", True)
         cls.deduct_use_upside_pgv = cls.config.get("deductUseUpsidePgv", False)
         cls.deduct_pgv_retry_max = int(cls.config.get("deductPgvRetryMax", 5))
+        cls.ground_support_robot_radius = cls.config.get("groundSupportRobotRadius", 0.0)
         cls.pgv_code_adjust_type = cls.config.get("codeAdjustType", "singleCode")
 
         # 读取 singleCode 子参数
@@ -1644,6 +1651,166 @@ class InputParams:
     builder.save_to_file()
 
 
+class GroundSupportDeduction:
+    """地面支撑腿的固定 WORLD 扣除；状态跨取放货任务保留。"""
+
+    PREFIX = "JackGroundSupportDeductArea_"
+    EXIT_MARGIN = 0.3
+
+    def __init__(self):
+        self.names = []
+        self.center = None
+        self.exit_radius = 0.0
+        self.entered = False
+        self._startup_cleaned = False
+        self._deleting = False
+
+    def _delete(self):
+        # 通过查询确认删除结果，RPC 的删除接口不返回成功标志。
+        for name in self.names:
+            try:
+                Navigation.deleteClearRegion(name, Coordinate.WORLD)
+            except Exception as exc:
+                Trace.log(f"ground support delete {name} failed: {exc}", name=f"{MOD}.err")
+        remaining = set(Navigation.getClearRegion(Coordinate.WORLD))
+        self.names = [name for name in self.names if name in remaining]
+        if self.names:
+            return False
+        self.center = None
+        self.entered = False
+        self._deleting = False
+        return True
+
+    def _clean_startup(self):
+        if self._startup_cleaned:
+            return
+        self.names = [name for name in Navigation.getClearRegion(Coordinate.WORLD)
+                      if name.startswith(self.PREFIX)]
+        self._deleting = bool(self.names)
+        if self.names and not self._delete():
+            raise RuntimeError("ground support stale WORLD regions could not be removed")
+        self._startup_cleaned = True
+
+    @staticmethod
+    def _read_areas(recfile, object_key):
+        if not recfile:
+            return []
+        path = f"recognitionObject.{object_key}.groundSupportDeduction"
+        size = RobotParam.getConfigCloneSize("recognition", path, recfile)
+        if size is None or size == 0:
+            return []
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise ValueError(f"{path}: invalid clone size")
+        areas = []
+        try:
+            for index in range(size):
+                group = f"{path}._{index}"
+                raw_devices = RobotParam.getConfig("recognition", f"{group}.deductDevice", recfile)
+                if not isinstance(raw_devices, str):
+                    raise ValueError(f"{group}: deductDevice must be a comma-separated string")
+                devices = list(dict.fromkeys(d.strip() for d in raw_devices.split(",") if d.strip()))
+                if not devices:
+                    raise ValueError(f"{group}: deductDevice is empty")
+                raw_shapes = RobotParam.getConfig("recognition", f"{group}.deductShape", recfile)
+                shapes = json.loads(raw_shapes) if isinstance(raw_shapes, str) else raw_shapes
+                if not isinstance(shapes, list) or not shapes:
+                    raise ValueError(f"{group}: deductShape must contain polygons")
+                for shape in shapes:
+                    points = shape.get("points") if isinstance(shape, dict) else None
+                    if not isinstance(points, list) or len(points) < 3:
+                        raise ValueError(f"{group}: polygon requires at least three points")
+                    vertices = []
+                    for point in points:
+                        if not isinstance(point, dict):
+                            raise ValueError(f"{group}: invalid point")
+                        xy = [point.get("x"), point.get("y")]
+                        if any(isinstance(v, bool) or not isinstance(v, (int, float))
+                               or not math.isfinite(v) for v in xy):
+                            raise ValueError(f"{group}: point coordinates must be finite numbers")
+                        vertices.append(xy)
+                    # 按相邻顶点累加两倍有向面积，检查这些点是否围成有效区域。
+                    twice_area = 0.0
+                    previous_x, previous_y = vertices[-1]
+                    for current_x, current_y in vertices:
+                        twice_area += previous_x * current_y - current_x * previous_y
+                        previous_x = current_x
+                        previous_y = current_y
+                    if abs(twice_area) < 1e-9:
+                        raise ValueError(f"{group}: polygon has zero area")
+                    areas.append((devices, vertices))
+        except (TypeError, KeyError, json.JSONDecodeError) as exc:
+            raise ValueError(f"{path}: invalid configuration: {exc}") from exc
+        return areas
+
+    def create(self, recfile, object_key, target_pose, robot_radius):
+        """配置坐标相对于最终到位车体，target_pose 为世界 [x, y, yaw弧度]。"""
+        areas = self._read_areas(recfile, object_key)
+        if not areas:
+            return False
+        if (not isinstance(target_pose, (list, tuple)) or len(target_pose) != 3
+                or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                       or not math.isfinite(v) for v in target_pose)):
+            raise ValueError("ground support target_pose must be finite [x, y, yaw]")
+        if (isinstance(robot_radius, bool) or not isinstance(robot_radius, (int, float))
+                or not math.isfinite(robot_radius) or robot_radius <= 0):
+            raise ValueError("ground support robot_radius must be positive")
+        self._clean_startup()
+        if self.names:
+            raise RuntimeError("previous ground support WORLD regions are still active")
+        regions = []
+        support_radius = 0.0
+        for devices, vertices in areas:
+            world = [pos2World([x, y, 0], target_pose) for x, y in vertices]
+            support_radius = max(support_radius, max(math.hypot(x, y) for x, y in vertices))
+            regions.append((devices, [p[0] for p in world], [p[1] for p in world]))
+        self.center = list(target_pose[:2])
+        self.exit_radius = support_radius + robot_radius + self.EXIT_MARGIN
+        self.entered = False
+        try:
+            for index, (devices, xs, ys) in enumerate(regions):
+                name = f"{self.PREFIX}{index}"
+                # 先记录名字，覆盖服务端已写入但响应异常的情况。
+                self.names.append(name)
+                result = Navigation.setClearRegion(name, xs, ys, devices, Coordinate.WORLD)
+                if result is False:
+                    raise RuntimeError(f"ground support region {name} creation failed")
+            existing_regions = Navigation.getClearRegion(Coordinate.WORLD)
+            for name in self.names:
+                if name not in existing_regions:
+                    raise RuntimeError(f"ground support WORLD region {name} was not found after creation")
+        except Exception:
+            self._deleting = True
+            try:
+                self._delete()
+            except Exception as exc:
+                Trace.log(f"ground support rollback failed: {exc}", name=f"{MOD}.err")
+            raise
+        return True
+
+    def monitor(self, active):
+        """active 表示进入/取放货任务仍在执行；取消后仅在车体已脱离时清理。"""
+        try:
+            self._clean_startup()
+            if not self.names:
+                return
+            if self._deleting:
+                self._delete()
+                return
+            pose = Loc.getPose()
+            x, y = pose["x"], pose["y"]
+            if not math.isfinite(x) or not math.isfinite(y):
+                return
+            distance = math.hypot(x - self.center[0], y - self.center[1])
+            if distance <= self.exit_radius:
+                self.entered = True
+            # Bezier 在驶入阶段可能先退让；整个取放货动作结束前保持区域。
+            elif not active:
+                self._deleting = True
+                self._delete()
+        except Exception as exc:
+            Trace.log(f"ground support monitor failed: {exc}", name=f"{MOD}.err")
+
+
 class Jack(ModuleBase):
     def __init__(self):
         super().__init__()
@@ -1685,6 +1852,8 @@ class Jack(ModuleBase):
         self._rec_retry_count = 0
         # 识别文件
         self.laser_area_deduct_info = None
+        # 生命周期跨任务，不能在 init_args 或普通任务完成时重置。
+        self.ground_support_deduction = GroundSupportDeduction()
         # 定义动作相关的变量
         self.opt = None
         self.shelf_back_distance = None  # 识别文件的参数 # {'enableBackDistance': True, 'backDistance': 0.55}
@@ -2758,6 +2927,10 @@ class Jack(ModuleBase):
 
     def _append_load_actions(self, target_pos):
         """将导航、二次调整、旋转、顶升、绑定容器等动作添加到 action_list"""
+        if target_pos is not None and self.is_recognize:
+            if self.how_go_site != "bezier":
+                self.action_list.append(SetGroundSupportDeductArea(
+                    self.recfile, self.recognition_object_key, None))
         # 导航方式（无AP点原地执行时 target_pos 为 None，跳过导航）
         if target_pos is not None:
             if self.how_go_site == "straight":
@@ -2778,6 +2951,8 @@ class Jack(ModuleBase):
                         self.back_dist = recfile_back_dist.get("backDistance") or 0.24
                     else:
                         self.back_dist = 0.24
+                if self.is_recognize:
+                    self._append_ground_support_area(target_pos)
                 self.action_list.append(
                     GoBezier(target_pos, self.back_dist, self.adjust_dist_for_curvature_limit,
                              self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
@@ -2956,7 +3131,7 @@ class Jack(ModuleBase):
 
             # 识别结果在机器人坐标系下 x < 1m → 太近，先后退再二次识别
             # 后退方向跟随 is_backwards: 正走后退(-x,back_mode=True), 倒走后退(+x,back_mode=False)
-            if result_robot[0] < 1:
+            if (-result_robot[0] if self.is_backwards else result_robot[0]) < 1:
                 back_step = 0.3 if self.is_backwards else -0.3
                 self.action_list.append(GoPath([back_step, 0, 0], "robot", not self.is_backwards))
                 self.action_list.append(
@@ -3179,6 +3354,8 @@ class Jack(ModuleBase):
                 name=f"{MOD}.nav")
         if self.status == ScriptStatus.FAILED:
             return
+        if self.opt in ("load", "unload"):
+            self._append_ground_support_area(self.rec_result)
         approach = GoBezier(self.rec_result, self.back_dist, self.adjust_dist_for_curvature_limit,
                      self.min_ahead_dist, self.is_backwards, self.is_hold_dir,
                      self.max_speed, self.max_accele, self.max_decele, self.decele_dist,
@@ -3186,6 +3363,14 @@ class Jack(ModuleBase):
                      self.min_speed)
         approach.action_name = "GoBezierApproach"
         self.action_list.append(approach)
+
+    def _append_ground_support_area(self, world_result):
+        """与 GoBezierWorld 共用终点语义；WORLD 区域不随车体/托盘更新。"""
+        target_pose = pos2World([-self.back_dist, 0, 0], list(world_result[:3]))
+        if not self.is_backwards:
+            target_pose[2] = self._normalize_angle(target_pose[2] + math.pi)
+        self.action_list.append(SetGroundSupportDeductArea(
+            self.recfile, self.recognition_object_key, target_pose))
 
     def go_polyline(self):
         if not self.operation_init:
@@ -3443,6 +3628,9 @@ class Jack(ModuleBase):
         self.event_safe_move_check = False
 
     def tick_report(self):
+        self.ground_support_deduction.monitor(
+            self.opt in ("load", "unload")
+            and self.status in (ScriptStatus.RUNNING, ScriptStatus.SUSPENDED))
         self.jack_motors = NavSpeed.getMotorCmd()
         self.jack_speed = Motor.getMotorSpeed(config_params.jack_motor_name)
         self.jack_isFull = Navigation.hasGoods()
@@ -3691,11 +3879,15 @@ class Jack(ModuleBase):
                     self.full_action_args = full_args
                     operation = full_args.get('operation', '')
                 else:
-                    # 如果getBinTask没有返回结果，直接使用finalBinTask作为operation判断
-                    # unload -> unload
-                    self.full_action_args = {'operation': 'unload'}
-                    operation = 'unload' if new_final_bin_task == 'unload' else new_final_bin_task
-                    debug_trace(f"pre-action infer operation={operation}", name=MOD)
+                    # 参数未知时不能推断允许下降，等待实际 binTask。
+                    if self.pre_action_mode and not self.pre_action_completed:
+                        Motor.stopMotor()
+                        Motor.resetMotor(config_params.jack_motor_name)
+                    self.full_action_args = {}
+                    self.pre_action_mode = False
+                    self.pre_action_completed = False
+                    self.result = None
+                    return
 
                 # unload时启用边走边动：在导航过程中慢慢降下顶升
                 recognize = self.full_action_args.get('recognize', False)
@@ -3703,6 +3895,9 @@ class Jack(ModuleBase):
                                      if isinstance(recognize, str) else bool(recognize))
                 if (operation == 'unload' or new_final_bin_task == 'unload') and needs_recognition:
                     # 识别放货保持举升，等待实际 binTask 启动后识别、导航并下降。
+                    if self.pre_action_mode and not self.pre_action_completed:
+                        Motor.stopMotor()
+                        Motor.resetMotor(config_params.jack_motor_name)
                     self.pre_action_mode = False
                     self.pre_action_completed = False
                     self.result = None
@@ -3882,6 +4077,38 @@ class Jack(ModuleBase):
 
 
 # --- 以下为各个基础动作类（内容保持不变） ---
+class SetGroundSupportDeductArea(ActionBase):
+    """识别完成、驶入前创建地面区域；失败时阻断后续导航。"""
+
+    def __init__(self, recfile, object_key, target_pose):
+        super().__init__("SetGroundSupportDeductArea")
+        self.recfile = recfile
+        self.object_key = object_key
+        self.target_pose = target_pose
+
+    def run(self, j: Jack):
+        if self.action_status in (ActionStatus.FINISHED, ActionStatus.FAILED):
+            return
+        try:
+            # 无配置直接跳过，不要求车体半径，也不改变原有取放货行为。
+            if not GroundSupportDeduction._read_areas(self.recfile, self.object_key):
+                self.action_status = ActionStatus.FINISHED
+                return
+            if self.target_pose is None:
+                raise ValueError("groundSupportDeduction requires recognized Bezier entry")
+            j.ground_support_deduction.create(
+                self.recfile, self.object_key, self.target_pose,
+                config_params.ground_support_robot_radius)
+            self.action_status = ActionStatus.FINISHED
+            Trace.log(f"ground support WORLD regions created target={self.target_pose}", name=f"{MOD}.nav")
+        except Exception as exc:
+            self.error_code = "GroundSupportDeductFailed"
+            self.fail_reason = str(exc)
+            self.action_status = ActionStatus.FAILED
+            Navigation.setTaskError(self.error_code, self.fail_reason)
+            Trace.log(f"ground support create failed: {exc}", name=f"{MOD}.err")
+
+
 class SetLaserDeductArea(ActionBase):
     """设置激光扣除区域（取货完成后调用）"""
 
