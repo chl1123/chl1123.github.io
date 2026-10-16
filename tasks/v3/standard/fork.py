@@ -2571,11 +2571,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                       recognitionFile: Optional[str] = None,
                       recognitionSide: Optional[str] = "B") -> bool:
         # 绑定容器 + 按识别文件设置货物形状，走基类 ModuleBase.bindContainer 的默认实现。
-        # NetProtocol 0210 尚未透传 recognitionFile 时，回退到任务识别文件 recfile。
-        recognitionFile = recognitionFile or getattr(self, "recfile", "default.srec")
-        if not recognitionFile:
-            Trace.log("bindContainer recognitionFile missing (NetProtocol did not forward it)", name="fork.err")
-            return False
+        recognitionFile = recognitionFile or getattr(self, "recfile", "")
+
         return super().bindContainer(container_id, goods_name, desc, recognitionFile, recognitionSide)
 
         # 旧的固定 1.2 x 1.0 硬编码形状（仅做 pos2World 平移，不含旋转），保留以便回退：
