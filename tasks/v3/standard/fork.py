@@ -1892,6 +1892,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             self.today_date = ""
 
         self.last_pos = None
+        # 上次 fork.motor 快照时间戳与本次 tick 的货叉位移，用于推导 forkSpeed
+        self._trace_last_ts = None
+        self._fork_delta_this_tick = 0.0
         self.last_save_ts = time.time()
         self.save_interval = 5
         self.mileage_dirty = False
@@ -2090,7 +2093,12 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         }
         self.motor_trace_payload = {
             "forkHeight": 0.0,
+            # forkHeightInPlace 为兼容期旧字段，新代码读 forkInPlace（见 docs/guide/spec/fork_logging.md §7.2）
             "forkHeightInPlace": True,
+            "forkInPlace": True,
+            "forkMoving": False,
+            "forkDirection": "idle",
+            "forkSpeed": 0.0,
             "forkMileage": float(self.total_dist),
             "forkMileageUp": float(self.up_dist),
             "forkMileageDown": float(self.down_dist),
@@ -3728,8 +3736,9 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 Trace.log(f"Failed to get motor position for {motor['motorKey']}: {e}", name=f"{MOD}.err")
 
         # 根据变动量记录货叉的里程数据
-        if self.last_pos is not None:
-            delta = fork_height - self.last_pos
+        prev_pos = self.last_pos
+        if prev_pos is not None:
+            delta = fork_height - prev_pos
             if delta > ConfigParams.reach_up_dist:
                 self.up_dist += delta
                 self.total_dist += delta
@@ -3745,6 +3754,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 self.mileage_dirty = True
 
         self.last_pos = fork_height
+        # 供 fork.motor 快照推导 forkMoving/forkDirection/forkSpeed（last_pos 已刷新，需用本 tick 的 delta）
+        self._fork_delta_this_tick = 0.0 if prev_pos is None else float(fork_height) - float(prev_pos)
 
         if self.mileage_dirty and time.time() - self.last_save_ts > self.save_interval:
             self.save_mileage()
@@ -3789,7 +3800,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
         motor_trace_payload = self.motor_trace_payload
         motor_trace_payload["forkHeight"] = float(fork_height)
+        # forkHeightInPlace 为兼容期旧字段，新字段为 forkInPlace（spec §7.2）
         motor_trace_payload["forkHeightInPlace"] = bool(self.fork_height_in_place)
+        motor_trace_payload["forkInPlace"] = bool(self.fork_height_in_place)
+        delta_height = getattr(self, "_fork_delta_this_tick", 0.0) or 0.0
+        motor_trace_payload["forkMoving"] = abs(delta_height) > 1e-4
+        motor_trace_payload["forkDirection"] = (
+            "idle" if abs(delta_height) <= 1e-4 else ("up" if delta_height > 0 else "down")
+        )
+        now_ts = time.time()
+        motor_trace_payload["forkSpeed"] = 0.0 if self._trace_last_ts is None else round(
+            delta_height / max(1e-6, now_ts - self._trace_last_ts), 4
+        )
+        self._trace_last_ts = now_ts
         motor_trace_payload["forkMileage"] = float(self.total_dist)
         motor_trace_payload["forkMileageUp"] = float(self.up_dist)
         motor_trace_payload["forkMileageDown"] = float(self.down_dist)
@@ -3804,6 +3827,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         @KeyZh @forkHeightInPlace 货叉是否到位
         @KeyEn @forkHeightInPlace fork in place
         @BooleanType @forkHeightInPlace
+        @KeyZh @forkInPlace 货叉是否到位（规范字段）
+        @KeyEn @forkInPlace fork in place (spec field)
+        @BooleanType @forkInPlace
+        @KeyZh @forkMoving 货叉是否运动中
+        @KeyEn @forkMoving whether fork is moving
+        @BooleanType @forkMoving
+        @KeyZh @forkDirection 货叉运动方向（up/down/idle）
+        @KeyEn @forkDirection fork movement direction
+        @StringType @forkDirection
+        @KeyZh @forkSpeed 货叉速度
+        @KeyEn @forkSpeed fork speed
+        @NumberType @forkSpeed
+        @Unit @forkSpeed m/s
         @KeyZh @forkMileage 货叉总里程
         @KeyEn @forkMileage total fork mileage
         @NumberType @forkMileage
