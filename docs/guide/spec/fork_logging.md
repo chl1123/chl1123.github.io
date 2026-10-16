@@ -103,13 +103,27 @@
 
 | 项 | 处理 | 迁移目标 |
 | --- | --- | --- |
-| `fork.action`（8 处） | 立即停止新增，本版本内删除 | `fork.taskActions`（`ActionTask` 已在写，删除旧调用即可） |
-| `fork.script`（1 处） | 并入 `fork`；该快照约每步写一次，属于高频，不再保留独立通道 | `fork`（脚本生命周期事件）或 `fork.task` |
-| `fork.nav` 中的策略日志（2 处） | 迁出 | `fork.policy` |
-| `fork.motor` 中的累计计数（1 处） | 迁出 | `fork.cfg` 或 `fork` |
-| 裸通道调用（8 处） | 补齐 `name` | 按语义分别归入 `fork.rec` / `fork.err` / `fork.nav` |
+| `fork.action`（8 处） | **已删除** | `fork.taskActions`（`ActionTask` 已在写，删除旧调用即可） |
+| `fork.script`（1 处） | **已删除**；动作队列字段以 `scriptTaskLen` / `scriptCurrentAction` / `scriptCurrentActionStatus` 并入 `fork.task` 快照 | `fork.task` |
+| `fork.nav` 中的策略日志（2 处） | **已迁出** | `fork.policy` |
+| `fork.motor` 中的累计计数（1 处） | **已迁出** | `fork.cfg` |
+| 裸通道调用（8 处） | **已补齐 `name`** | `fork.rec` / `fork.err` / `fork.nav` |
+| `fork.motor` 的 `forkHeightInPlace` | **已删除**，统一用 `forkInPlace`（`reportInfo` 的对外字段不受影响） | `forkInPlace` |
 
 现有 `fork.task` / `fork.motor` 的业务消费者需要兼容旧字段，字段替换采用双写过渡，至少保留一个完整版本周期。禁止新代码使用默认裸通道 `log`、动态 `name` 或 `Trace.chart()`。
+
+**已决定保留**：`fork.task` 快照的 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount`（下游表单与看板仍在消费）。
+
+### 3.3 载荷体积与完整数据
+
+`Trace.log` 的 `output_console` **只控制终端打印**，不影响落盘：任何非 `debug=True` 的记录都会经 `Trace` 服务写入 trace。因此体积治理的正确手法是「终端静默、落盘保留」，而不是删字段：
+
+- 需要减少终端噪声时，用 `output_console=False`，**不要**把完整数据换成计数。
+- 摘要字段与完整值**同时落盘**：摘要供人快速阅读，完整值供回放。例：`executionParametersResolved` 同时带 `skillName`/`target`/`paramKeys` 摘要与完整 `moveTask`。
+- 仅在载荷确实巨大（点云级）时才截断，且**必须显式标注** `truncated: true` 与 `totalCount`，绝不静默丢数据。
+- 因不可序列化而丢弃的字段数记入 `_droppedFields`，使读者知道本次载荷做过减法。
+
+判定基准：读日志的人能否在不看代码、不重新跑任务的前提下复原现场输入。做不到就不能算「已摘要」。
 
 ### 3.2 通道语义边界
 
@@ -387,7 +401,7 @@
 }
 ```
 
-兼容期保留旧字段 `forkHeightInPlace`，新代码统一使用 `forkInPlace`。`forkDirection` 无方向时用固定字符串 `idle`，不使用 `None`。
+`fork.motor` 快照统一使用 `forkInPlace`（`forkHeightInPlace` 已删除）。`forkDirection` 无方向时用固定字符串 `idle`，不使用 `None`。
 
 ### 7.3 多电机同步
 
@@ -497,13 +511,63 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 
 ## 10. 分阶段实施
 
-| 阶段 | 内容 | 风险 |
-| --- | --- | --- |
-| **Phase 0** | 统计现有 Trace 调用、通道、字段与位置；为 load / unload / recognition / forkHeight / manualMotor / reach / timeout / cancel / suspend-resume / policy 建立最小回放样例；固化旧日志样本，确认消费者依赖字段 | 无 |
-| **Phase 1** | 增加统一事件 facade 与字段过滤器；新增 `fork` 脚本/阶段生命周期事件与 `fork.policy` 通道；保留旧 `fork.task` / `fork.motor` 字段 | 低 |
-| **Phase 2** | 统一电机动作的 commanded / reached / stopped / failed 事件，补齐参数、实际位置、耗时、方向、限位 DI 和停止原因；收敛重复日志到公共 mixin | 中 |
-| **Phase 3** | 迁移 `fork.task` 中的导航/识别文本到 `fork.nav` / `fork.rec`；策略日志迁出 `fork.nav`；裸通道补齐 `name`；识别结果与路径参数摘要化 | 中 |
-| **Phase 4** | 消费者切换到新字段与新通道；删除 `fork.action`、`fork.script` 和重复错误日志；兼容字段至少保留一个完整版本周期后再删除 | 高 |
+| 阶段 | 内容 | 风险 | 状态 |
+| --- | --- | --- | --- |
+| **Phase 0** | 统计现有 Trace 调用、通道、字段与位置；为 load / unload / recognition / forkHeight / manualMotor / reach / timeout / cancel / suspend-resume / policy 建立最小回放样例；固化旧日志样本，确认消费者依赖字段 | 无 | 已完成（AST 统计：164 处调用，见 §2.3） |
+| **Phase 1** | 增加统一事件 facade 与字段过滤器；新增 `fork` 脚本/阶段生命周期事件与 `fork.policy` 通道；保留旧 `fork.task` / `fork.motor` 字段 | 低 | **已实施** |
+| **Phase 2** | 统一电机动作的 commanded / reached / stopped / failed 事件，补齐参数、实际位置、耗时、方向、限位 DI 和停止原因；收敛重复日志到公共 mixin | 中 | **已实施** |
+| **Phase 3** | 迁移 `fork.task` 中的导航/识别文本到 `fork.nav` / `fork.rec`；策略日志迁出 `fork.nav`；裸通道补齐 `name`；识别结果与路径参数摘要化 | 中 | **已实施** |
+| **Phase 4** | 删除 `fork.action` / `fork.script` / `forkHeightInPlace`；`scriptStatus` 等快照字段保留 | 高 | 部分完成（见下方待验证清单） |
+
+### 10.1 实施进度与验证状态
+
+已实现内容以提交为准，验证分为两个层次：
+
+| 层次 | 手段 | 覆盖 | 尚未覆盖 |
+| --- | --- | --- | --- |
+| 静态与单元 | `tools/test_fork_logging.py`（10 项）、`tools/smoke_fork_import.py` | 通道白名单、裸通道、旧通道/旧字段不再出现、facade 行为（只记变化、不静默截断）、未解析名字 | 真实 RBK 交互 |
+| 仿真实测 | `tests/fork_flow.py`（需在仿真 RBK 上运行） | load / unload / forkHeight / autoPre / 识别注入全流程、`expectStatus` 校验 | 无相机识别、物理到位 DI |
+| 实车 | 见 §10.2 清单 | 真实传感器、电机限位、策略对上游影响 | — |
+
+### 10.2 实车验证清单
+
+以下能力在仿真下无法覆盖（仿真无相机、无物理到位 DI、运动学简化），必须在实车验证本次改动未影响功能。测试重点不是「日志长什么样」，而是「行为与基线一致」：
+
+**识别与相机路径**
+
+- [ ] 识别取货（`recognize=true`）：`Rec` 全流程与识别结果解析，确认 `fork.rec` 的 `recognitionAccepted` / `recognitionProgress` 记录真实结果。
+- [ ] 二次识别调整（`readjust`）：`recognitionTargetComputed` 的 `angleToAp` 与实际对准偏差一致。
+- [ ] 库位 3D 检测（`LocDetectGoods`）：真实相机下的重试与 `TargetFilled` / `TargetNotFilled` 判定。
+- [ ] `GoLiveRec` 边走边识别：确认 `fork.rec` 的 `liveRecPathPlanned` 不携带超大路径数组。
+
+**电机与机构**
+
+- [ ] 货叉升降到位：确认 `motorReached` 的 `stopReason` 为 `positionReached` 或 `stopDi`，且 `actualPosition` 与示教值一致。
+- [ ] 货叉超时（`ForkMoveTimeout`）：确认落 `motorFailed` + `stopReason=timeout`，且未影响原有的 `setSystemError` 行为。
+- [ ] 限位 DI：`upLimitDi` / `downLimitDi` 在真实限位处为 `true`。
+- [ ] DO 电机（开合）：`stopReason=stopDi` 路径与 `isMotorReached` 跳过逻辑未被破坏。
+- [ ] 多电机同步（`RunReachMotorsByPosition`）：不同步失败与整组停止仍能正确触发。
+- [ ] 货叉 base shift：`chassisBaseShiftChanged` 与真实 `wheelBaseShift` 调用时机一致。
+
+**策略与导航**
+
+- [ ] 近货策略切换：`fork.policy` 的 `before`/`after` 与 RBK 侧实际生效值一致（建议对照 `config_changed_subscriber` 回读）。
+- [ ] `resetPath=true` 的策略下发：路径重置时机未被日志改动影响。
+- [ ] 碰撞设备屏蔽与恢复：`collisionDeviceLoaded` 列表与 `_restore_policy` 对账一致。
+- [ ] 接触 DI 取货（`GoPathWithContactDi`）：真实 DI 触发与 `_check_di_active` 逻辑未变。
+- [ ] 避障阻挡场景：`navigationBlocked` 能带出设备与距离读数（对应历史 21:47:37 类问题）。
+
+**生命周期与边界**
+
+- [ ] 暂停 / 恢复 / 取消：`scriptStatusChanged` 与 `scriptCancelled` 顺序正确，且 `start_time` 补偿逻辑未受影响。
+- [ ] 智能取消：`smartCancelIgnored` 行为与 `cancel_allowed` 一致。
+- [ ] 超时收尾：`scriptFailed` 的 `errorCode` 指向根因动作。
+- [ ] `fork.taskActions` 与 `fork.task` 的 `taskId` / `actionId` 可关联。
+
+**回归重点**
+
+- [ ] 所有 load / unload 用例的实际行为（动作序列、时序、终态）与改动前一致 —— 日志改动不应改变任何控制流。
+- [ ] 每轮测试后按 `taskId` 在 trace 里能还原完整过程（本次重构的核心目标）。
 
 ## 11. 推荐首批改造清单
 
@@ -567,12 +631,23 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 
 ## 13. 待确认事项
 
-1. `fork.task` 的现有消费者是否依赖旧字段 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount`。
-2. `fork.taskActions` 当前是否已被部署环境消费，还是仅消费旧 `fork.action`。
-3. 是否允许在 v3 脚本中直接采用 logging spec 的 v4 Action wire 字段，还是需要适配层。
-4. 任务 ID 是否始终来自 `Module.getTaskId()`，以及脚本被 MF `RunScript` 调用时的关联规则。
-5. 电机实时位置采样周期与最大 trace 体积要求。
-6. `Navigation`、`Motor`、`Container` 查询失败时，错误日志归属 SDK 层还是脚本层。
-7. `Navigation.appendCustomPolicy` 是否幂等；同名策略反复下发的覆盖语义如何定义；是否需要按车型或动作隔离策略名。
-8. 策略值的"RBK 当前生效值"通过 `RobotParam.getConfig` 读取是否存在延迟或缓存，能否作为 `before` 的可靠来源。
-9. 本文新增的 `fork.motor` 数值字段（`forkTarget`、`forkMoving`、`forkDirection`、`forkSpeed`、`minSafeHeight`、`loaded`）需要同步修订 [Module 日志记录规范](logging.md) §2.3 的叉车字段表，修订责任人与时间需确认。
+### 已裁定（本轮）
+
+| 项 | 结论 |
+| --- | --- |
+| `fork.task` 的 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount` | **保留**，下游表单与看板仍在消费 |
+| `fork.script` | **已删除**，其字段并入 `fork.task`（`scriptTaskLen` / `scriptCurrentAction` / `scriptCurrentActionStatus`） |
+| `forkHeightInPlace` | **已删除**，统一用 `forkInPlace`；`reportInfo` 的对外字段不改 |
+| 大数组打印 | **落盘保留完整**，仅用 `output_console=False` 静默终端；超限时显式标注 `truncated` / `totalCount` |
+
+### 仍待确认
+
+1. `fork.taskActions` 当前是否已被部署环境消费，还是仅消费旧 `fork.action`。
+2. 是否允许在 v3 脚本中直接采用 logging spec 的 v4 Action wire 字段，还是需要适配层。
+3. 任务 ID 是否始终来自 `Module.getTaskId()`，以及脚本被 MF `RunScript` 调用时的关联规则。
+4. 电机实时位置采样周期与最大 trace 体积要求（截断上限 `_TRACE_MAX_SEQ=256` 需与实际 trace 体积权衡确认）。
+5. `Navigation`、`Motor`、`Container` 查询失败时，错误日志归属 SDK 层还是脚本层。
+6. `Navigation.appendCustomPolicy` 是否幂等；同名策略反复下发的覆盖语义如何定义；是否需要按车型或动作隔离策略名。
+7. 策略值的"RBK 当前生效值"通过 `RobotParam.getConfig` 读取是否存在延迟或缓存，能否作为 `before` 的可靠来源。
+8. 本节新增的 `fork.motor` 数值字段（`forkTarget`、`forkMoving`、`forkDirection`、`forkSpeed`、`minSafeHeight`、`loaded`）需要同步修订 [Module 日志记录规范](logging.md) §2.3 的叉车字段表，修订责任人与时间需确认。
+9. `tests/fork_flow.py` 与 `tests/fork_sim_inject.py` 目前只在 `origin/mazj` 分支，需确认是否合并到 `release` 以纳入常规仿真回归。

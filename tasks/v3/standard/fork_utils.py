@@ -61,9 +61,11 @@ CH_REC = f"{MOD}.rec"                # fork.rec   识别事件
 CH_CFG = f"{MOD}.cfg"                # fork.cfg   配置加载与参数变更
 CH_ERR = f"{MOD}.err"                # fork.err   异常、超时、超限
 
-# 事件载荷中不落盘的值类型（大对象 / 不可 JSON 序列化对象）
+# 事件载荷中不落盘的值类型（不可 JSON 序列化对象）
 _TRACE_SCALARS = (int, float, bool, str)
-_TRACE_MAX_SEQ = 8
+# 序列截断上限：超过时保留前 N 项并显式标注 truncated/totalCount，绝不静默丢数据。
+# 上限仅用于防止点云级数组把 trace 引爆；常规业务数组（形状、设备列表、参数）远低于该值。
+_TRACE_MAX_SEQ = 256
 
 
 class _SkipType:
@@ -77,20 +79,34 @@ _SKIP = _SkipType()
 
 
 def _trace_sanitize(value):
-    """过滤 None、大对象和不可序列化值，返回可安全落盘的值或 _SKIP。"""
+    """把值转换为可落盘结构。
+
+    只丢弃两类东西：None 与不可 JSON 序列化对象（这些值本身无法落盘）。
+    序列超上限时不静默截断，而是保留前 N 项并附 truncated/totalCount 标注，
+    使读者能明确知道数据被减过、以及原长度是多少。
+    """
     if value is None:
         return _SKIP
     if isinstance(value, _TRACE_SCALARS):
         return value
     if isinstance(value, (list, tuple)):
-        items = [_trace_sanitize(v) for v in value[:_TRACE_MAX_SEQ]]
-        return [v for v in items if v is not _SKIP]
+        kept = [_trace_sanitize(v) for v in value[:_TRACE_MAX_SEQ]]
+        items = [v for v in kept if v is not _SKIP]
+        if len(value) > _TRACE_MAX_SEQ:
+            return {"items": items, "truncated": True, "totalCount": len(value)}
+        return items
     if isinstance(value, dict):
         out = {}
-        for k, v in list(value.items())[:_TRACE_MAX_SEQ]:
-            sv = _trace_sanitize(v)
-            if sv is not _SKIP:
-                out[str(k)] = sv
+        skipped = 0
+        for key, item in value.items():
+            sanitized = _trace_sanitize(item)
+            if sanitized is _SKIP:
+                skipped += 1
+                continue
+            out[str(key)] = sanitized
+        if skipped:
+            # 明确告知有多少字段因不可序列化被丢弃，不静默
+            out["_droppedFields"] = skipped
         return out
     return _SKIP
 
@@ -155,13 +171,21 @@ def trace_context(ctx=None) -> dict:
 
 
 def emit_event(event: str, *, channel: str = CH_FORK, ctx=None, **fields) -> None:
-    """落盘一条结构化事件。自动注入公共上下文并过滤大对象/None。"""
+    """落盘一条结构化事件。自动注入公共上下文，丢弃 None 与不可序列化值。
+
+    被丢弃的顶层字段数记在 _droppedFields 上，使读者知道本次载荷做过减法。
+    """
     payload = {"event": event}
     payload.update(trace_context(ctx))
+    dropped = 0
     for key, value in fields.items():
         clean = _trace_sanitize(value)
-        if clean is not _SKIP:
-            payload[key] = clean
+        if clean is _SKIP:
+            dropped += 1
+            continue
+        payload[key] = clean
+    if dropped:
+        payload["_droppedFields"] = dropped
     Trace.log(payload, output_console=False, name=channel)
 
 
@@ -2805,7 +2829,7 @@ class GoPathWithContactDi(ActionBase):
             channel=CH_NAV,
             ctx=self,
             deviceCount=len(current_collision_device),
-            devices=list(current_collision_device)[:8],
+            devices=list(current_collision_device),
         )
 
         # 进入货物近场后，叉根激光和按配置关闭的叉尖 DI 不再参与全局碰撞检测；
@@ -4628,10 +4652,7 @@ class MoveChassisByY(ActionBase):
                 "chassisPathPlanned",
                 channel=CH_NAV,
                 ctx=self,
-                maxSpeed=chassis_args.get("maxSpeed"),
-                maxRot=chassis_args.get("maxRot"),
-                backMode=chassis_args.get("backMode"),
-                reachDist=chassis_args.get("reachDist"),
+                chassisArgs=dict(chassis_args),
             )
             if self.x < 0:
                 chassis_args["backMode"] = 1

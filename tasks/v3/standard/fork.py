@@ -3225,11 +3225,12 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             rec_action, rec_result_dict, rec_world_pos, rec_robot_pos = resolved
             if not self._prepare_load_recognition_height(rec_action):
                 return
+            # 完整形状与抠除多边形照旧落盘（终端静默）；是回放识别的唯一来源。
             Trace.log(
                 {"event": "carrierShapeResolved",
-                 "carrierPointCount": len(self.carrier_shape or []),
-                 "goodsPointCount": len(self.goods_shape or []),
-                 "obstaclePolygonCount": len(self.obstacle_polygon_by_rec or [])},
+                 "carrierShape": self.carrier_shape,
+                 "goodsShape": self.goods_shape,
+                 "obstaclePolygon": self.obstacle_polygon_by_rec},
                 output_console=False, name=CH_REC,
             )
             method, args = build_path_adjust_plan(
@@ -3615,7 +3616,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
              "obsStopDist": self.move_task.get("obsStopDist"),
              "obsExpansion": self.move_task.get("obsExpansion"),
              "paramKeys": sorted(str(p.get("key", "")) for p in self.move_task.get("params", [])),
-             "minSafeHeight": float(self.min_safe_height)},
+             "minSafeHeight": float(self.min_safe_height),
+             "moveTask": self.move_task},
             output_console=False, name=CH_TASK)
 
         self.recognize = any([input_recognize, is_enabled(movetask_recognize)])
@@ -4041,9 +4043,9 @@ class HeavyFork(Fork):
             pallet_rec, rec_result_dict, rec_world_pos, rec_robot_pos = resolved
             Trace.log(
                 {"event": "carrierShapeResolved",
-                 "carrierPointCount": len(self.carrier_shape or []),
-                 "goodsPointCount": len(self.goods_shape or []),
-                 "obstaclePolygonCount": len(self.obstacle_polygon_by_rec or [])},
+                 "carrierShape": self.carrier_shape,
+                 "goodsShape": self.goods_shape,
+                 "obstaclePolygon": self.obstacle_polygon_by_rec},
                 output_console=False, name=CH_REC,
             )
             method, args = self._build_cage_stack_adjust_plan()
@@ -4124,8 +4126,8 @@ class HeavyFork(Fork):
         Trace.log(
             {"event": "cageRecognitionSummary",
              "bottomCount": len(bottom_cages), "topCount": len(top_cages),
-             "bottomCages": [[round(float(v), 3) for v in p] for p in bottom_cages[:2]],
-             "topCages": [[round(float(v), 3) for v in p] for p in top_cages[:2]]},
+             "bottomCages": [[round(float(v), 3) for v in p] for p in bottom_cages],
+             "topCages": [[round(float(v), 3) for v in p] for p in top_cages]},
             output_console=False, name=CH_REC)
 
         if len(bottom_cages) < 2:
