@@ -395,6 +395,38 @@
 
 `fork.motor` 快照统一使用 `forkInPlace`（`forkHeightInPlace` 已删除）。`forkDirection` 无方向时用固定字符串 `idle`，不使用 `None`。
 
+#### 7.2.1 落盘策略：变化触发 + 心跳
+
+`fork.task` 与 `fork.motor` 都是**高频数值快照**，早期实现每 tick 无条件落盘。实车实测（401s）表明绝大多数是重复值：
+
+| 通道 | 条数 | 唯一值 | 重复率 |
+| --- | --- | --- | --- |
+| `fork.motor` | 2781 | 100 | 96% |
+| `fork.task` | 645 | 40 | 94% |
+
+逐字段变化率更能说明问题（`fork.motor`）：`forkHeight` 3.2%、`forkSpeed` 3.7%、`forkMileage` 2.3%，而 `forkInPlace` / `minSafeHeight` 全程不变。
+
+因此两个通道统一改为：**值变化时落盘，另设心跳上限**。心跳必须保留，否则货叉长时间静止时下游看板收不到存活信号。
+
+实现：`Fork._snapshot_due(name, key)`（`fork.py`），每个写入点用独立 `name` 维护 `{上次键, 上次时间}`。
+
+- `_task`：`period_run` 的任务状态快照
+- `_task_actions`：`_execute_actions` 的动作队列快照（与 `_task` 字段不同，字段更多）
+- `_motor`：`period_run` 的货叉电机快照
+
+三个写入点共用同一 helper，但 `name` 不同、互不干扰。心跳间隔 `_SNAPSHOT_HEARTBEAT_SEC = 5.0`。
+
+基于实车 401s 日志回放预估效果：
+
+| 写入点 | 前 | 后 | 降幅 |
+| --- | --- | --- | --- |
+| `fork.motor` 快照 | 792 KB | 48 KB | 94% |
+| `fork.task`（`_execute_actions`） | 136 KB | 10 KB | 93% |
+| `fork.task`（`period_run` 心跳） | 11 KB | 9 KB | 24% |
+| **合计** | **939 KB** | **66 KB** | **93%** |
+
+注意：`forkMoving` / `forkDirection` 由本次 tick 的 `delta` 推导，货叉静止时天然不变，因此“值变化触发”语义上等同于“运动时密集、静止时靠心跳”。
+
 ### 7.3 多电机同步
 
 `RunReachMotorsByPosition` 至少记录：
@@ -517,9 +549,28 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 
 | 层次 | 手段 | 覆盖 | 尚未覆盖 |
 | --- | --- | --- | --- |
-| 静态与单元 | `tools/test_fork_logging.py`（10 项）、`tools/smoke_fork_import.py` | 通道白名单、裸通道、旧通道/旧字段不再出现、facade 行为（只记变化、不静默截断）、未解析名字 | 真实 RBK 交互 |
+| 静态与单元 | `tools/test_fork_logging.py`（11 项）、`tools/smoke_fork_import.py` | 通道白名单、裸通道、旧通道/旧字段不再出现、facade 行为（只记变化、不静默截断、null 语义）、未解析名字、可空字段强转检查 | 真实 RBK 交互 |
 | 仿真实测 | `tests/fork_flow.py`（需在仿真 RBK 上运行） | load / unload / forkHeight / autoPre / 识别注入全流程、`expectStatus` 校验 | 无相机识别、物理到位 DI |
 | 实车 | 见 §10.2 清单 | 真实传感器、电机限位、策略对上游影响 | — |
+
+### 10.1.1 实车落盘实测（2026-10-16）
+
+实车跑通「普通放货 + 识别取货」，按通道统计落盘体积（401s 窗口）：
+
+| 通道 | 条数 | 体积 | 说明 |
+| --- | --- | --- | --- |
+| `fork.motor` | 2788 | 650.7 KB | 已改为变化触发（见 §7.2.1） |
+| `fork.task` | 647 | 116.3 KB | 已改为变化触发 |
+| `fork.cfg` | 11 | 9.8 KB | **全部结构化**，无裸字符串 |
+| `fork.rec` | 21 | 6.1 KB | 识别取货全流程可见 |
+| `fork.taskActions` | 24 | 4.8 KB | |
+| `fork` | 16 | 3.8 KB | 生命周期完整 |
+| `fork.policy` | 4 | 2.5 KB | |
+| `fork.nav` | 4 | 1.3 KB | |
+| `fork.err` | 0 | 0 | 无异常 |
+| **合计** | | **795 KB** | 上一轮同长度窗口为 1.74 MB |
+
+同时确认：`phaseId` 已消失、`fork.*` 各通道字段无空值异常、识别路径的 `recognitionPalletModelResolved` 守卫生效（未再崩溃）。
 
 ### 10.2 实车验证清单
 
@@ -644,4 +695,8 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 8. 本节新增的 `fork.motor` 数值字段（`forkTarget`、`forkMoving`、`forkDirection`、`forkSpeed`、`minSafeHeight`、`loaded`）需要同步修订 [Module 日志记录规范](logging.md) §2.3 的叉车字段表，修订责任人与时间需确认。
 9. `tests/fork_flow.py` 与 `tests/fork_sim_inject.py` 目前只在 `origin/mazj` 分支，需确认是否合并到 `release` 以纳入常规仿真回归。
 10. **通道元数据声明的落地方式待定**。实测确认：SDK `tracecfg.py` 的注册名取自注释块里的 `@NameZh @<通道名>`，与 `Trace.log(name=...)` 的实参无关；但注释块必须紧邻一个含 `Trace.log`/`Trace.chart` 字样的语句才会被扫描。`fork.policy` / `fork.taskActions` / `fork.err` 三个通道全部经 `emit_event` / `emit_policy` / `emit_error` 包装写入，源码中不存在字面量 `Trace.log` 调用点，因此无法就地声明。三种方案待选：(a) 新增纯声明文件（如 `tasks/v3/standard/_trace_channels.py`，运行期不导入，仅函数体内提供注释块）；(b) 就地声明有调用点的 `fork.nav` / `fork.cfg`，其余放声明文件；(c) 只就地声明，放弃这三个通道的 UI 标签。需同时决定：声明文件是否可接受成为 `tasks/` 下的“死文件”（仅构建期使用、运行期永不执行）。
-11. **构建会扫到未启用的 v1 脚本**。实车 `trace.cfg` 仍残留 `fork.script` 条目，来源是 `tasks/standard/fork.py:3300` 的 `@NameZh @fork.script`（v1 版本，已不在 v3 链路上）。`tracecfg.py` 递归扫描整个 `scripts/` 目录且按文件名无关规则全量解析，是否需要在构建侧排除 `tasks/`（v1）或将 v1 声明一并清理，需与 SDK 侧确认。
+11. **构建不会自动清理旧通道元数据（已实测确认）**。`tracecfg.py` 先用 `load_existing()` 读入已有 `bin/release/trace.cfg`，再 `merge_script_entry()` 把新条目 `bucket[name] = ...` 写回——**删除动作只对同名键生效，源码中已不存在、但基线文件里残留的通道会永久存活**。实测：在基准里塞一个假的 `ghost.channel`，构建后仍然存在；实车残留的 `fork.script` 同理（其 `@NameZh @fork.script` 声明早已删除，仓库 `grep` 已为 0）。
+
+    另需注意（先前记录有误）：残留 **不** 是因为构建扫到了 legacy 脚本。`tasks/standard/` 是 `tasks/v3/standard/` 在打包时的提取副本（`build_deb.sh:359` 将 `tasks/v3/*` 映射为 `tasks/*`，去掉 `v3` 一层），不是 v1。
+
+    清理方式待定：(a) 在无 `trace.cfg` 的干净目录上生成（放弃历史条目）；(b) 构建后手动删除已下线通道；(c) 在 `tracecfg.py` 增加“本次未扫到则移除”的开关。需与 SDK 侧确认。

@@ -1132,7 +1132,10 @@ def load_goods_shape(ctx):
             ctx=ctx,
             basePos=[round(float(v), 4) for v in base_pos[:2]],
             entryInRobot=[round(float(v), 4) for v in pallet_entry_in_robot[:2]],
-            palletWidth=round(float(ctx.pallet_width), 4),
+            # pallet_width 来自识别宽度，未启用时保持为 None；
+            # 不要在日志层 float() 强转（None 会抛 TypeError），
+            # emit_event 会将其落成 null，语义即“有该字段但无值”。
+            palletWidth=None if ctx.pallet_width is None else round(float(ctx.pallet_width), 4),
         )
 
     goods_point2robot = []

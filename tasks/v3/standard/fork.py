@@ -78,9 +78,9 @@ SCRIPT_OPTIONS = {
 }
 MOD = "fork"
 
-# fork.task 任务状态快照的落盘策略：状态未变时不重复落盘，
-# 但至少每 _TASK_SNAPSHOT_HEARTBEAT_SEC 秒落一条，避免下游看板长期收不到存活信号。
-_TASK_SNAPSHOT_HEARTBEAT_SEC = 5.0
+# 数值快照的落盘策略：状态未变时不重复落盘（快照 96% 是重复值），
+# 但至少每 _SNAPSHOT_HEARTBEAT_SEC 秒落一条，避免下游看板长期收不到存活信号。
+_SNAPSHOT_HEARTBEAT_SEC = 5.0
 
 
 def _require_param_loader() -> ScriptParam:
@@ -1716,6 +1716,23 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     task_trace_channel = f"{MOD}.task"
     motor_trace_channel = f"{MOD}.motor"
 
+    def _snapshot_due(self, name: str, key: tuple) -> bool:
+        """数值快照落盘判定：值变化或超过心跳间隔时落盘。
+
+        高频快照（`fork.task` / `fork.motor`）在 `period_run` 里每 tick 构造，
+        但实测 96% 以上的值完全重复。改为变化触发可大幅减少体积；
+        心跳保证长期静止时下游仍能收到存活信号。
+        """
+        state = getattr(self, "_snapshot_state", None)
+        if state is None:
+            state = self._snapshot_state = {}
+        prev_key, prev_ts = state.get(name, (None, 0.0))
+        now = time.time()
+        if key != prev_key or now - prev_ts >= _SNAPSHOT_HEARTBEAT_SEC:
+            state[name] = (key, now)
+            return True
+        return False
+
     @classmethod
     def _resolve_runtime_init_options(
             cls,
@@ -1901,9 +1918,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.last_pos = None
         # 上次 fork.motor 快照时间戳与本次 tick 的货叉位移，用于推导 forkSpeed
         self._trace_last_ts = None
-        # fork.task 快照变化触发：记录上次落盘的状态键与时间戳，用于去重与心跳
-        self._last_task_snapshot_key = None
-        self._last_task_trace_ts = 0.0
+        # 数值快照（fork.task / fork.motor）的变化触发状态：{名称: (上次键, 上次时间)}
+        self._snapshot_state = {}
         self._fork_delta_this_tick = 0.0
         self.last_save_ts = time.time()
         self.save_interval = 5
@@ -3437,7 +3453,18 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         task_snapshot["scriptCurrentActionStatus"] = (
             int(self.current_action.action_status) if self.current_action else 0
         )
-        Trace.log(task_snapshot, output_console=False, name=self.task_trace_channel)
+        # 同一快照也会被 period_run 写；此处复用同一套去重，避免动作状态机推进时重复落盘。
+        if self._snapshot_due("_task_actions", (
+            task_snapshot["scriptStatus"],
+            task_snapshot["actionStatus"],
+            task_snapshot["actionIndex"],
+            task_snapshot["actionCount"],
+            task_snapshot["forkAutoFlag"],
+            task_snapshot["scriptTaskLen"],
+            task_snapshot["scriptCurrentAction"],
+            task_snapshot["scriptCurrentActionStatus"],
+        )):
+            Trace.log(task_snapshot, output_console=False, name=self.task_trace_channel)
 
     def motor_jog_or_move(self, motor_type):
         """电机点动或长按操作"""
@@ -3754,8 +3781,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         task_trace_payload["actionIndex"] = int(self.action_id)
         task_trace_payload["actionCount"] = int(self.action_task.total)
         task_trace_payload["forkAutoFlag"] = bool(fork_auto_flag)
-        # fork.task 是任务级状态快照：状态未变时重复落盘无信息量，改为变化触发；
-        # 另设心跳上限，避免长期静止时下游看板收不到存活信号。
+        # fork.task 是任务级状态快照：状态未变时重复落盘无信息量，改为变化触发
+        # （带心跳）。写入点与字段说明见 §7.2。
         task_snapshot_key = (
             task_trace_payload["scriptStatus"],
             task_trace_payload["actionStatus"],
@@ -3763,9 +3790,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             task_trace_payload["actionCount"],
             task_trace_payload["forkAutoFlag"],
         )
-        now_task_ts = time.time()
-        if (task_snapshot_key != self._last_task_snapshot_key
-                or now_task_ts - self._last_task_trace_ts >= _TASK_SNAPSHOT_HEARTBEAT_SEC):
+        if self._snapshot_due("_task", task_snapshot_key):
             """
             @NameZh @fork.task 叉车任务执行状态
             @NameEn @fork.task fork task execution status
@@ -3786,8 +3811,6 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             @BooleanType @forkAutoFlag
             """
             Trace.log(task_trace_payload, output_console=False, name=self.task_trace_channel)
-            self._last_task_snapshot_key = task_snapshot_key
-            self._last_task_trace_ts = now_task_ts
 
         motor_trace_payload = self.motor_trace_payload
         motor_trace_payload["forkHeight"] = float(fork_height)
@@ -3806,6 +3829,18 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         motor_trace_payload["forkMileageUp"] = float(self.up_dist)
         motor_trace_payload["forkMileageDown"] = float(self.down_dist)
         motor_trace_payload["minSafeHeight"] = float(self.min_safe_height)
+        # fork.motor 同属数值快照：实测 2781 条中仅 100 个唯一值（96% 重复），
+        # 改为变化触发。forkMoving/forkDirection 由 delta 推导，货叉静止时天然不变。
+        motor_snapshot_key = (
+            motor_trace_payload["forkHeight"],
+            motor_trace_payload["forkInPlace"],
+            motor_trace_payload["forkMoving"],
+            motor_trace_payload["forkDirection"],
+            motor_trace_payload["forkMileage"],
+            motor_trace_payload["forkMileageUp"],
+            motor_trace_payload["forkMileageDown"],
+            motor_trace_payload["minSafeHeight"],
+        )
         """
         @NameZh @fork.motor 叉车货叉电机状态
         @NameEn @fork.motor fork motor status
@@ -3843,8 +3878,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         @NumberType @minSafeHeight
         @Unit @minSafeHeight m
         """
-        Trace.log(motor_trace_payload, output_console=False, name=self.motor_trace_channel)
-
+        if self._snapshot_due("_motor", motor_snapshot_key):
+            Trace.log(motor_trace_payload, output_console=False, name=self.motor_trace_channel)
         # 写modbus寄存器
         modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
         NetProtocol.setModbusData("3x", 57, modbus_list_fork_height)
