@@ -34,6 +34,7 @@ references/
   tracing.md                  # insightd / ptcat / 证据固化
   mf-script-rpc.md            # MoveFactory <-> PyIDE <-> syspy RPC 链路
   script-debugging.md         # 脚本/电机/fork/容器排查
+  fork-channels.md            # 叉车脚本通道映射：症状 -> 通道，关联字段与陷阱
   message-latency.md          # DI/传感器/消息延迟测量
   standalone-probes.md        # 不经 MF/PyIDE，用 python3 直接跑脚本探测
   http-api.md                 # RBK HTTP OpenAPI MCP 工作流

@@ -41,6 +41,9 @@ For coupled motors, issue both commands in one action lifecycle, compare their p
 
 ## Fork and Container Lifecycle
 
+For symptom → channel routing and the fork channel map (load/unload, fork motor, policy,
+recognition), see [fork-channels.md](fork-channels.md).
+
 Treat two concepts separately:
 
 - `Container`: logical cargo ownership and persisted load/unload state.
@@ -57,6 +60,12 @@ On successful unload completion:
 2. Let the container implementation clear the goods shape when no containers remain loaded.
 
 Use `Container.hasGoods("0")` for load/unload preconditions, loaded speed limits, and cargo DI decisions. Capture `Navigation.hasGoods()` only as a separate diagnostic signal. They can disagree in either direction and can change asynchronously; never derive one from the other in a test report.
+
+A specific contradictory state to recognize: `Navigation.hasGoods()=True` together with
+`Container.hasGoods("0")=False` and an empty `Container.getContainers()`. Seen in
+simulation after an aborted task. `load` cases then fail in ~0.2 s with
+`hasGoods True->True`. **Reproduce on the unmodified revision before attributing it to a
+code change** — the failure signature is identical.
 
 When comparing them, record values before submission, during the task, at terminal state, and after a short bounded settle window. A mismatch may be an RBK consistency defect, but first rule out that the script updates only one lifecycle.
 

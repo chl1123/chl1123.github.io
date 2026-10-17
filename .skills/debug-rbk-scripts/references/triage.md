@@ -119,13 +119,18 @@ For a script-defined channel such as `fork`, `actions`, `elevator`, or `loc_angl
 filter by that channel name inside the same category instead of by `Rc`/`Rs`:
 
 ```bash
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'fork\.task'  trace.pft.zst
-ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n 'fork\.motor' trace.pft.zst
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.task$'  trace.pft.zst
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.motor$' trace.pft.zst
 ```
 
 The channel name is whatever the script passed to `Trace.log(..., name=...)`; discover it
-first with `ptcat -c stat` over a narrow window, then query the exact name. Known channels
-shipped in `trace.cfg`: `fork.rec`, `fork.script`, `fork.task`, `fork.motor`.
+first with `ptcat -c stat` over a narrow window, then query the exact name. Fork's fixed
+channel set and its symptom routing are documented in [fork-channels.md](fork-channels.md).
+
+Known fork channels: `fork`, `fork.task`, `fork.taskActions`, `fork.motor`, `fork.nav`,
+`fork.policy`, `fork.rec`, `fork.cfg`, `fork.err`. (`fork.script` and `fork.action` were
+removed in the RBK 3.5 logging refactor; a stale entry may still linger in `trace.cfg`
+because its generator merges into the existing file and never deletes.)
 
 ### Navigation and movement
 
@@ -250,6 +255,7 @@ Pick the row, then follow the linked path. Do this before reading source.
 | Robot pose wrong / jumps / low confidence | `rbk.loc.MCLoc` | [tracing.md](tracing.md) |
 | Wrong map / map switch fails | `rbk.loc.BlockMapLoader` | [tracing.md](tracing.md) |
 | Motor not moving / wrong config | `rbk.device.DSPChassis/motorInfo` | [script-debugging.md](script-debugging.md) |
+| **Fork** load/unload, fork height, policy, recognition | `fork.*` channels | [fork-channels.md](fork-channels.md) |
 | Sensor / DI / DO wrong | `rbk.device.DSPChassis/messageDI`, `distanceInfo` | [message-latency.md](message-latency.md) |
 | Message/DI latency | publisher edge vs reader return | [message-latency.md](message-latency.md) |
 | Sensor/model config wrong | `resources` bundle | This file, "Resource bundle" |

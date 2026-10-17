@@ -42,6 +42,7 @@ Full detail and examples in [references/triage.md](references/triage.md).
 | --- | --- |
 | Script logic, script dispatch, RPC client/server | `rbk.script.utils_rpc` / `Rc`, `RcError`, `Rs`, `RsError` |
 | Script-defined channels (fork, actions, elevator, ...) | `rbk.script.utils_rpc` / `<channel name>` |
+| **Fork** script (load/unload, fork motor, policy, recognition) | see [references/fork-channels.md](references/fork-channels.md) — `fork`, `fork.task`, `fork.motor`, `fork.nav`, `fork.policy`, `fork.rec`, `fork.cfg`, `fork.err`, `fork.taskActions` |
 | Navigation, action planning, stuck `/navigate` | `rbk.nav.MoveFactory` |
 | Pose, drift, confidence, `locMethod` | `rbk.loc.MCLoc` |
 | Map load / switch | `rbk.loc.BlockMapLoader` / `changeMap` |
@@ -69,7 +70,8 @@ discovery command). If it is unavailable, ask the reporter for their SDK path or
 10. During iterative debugging, read the active trace with `ptcat`. When durable evidence is needed, collect the test report, console output, task IDs, status transitions, and an immediately finalized trace. Read [references/tracing.md](references/tracing.md), or run `scripts/collect-rbk-evidence.sh`.
 11. To isolate a script-side or syspy defect, or to verify a syspy change, run the script directly against the live RBK with plain `python3` instead of going through MF/PyIDE. Read [references/standalone-probes.md](references/standalone-probes.md) first: it covers the `SCRIPTS_DIR` path trap that makes `cd <scripts dir> && python3 x.py` fail on symlinked installations, the minimal probe skeleton, and how to read the resulting channel from the trace.
 12. For DI, sensor, SDK-message, or ZMQ latency, read [references/message-latency.md](references/message-latency.md). Separate publisher-to-reader visibility, API-call duration, action response, and task cleanup before assigning a cause.
-13. Restore temporary defect-reproduction patches. Run `py_compile`, `git diff --check`, targeted tests, and a final state query.
+13. For the **fork** script (load/unload, fork height, motor commands, obstacle-stop policy, recognition), read [references/fork-channels.md](references/fork-channels.md). Fork is high-frequency and writes nine fixed channels; that reference maps symptom → channel and lists the correlation fields (`taskId` / `phase` / `actionId`) that join an action across channels.
+14. Restore temporary defect-reproduction patches. Run `py_compile`, `git diff --check`, targeted tests, and a final state query.
 
 ## Reporting a Finding
 
