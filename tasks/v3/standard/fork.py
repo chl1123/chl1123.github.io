@@ -89,6 +89,31 @@ def _require_param_loader() -> ScriptParam:
     return param_loader
 
 
+def _decode_script_args_param(move_task) -> dict:
+    """把 moveTask.params 里的 scriptArgs 字符串参数解成对象。
+
+    平台把脚本参数以 `{"key":"scriptArgs","stringValue":"{...}"}` 形式塞在
+    params 数组里，值是二次转义的 JSON。直接落盘读者需要手工再解析一次，
+    因此额外提供解开后的 `rawScriptArgs`。解析失败时返回原字符串，不丢信息。
+    """
+    if not isinstance(move_task, dict):
+        return {}
+    for param in move_task.get("params") or []:
+        if not isinstance(param, dict) or param.get("key") != "scriptArgs":
+            continue
+        raw = param.get("stringValue")
+        if raw is None:
+            return {}
+        if isinstance(raw, dict):
+            return raw
+        try:
+            decoded = json.loads(raw)
+        except (TypeError, ValueError):
+            return {"raw": str(raw), "decoded": False}
+        return decoded if isinstance(decoded, dict) else {"raw": decoded, "decoded": True}
+    return {}
+
+
 def _run_script_hook(name, *args):
     hook = SCRIPT_OPTIONS.get(name)
     if callable(hook):
@@ -2143,17 +2168,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def _validate_task_args(self, input_params, validator):
         if not input_params:
             return None
-        # 只记录输入键名，不落盘原始大对象；值摘要由后续 normalized 事件给出。
+        # 任务参数是小型扁平对象（实车实测 9~17 个标量键），完整落盘以复原现场输入；
+        # 参见 docs/guide/spec/fork_logging.md §3.2「摘要与完整值同时落盘」。
         emit_event(
             "scriptArgsReceived",
             ctx=self,
             argKeys=sorted(str(k) for k in input_params),
             operation=str(input_params.get("operation", "") or ""),
+            rawArgs=dict(input_params),
         )
         try:
             validated_args = validator.validate(input_params)
         except ValueError as exc:
-            emit_error("InvalidInputParams", exc, ctx=self)
+            emit_error("InvalidInputParams", exc, ctx=self, rawArgs=dict(input_params))
             Navigation.setTaskError(
                 "InvalidInputParams",
                 f"invalid input params: {exc}",
@@ -2165,6 +2192,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             "scriptArgsValidated",
             ctx=self,
             argKeys=sorted(str(k) for k in validated_args),
+            validatedArgs=dict(validated_args),
         )
         return validated_args
 
@@ -3643,6 +3671,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             0.0
         )
         # 平台下发的完整 move_task 体积大且包含无关字段，只落盘关键摘要。
+        # scriptArgs 在 moveTask.params 里是二次转义的 JSON 字符串，
+        # 这里额外解开成对象，避免读者手工二次解析（见 §3.2）。
         Trace.log(
             {"event": "executionParametersResolved", "skillName": str(self.move_task.get("skillName", "")),
              "sourceName": str(self.move_task.get("sourceName", "")),
@@ -3653,6 +3683,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
              "obsExpansion": self.move_task.get("obsExpansion"),
              "paramKeys": sorted(str(p.get("key", "")) for p in self.move_task.get("params", [])),
              "minSafeHeight": float(self.min_safe_height),
+             "rawScriptArgs": _decode_script_args_param(self.move_task),
              "moveTask": self.move_task},
             output_console=False, name=CH_TASK)
 

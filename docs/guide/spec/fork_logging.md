@@ -473,14 +473,21 @@
 
 `_init_args()` 分三次记录，不揉成一条：
 
-1. `taskArgsReceived`：输入键名与小型值摘要，必要时标记来源。
-2. `taskArgsNormalized`：默认值、类型转换、限幅后的关键参数。
-3. `executionParametersResolved`：最终传给 action 的目标位置、速度、timeout、stopDi、识别和安全策略。
+1. `scriptArgsReceived`：**输入键名 + `rawArgs` 完整原始值**（MF 下发了什么）。
+2. `scriptArgsValidated`：**键名 + `validatedArgs`**（validator 展开、类型转换后的结果）。
+3. `scriptArgsNormalized`：默认值、限幅、推导后的关键参数（脚本最终用的是什么）。
+4. `executionParametersResolved`：最终传给 action 的目标位置、速度、timeout、stopDi、识别和安全策略，并附 `rawScriptArgs`。
+
+**为什么要落值而不只落键名**：只记 `argKeys` 时，无法对账「MF 下发了什么」与「脚本理解成什么」。典型场景：上报 `endHeight=0.1`、`scriptArgsNormalized` 显示 `0.5`，只靠键名无从判断是平台发错、校验改错、还是归一化覆盖。三份值全落盘才能定位断在哪一环。
+
+任务参数是小型扁平对象（实车实测 9~17 个标量键），不属于大字段，应完整落盘。
+
+`executionParametersResolved` 的 `rawScriptArgs` 来自 `moveTask.params` 里的 `scriptArgs` 字符串参数。平台把它以 `{"key":"scriptArgs","stringValue":"{...}"}` 形式存放，值是**二次转义的 JSON**，直接落盘需要读者手工再解析一次。因此额外提供解开后的对象；解析失败时保留原文字符串并标 `decoded: false`，不静默丢信息。
 
 敏感与大字段规则：
 
 - `recfile`、站点名、operation 可记录。
-- 完整 `move_task`、完整 config、完整 shape、完整容器数组不得放入普通事件。
+- 完整 `move_task`、完整 config、完整 shape、完整容器数组不得放入普通事件（`moveTask` 已在 `executionParametersResolved` 中完整落盘，其余事件不得重复携带）。
 - 对象过大时记录 `fieldCount`、`keys`、`digest` 和必要摘要。
 
 ## 9. 实现建议
@@ -626,77 +633,238 @@ def emit_error(error_code, reason, *, ctx=None, channel="fork.err", **fields):
 8. `_fork_configure_motion()`、`_fork_before_reach_check()`、`_fork_after_reached()`：统一 DO、timeout、limit DI 与货叉完成事件。
 9. `period_run()`：保留高频数值通道，补充稳定字段，去除不必要文本；把叉车累计计数从 `fork.motor` 迁出。
 10. `LiveRec` 系列动作：补齐 7 处裸通道 `name`，识别结果只保留摘要。
+## 12. 排查手册：按通道定位问题
 
-## 12. 验收标准
+本节说明现场排查叉车问题时如何按通道名与字段过滤。适用 RBK 3.5.x / 3.6.x。
 
-### 通道
+### 12.1 为什么必须按通道查
 
-- [ ] 新增日志全部使用固定通道，无拼接 `taskId` / `actionId` / 时间戳的动态通道名。
-- [ ] Action 队列只使用 `fork.taskActions`；`fork.action` 不再有任何写入。
-- [ ] `fork.script` 不再有任何写入。
-- [ ] 无未指定 `name` 的 `Trace.log` 调用。
-- [ ] 业务事件、数值快照、Action 协议、错误事件、策略事件互不混用。
+叉车是高频脚本：`period_run()` 约 0.1 s 一跳，单个 load/unload 任务产生数千条记录。实车 401 秒窗口里 `fork.motor` 有 2788 条。**对整条 trace 做文本 grep 基本无效**，必须靠稳定的通道名定位。
 
-### 生命周期
+每条记录都带通道名，结构化事件还带公共上下文（`taskId` / `operation` / `phase` / `actionId` / `actionType`），可以直接按需切片。
 
-- [ ] 每个任务可还原 `scriptStarted → phaseChanged → action events → script terminal`。
-- [ ] 每个 Action 的 start / terminal 和 `elapsedMs` 可关联。
-- [ ] 每次 operation 批次推进可定位 phase、batch index 和 action 列表。
-- [ ] suspend / resume / cancel / timeout 都能定位当前 action 和原因。
+```bash
+# 单个通道、单个时间窗。这是最主要的动作。
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.policy$' -c log trace.pft.zst
 
-### 策略
+# 先摸清窗口里有哪些 fork 通道，再决定查哪个
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork' -c log trace.pft.zst \
+  | sed 's/.*\]: //' | jq -r '.event // "(数值快照)"' | sort | uniq -c | sort -rn
+```
 
-- [ ] 每次策略下发、恢复、清除都有 `fork.policy` 事件，含 `policyName`、`trigger`、`changedKeys`、`before`、`after`。
-- [ ] 策略事件含三层值来源，可区分脚本意图值、RBK 生效值与平台默认值。
-- [ ] 同一 `policyName` 且值未变化时不重复落盘。
-- [ ] `resetPath=true` 的策略事件与路径重置时间戳可对上。
+`ptcat -n` 是**非锚定的正则子串匹配**：`-n 'fork'` 会同时命中 `fork.task`、`fork.motor` 等。需要单个通道时用 `^fork\.nav$` 锚定。
 
-### 电机
+### 12.2 通道地图
 
-- [ ] 每次有效电机命令有 `motorCommanded`。
-- [ ] 每次结束、失败、取消和超时都有明确 `stopReason`。
-- [ ] 电机事件含 start / target / actual / `elapsedMs`，数值快照不产生重复文本。
-- [ ] 多电机不同步能看到各电机位置、差值与阈值。
+| 通道 | 类型 | 能回答什么 | 何时写入 |
+| --- | --- | --- | --- |
+| `fork` | 事件 | 脚本是否启动、参数是否收到、是否失败/取消 | 生命周期每次变化 |
+| `fork.task` | 数值快照 | 任务级状态：`scriptStatus`、`actionStatus`、`actionIndex`、`actionCount`、当前动作 | 值变化 + 5 s 心跳 |
+| `fork.taskActions` | 事件协议 | 动作队列：`taskBuild`、`actionStateChanged`、`taskFinished`、`taskFailed`（含 `failedAt`） | 队列/动作状态变化 |
+| `fork.motor` | 事件 + 数值 | 电机命令、到位、失败、货叉高度/方向/速度/里程 | 值变化 + 5 s 心跳 |
+| `fork.nav` | 事件 | 路径下发、目标解析、终段进入、碰撞设备、路点 | 每个导航动作 |
+| `fork.policy` | 事件 | 避障策略改了哪些键、`before`/`after`、`resetPath` | 策略值真正变化时 |
+| `fork.rec` | 事件 | 识别区域、进度、孔位、目标计算、接受/拒绝 | 每次识别尝试 |
+| `fork.cfg` | 事件 | 配置加载、设备模型、叉尖激光、扣取区域 | 每次配置加载 |
+| `fork.err` | 事件 | `errorCode` + `reason`：超时、DI 触发、解析失败 | 出错时 |
 
-### 参数
+两个数值通道（`fork.task` / `fork.motor`）**没有 `event` 字段**，且按值去重。叉子静止时记录稀疏是正常现象，不是日志故障。
 
-- [ ] 能区分 received、normalized、resolved 三类参数。
-- [ ] 所有执行目标与速度都有单位和稳定字段。
-- [ ] 普通日志不包含完整 config、点云、完整识别结果或大容器对象。
+### 12.3 第一步：按 taskId 圈出任务
 
-### 质量
+所有结构化事件都带 `taskId`。先用它把范围缩小到一个任务。
 
-- [ ] `py_compile` 通过。
-- [ ] `git diff --check` 通过。
-- [ ] 现有叉车 flow tests 全部通过。
-- [ ] 新增日志协议测试验证事件顺序、字段类型和终态唯一性。
-- [ ] 至少完成一次真实或仿真任务的 trace 回放，并能按 `taskId` 还原全过程，包含一次策略变更的完整对账。
+```bash
+B='20261016.18:02:00'; E='20261016.18:05:00'
+TASK='RunScript-c871f1a0'
 
-## 13. 待确认事项
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork' -c log trace.pft.zst \
+  | sed 's/.*\]: //' \
+  | jq -c --arg t "$TASK" 'select(.taskId==$t and .event) | {event,actionId}' \
+  | head -8
+```
 
-### 已裁定（本轮）
+输出形如：
 
-| 项 | 结论 |
+```json
+{"event":"scriptArgsReceived","actionId":""}
+{"event":"scriptStatusChanged","actionId":""}
+{"event":"scriptStarted","actionId":""}
+{"event":"recSideInfoResolved","actionId":""}
+```
+
+`select(.event)` 用来滤掉数值快照，只看发生过的状态变化——这是最有效的一步，能把数千条压到几十条。
+
+### 12.4 第二步：按通道分层看
+
+#### 参数没生效 / 值被改写
+
+三层参数依次落盘，能定位断在哪一环：
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork$' -c log trace.pft.zst \
+  | sed 's/.*\]: //' \
+  | jq -c 'select(.event|test("scriptArgs")) | {event,rawArgs,validatedArgs}'
+```
+
+- `scriptArgsReceived.rawArgs` —— **MF 实际下发了什么**（原始扁平键，如 `operation.load.endHeight`）
+- `scriptArgsValidated.validatedArgs` —— validator 展开/类型转换后的结果（多了顶层 `endHeight` 等）
+- `scriptArgsNormalized` —— 默认值、限幅、推导后的最终值
+
+三者对比即可定位：
+
+| 现象 | 说明 |
 | --- | --- |
-| `fork.task` 的 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount` | **保留**，下游表单与看板仍在消费 |
-| `fork.script` | **已删除**，其字段并入 `fork.task`（`scriptTaskLen` / `scriptCurrentAction` / `scriptCurrentActionStatus`） |
-| `forkHeightInPlace` | **已删除**，统一用 `forkInPlace`；`reportInfo` 的对外字段不改 |
-| 大数组打印 | **落盘保留完整**，仅用 `output_console=False` 静默终端；超限时显式标注 `truncated` / `totalCount` |
+| `rawArgs` 就没有该键 | 平台侧下发缺失 |
+| `rawArgs` 有但 `validatedArgs` 变了 | 校验层展开或转换有误 |
+| `validatedArgs` 有但 `normalized` 变了 | 归一化覆盖了上报值（如限幅、默认值） |
+| 三者一致但与实际行为不符 | 问题在参数使用层，不在解析链 |
 
-### 仍待确认
+`executionParametersResolved` 另有 `rawScriptArgs` 字段，是 `moveTask.params.scriptArgs` 解开后的对象（平台以二次转义 JSON 字符串下发）。若解析失败会保留原文并标 `decoded: false`。
 
-1. `fork.taskActions` 当前是否已被部署环境消费，还是仅消费旧 `fork.action`。
-2. 是否允许在 v3 脚本中直接采用 logging spec 的 v4 Action wire 字段，还是需要适配层。
-3. 任务 ID 是否始终来自 `Module.getTaskId()`，以及脚本被 MF `RunScript` 调用时的关联规则。
-4. 电机实时位置采样周期与最大 trace 体积要求（截断上限 `_TRACE_MAX_SEQ=256` 需与实际 trace 体积权衡确认）。
-5. `Navigation`、`Motor`、`Container` 查询失败时，错误日志归属 SDK 层还是脚本层。
-6. `Navigation.appendCustomPolicy` 是否幂等；同名策略反复下发的覆盖语义如何定义；是否需要按车型或动作隔离策略名。
-7. 策略值的"RBK 当前生效值"通过 `RobotParam.getConfig` 读取是否存在延迟或缓存，能否作为 `before` 的可靠来源。
-8. 本节新增的 `fork.motor` 数值字段（`forkTarget`、`forkMoving`、`forkDirection`、`forkSpeed`、`minSafeHeight`、`loaded`）需要同步修订 [Module 日志记录规范](logging.md) §2.3 的叉车字段表，修订责任人与时间需确认。
-9. `tests/fork_flow.py` 与 `tests/fork_sim_inject.py` 目前只在 `origin/mazj` 分支，需确认是否合并到 `release` 以纳入常规仿真回归。
-10. **通道元数据声明的落地方式待定**。实测确认：SDK `tracecfg.py` 的注册名取自注释块里的 `@NameZh @<通道名>`，与 `Trace.log(name=...)` 的实参无关；但注释块必须紧邻一个含 `Trace.log`/`Trace.chart` 字样的语句才会被扫描。`fork.policy` / `fork.taskActions` / `fork.err` 三个通道全部经 `emit_event` / `emit_policy` / `emit_error` 包装写入，源码中不存在字面量 `Trace.log` 调用点，因此无法就地声明。三种方案待选：(a) 新增纯声明文件（如 `tasks/v3/standard/_trace_channels.py`，运行期不导入，仅函数体内提供注释块）；(b) 就地声明有调用点的 `fork.nav` / `fork.cfg`，其余放声明文件；(c) 只就地声明，放弃这三个通道的 UI 标签。需同时决定：声明文件是否可接受成为 `tasks/` 下的“死文件”（仅构建期使用、运行期永不执行）。
-11. **构建不会自动清理旧通道元数据（已实测确认）**。`tracecfg.py` 先用 `load_existing()` 读入已有 `bin/release/trace.cfg`，再 `merge_script_entry()` 把新条目 `bucket[name] = ...` 写回——**删除动作只对同名键生效，源码中已不存在、但基线文件里残留的通道会永久存活**。实测：在基准里塞一个假的 `ghost.channel`，构建后仍然存在；实车残留的 `fork.script` 同理（其 `@NameZh @fork.script` 声明早已删除，仓库 `grep` 已为 0）。
+#### 任务没起来 / 参数不对
 
-    另需注意（先前记录有误）：残留 **不** 是因为构建扫到了 legacy 脚本。`tasks/standard/` 是 `tasks/v3/standard/` 在打包时的提取副本（`build_deb.sh:359` 将 `tasks/v3/*` 映射为 `tasks/*`，去掉 `v3` 一层），不是 v1。
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork$' -c log trace.pft.zst
+```
 
-    清理方式待定：(a) 在无 `trace.cfg` 的干净目录上生成（放弃历史条目）；(b) 构建后手动删除已下线通道；(c) 在 `tracecfg.py` 增加“本次未扫到则移除”的开关。需与 SDK 侧确认。
+看四个事件是否依次出现：`scriptArgsReceived` → `scriptArgsValidated` → `scriptArgsNormalized` → `scriptStarted`。哪一步断了就是哪一步的问题。
+
+- 只有 `Received` 没有 `Validated` → 参数校验失败，同步查 `fork.err` 的 `InvalidInputParams`
+- 有 `Validated` 没有 `Started` → 任务未真正启动
+
+`scriptArgsNormalized` 会落盘归一化后的实际值，可与上报值对照确认脚本是否理解正确。
+
+#### 脚本失败 / 取消
+
+```bash
+# 谁失败的、为什么
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.taskActions$' -c log trace.pft.zst \
+  | grep -E 'taskFailed|"status":"failed"'
+
+# 错误码与原因
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.err$' -c log trace.pft.zst
+```
+
+`taskFailed` 直接给出答案，`failedAt` 是失败动作的完整 `actionId`，**不需要自己猜**：
+
+```json
+{"event":"taskFailed","failedAt":"RecPalletSelect-82297110","reason":"cancelled","total":2,"taskId":"RunScript-e6b11d89"}
+```
+
+#### 货叉不动 / 高度不对
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.motor$' -c log trace.pft.zst \
+  | sed 's/.*\]: //' \
+  | jq -c 'select(.event) | {event,motor,targetPosition,actualPosition,stopReason,delta}'
+```
+
+先看配对：有 `motorCommanded` 就应有对应的 `motorReached` 或 `motorFailed`。只有前者没有后者，说明卡在运动过程中。
+
+`stopReason` 区分「设计内停止」与「需要排查」：
+
+| stopReason | 含义 | 是否正常 |
+| --- | --- | --- |
+| `positionReached` | 到达目标位置 | 正常 |
+| `alreadyInPlace` | 已在容差内，未下发运动 | 正常 |
+| `stopDi` | 停在停止 DI（接触）上 | 接触式流程正常 |
+| `targetIsMidHeight` | 目标落在层间 | 查任务参数 |
+| `noMove` | 下发了但没动 | **要查** |
+| `timeout` | 超过 `ForkMoveTimeout` | **要查** |
+| `cancelled` | 任务取消 | 看上下文 |
+
+#### 意外阻挡 / 车停下了
+
+先看脚本刚下发了什么策略：
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.policy$' -c log trace.pft.zst \
+  | sed 's/.*\]: //' \
+  | jq -c '{k:.changedKeys,b:.before,a:.after}'
+```
+
+例如：
+
+```json
+{"k":["navigation.obstacleStop.obsStopUnload.obsStopDist"],"b":{"...obsStopDist":1},"a":{"...obsStopDist":0.1}}
+```
+
+这说明车停下是因为**脚本主动把停车距离从 1 m 收窄到 0.1 m**，而不是环境突变。`fork.policy` 出现之前，这个结论只能从一句自由文本里猜。
+
+再对照 RBK 侧的阻挡事件（`rbk.nav.MoveFactory`）确认触发设备与距离读数。
+
+#### 识别不对 / 没识别到
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.rec$' -c log trace.pft.zst
+```
+
+关注 `recognitionRegionSet`（识别区域）、`recognitionProgress`（进度）、`recognitionTargetComputed`（目标坐标与角度）、`recognitionAccepted`（接受的结果）。
+
+#### 机器人行为异常但没有报错
+
+先看配置是否加载正确：
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork\.cfg$' -c log trace.pft.zst
+```
+
+重点：`moduleInstallResolved`（安装偏航、取货方向、底盘类型）、`moduleMotorBuilt`（电机数）、`forkTipLaserConfigured`（叉尖激光列表、检测宽度）。
+
+### 12.5 第三步：按 actionId 串起一个动作
+
+这是最有价值的一步。同一个 `actionId` 会散落在多个通道里：
+
+```
+fork.nav          navigationCommanded   actionId=GoPathWithContactDi-3767b80e   ← 下发了路径
+fork.policy       policyApplied         actionId=GoPathWithContactDi-3767b80e   ← 改了停车阈值
+fork.motor        motorCommanded        actionId=upFork-50ee7fea                ← 电机动作
+fork.taskActions  actionStateChanged    actionId=...                            ← 状态流转
+```
+
+```bash
+ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork' -c log trace.pft.zst \
+  | grep 'GoPathWithContactDi-3767b80e'
+```
+
+这样就能回答「这个动作下发了什么 → 途中改了哪些策略 → 电机做了什么 → 最后什么状态」。
+
+### 12.6 陷阱清单
+
+- **空 `phase` 是正常的**。生命周期、配置加载、参数校验类事件没有动作上下文，`phase` 为空，不是缺陷。
+- **`fork.task` / `fork.motor` 安静是正常的**。它们是变化触发的，静止时只靠心跳。
+- **`_droppedFields` 不等于数据被删**。它只统计不可序列化的值；`None` 会落成 `null`，表示「有该字段但无值」。
+- **`trace.cfg` 里没有某通道，不代表它没在写**。经 `emit_event` 包装的通道在源码里没有字面量 `Trace.log` 调用点，SDK 静态扫描器识别不到。
+- **`trace.cfg` 会保留已下线通道**。它「读旧文件 + 合并新条目」，从不删除；源码里已删除的 `fork.script` 仍会出现在构建产物中。
+- **生产路径是 `tasks/standard/`**。打包时从 `tasks/v3/` 剥离 `v3` 层级生成，只改 `tasks/v3/` 不会影响实车。
+- **`recHeight` 不是目标高度**。前移车上它是识别层的筛选窗口（容差 ±0.2 m），最终取货高度由识别 z + `zOffset` 决定。
+
+### 12.7 两个易混淆的状态
+
+#### `Navigation.hasGoods()` vs `Container.hasGoods()`
+
+两者不等价，必须都取：
+
+```bash
+python3 -c "
+from syspy import Container, Navigation
+print('Navigation:', Navigation.hasGoods())
+print('Container(0):', Container.hasGoods('0'))
+print('containers:', Container.getContainers())
+"
+```
+
+`Navigation=True` + `Container=False` + `containers=[]` 是仿真里出现过的矛盾态（任务中止后残留），会让后续 `load` 用例在 0.2 s 内失败。遇到这种快速失败，**先在不改动的版本上复现**，签名一致就说明与代码改动无关。
+
+#### `actualPosition` 可能是陈旧值
+
+`motorReached` 的 `actualPosition` 取自 `cur_fork_height`，该字段在 `_start_motion()` 后不再刷新。因此可能出现 `targetPosition=0.1628`、`delta=0.0008`、但 `actualPosition=0.088` 的矛盾——**真实位置应使用 `targetPosition - delta` 反推**，不要直接信 `actualPosition`。
+
+### 12.8 遗留的工程项
+
+以下不阻塞排查，但影响排查体验，记录在此备查：
+
+1. **5 个新通道在 `trace.cfg` 中缺少中文标签**。`fork.policy` / `fork.nav` / `fork.err` / `fork.cfg` / `fork.taskActions` 经 `emit_event` 包装写入，源码中没有字面量 `Trace.log` 调用点，SDK 的 `tracecfg.py` 静态扫描无法识别。落地方式待选：(a) 新增纯声明文件（仅构建期扫描，运行期不导入）；(b) 就地声明有调用点的 `fork.nav` / `fork.cfg`，其余放声明文件；(c) 只做就地声明，放弃这三个通道的 UI 标签。
+2. **构建不会清理已下线通道元数据**。`tracecfg.py` 先 `load_existing()` 读入旧文件，再 `merge_script_entry()` 合并，删除只对同名键生效。实测：在基准里塞入假通道 `ghost.channel`，构建后仍存在。清理方式待选：(a) 在干净目录生成；(b) 构建后手动删除；(c) 给 `tracecfg.py` 增加「本次未扫到则移除」开关。
+3. **`actualPosition` 陈旧值**（见 12.7）。建议改为运动中取每 tick 的 `cur_position`。
