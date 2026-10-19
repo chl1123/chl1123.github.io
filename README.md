@@ -4,7 +4,7 @@
 
 这个仓库包含两类核心内容：
 
-- `syspy/`：机器人 Python SDK（统一接口 + RBK3/RBK4 版本适配 当前版本为3.5.X）。
+- `syspy/`：机器人 Python SDK（统一接口 + RBK3/RBK4 版本适配；当前主线为 3.5.X，同一 release 分支同时支持 3.5 与 3.6，见 3.2）。
 - `tasks/`：任务脚本（以 `tasks/v3/standard/` 为主，含示例、标定、业务模块）。
 
 可以把它理解为：
@@ -21,11 +21,17 @@
 - `syspy/lib/action_task.py`：Action 队列调度器（`ActionBase` / `ActionStatus` / `ActionTask`），按 VDA5050 §6.8/§6.11/§6.12 风格调度并产出结构化事件流（`taskBuild` / `actionStateChanged` / `taskFinished` / `taskFailed`）。
 - `syspy/lib/robot.py`：机器人参数与系统错误接口（`RobotParam` / `RobotError`），提供配置/设备参数读取、碰撞检测模型获取、系统错误管理。
 - `syspy/lib/trace.py`：统一日志接口（`Trace.log`），已取代 `Trace.chart`。
+- `syspy/auto_pre.py`：智能取消（AutoPre）接口，见 3.6。
+- `syspy/utils/__init__.py`：`ChassisType` 底盘类型枚举与 `OMNI_CHASSIS_TYPES`，见 3.7。
 - `docs/guide/spec/logging.md`：日志与队列事件落盘规范（`Trace.log` / `Module.reportInfo` / Action 队列协议）。新增脚本必须遵循此规范。
+- `docs/guide/spec/fork_logging.md`：叉车脚本日志协议（`fork.policy` / `fork.motor` 等通道与事件定义）。
+- `docs/guide/spec/parameter_naming.md`：参数命名规范。
 - `syspy/utils/param_server.py`：参数系统（配置参数、输入参数、动作模板含 `stage` 字段、参数校验）。
 - `tasks/v3/standard/example/`：脚本模板与参数示例（建议从 `template.py` 开始）。
 - `tasks/v3/standard/module/`：复杂业务脚本（如 `jack.py`，使用动作链编排）。
 - `tasks/v3/standard/calib/`：标定脚本，偏"单任务小状态机"写法。
+- `.skills/debug-rbk-scripts/`：排障手册与脚本（时间窗口优先 + 症状到通道路由），见第 10 章。
+- `tests/`：接口回归测试套件，见第 9 章。
 
 ## 3. SDK 开发范式（`syspy`）
 
@@ -44,6 +50,36 @@ from syspy import Navigation, Loc, Motor
 ```
 
 而不需要显式区分 v3/v4。
+
+#### 同一 release 分支支持 RBK 3.5 与 3.6
+
+3.5 与 3.6 在 proto 消息和订阅方式上有差异（3.6 引入 channel、部分消息改名或删除），
+但**脚本侧调用方式不变**，差异全部收敛在 `syspy` 内部：
+
+- **protobuf 消息**：按运行期版本二选一装载。protobuf 的默认描述符池以 proto
+  文件名为 key 且全局唯一，两套同名 proto 无法共存同一进程，因此
+  `syspy/v3/protobuf/message/` 下分为 `v35/` 与 `v36/`，由 `__init__.py` 根据
+  `RBK_FULL_VERSION` 重定向 `__path__`。实现层照旧写
+  `from .protobuf.message.message_xxx_pb2 import ...`。
+- **消息名/位置差异**：`syspy/v3/protobuf/compat.py` 统一导出（如 `MotorCmd`、
+  `Laser3d`）；同一消息在不同版本所属模块不同时从这里取。
+- **订阅路径**：3.5 没有 channel 概念，3.6 全面改为 channel 订阅。实现层用
+  `@channel_or_topic(topic=..., channel=...)` 声明两套路径，由 `Message.update()`
+  按版本自动分流；因此**写 getter 时统一用 `self.update()`，不要直调
+  `self.update_channel()`**，后者在 3.5 上会因 `_CHANNEL` 为空而失败。
+
+```python
+from syspy.v3.protobuf.compat import channel_or_topic
+
+@channel_or_topic(topic="rbk.protocol.msgLocalization",
+                  channel=localization.TOPIC_LOCALIZATION_INFO)
+class LocV3(LocInterface):
+    def getPose(self):
+        if self.update():          # 3.5 走 topic，3.6 走 channel
+            return self.data.pose
+```
+
+新增接口时若涉及消息，需要同时确认 `v35/`、`v36/` 是否存在该消息及其差异。
 
 ### 3.2 Service/Message 双模型
 
@@ -213,6 +249,43 @@ RBK 编译后 `rbk.ts` 文件自动增加翻译条目，手动编辑即可完成
 Hello World ~-~ 你好，世界
 Hello World, {1}, {2} ~-~ 你好，世界, {1}, {2}
 ```
+
+### 3.6 智能取消（`AutoPre`）
+
+`AutoPre` 用于“前置点自动停车/提前结束任务”场景：导航到前置点前判断剩余时间，
+不够完成当前任务时提前停在前置点，避免开出去再做无用功。
+
+```python
+from syspy import AutoPre
+
+# 查某个站点的剩余通行时间（秒）；含旋转耗时
+remain = AutoPre.remainingTime("S001")
+
+# 控制是否在前置点停车（可配合业务条件动态开关）
+AutoPre.stopAtPreStation(True)
+
+# 上报智能取消状态（供调度侧感知）
+from syspy import AutoPreStatus
+AutoPre.reportStatus(AutoPreStatus.WAITING)
+```
+
+复杂场景可直接用 `AutoPreSequenceAction`（继承 `ActionBase`），接入 Action 队列。
+
+### 3.7 底盘类型枚举（`ChassisType`）
+
+不要在业务脚本里硬编码底盘类型字符串或自行列举“能横移的类型”，统一用枚举：
+
+```python
+from syspy.utils import ChassisType, OMNI_CHASSIS_TYPES
+
+chassis = RobotParam.getConfig("Model-000", "chassisType")
+if chassis in OMNI_CHASSIS_TYPES:      # 含全向类底盘
+    ...
+```
+
+`ChassisType` 继承 `str`，成员与模型文件读出的裸字符串可直接比较
+（`ChassisType.OMNI == "omni"` 为 True）。新增车型时需同步设备模型文件
+`devices/robot.model` 的 `chassisType` 节点。
 
 ## 4. 任务脚本开发范式（`tasks`）
 
@@ -514,3 +587,102 @@ dist_rms_arm64_YYYYMMDDHHMMSS/
 - 参考文件：
 - `syspy/sim.py`：`is_simulation()` 与 `@sim_only` 定义。
 - `tasks/v3/standard/example/sim_only_demo.py`：最小示例。
+
+## 9. 接口回归测试套件（`tests/`）
+
+用于验证 `syspy` 接口在目标机器上能否**真实收到消息、拿到数据**，而不是只验证
+「不抛异常」。改完 SDK 或升级 RBK 后建议跑一遍。
+
+### 9.1 跑法
+
+```bash
+# 全部只读用例（在 RBK 目标机器上）
+./tests/run_tests.sh
+
+# 单个文件 / 按关键词 / 透传 pytest 参数
+./tests/run_tests.sh tests/unit/test_battery.py
+./tests/run_tests.sh -k battery
+./tests/run_tests.sh -q
+
+# 启用会写状态的用例（声音播放、错误注入等）
+RUN_DANGEROUS=1 ./tests/run_tests.sh
+```
+
+脚本会自动 `sudo` 重入（RBK IPC socket 属 root），并在仓库内 `test-reports/`
+生成 Markdown 报告（含每个接口的**采样值**，不只 PASS/FAIL）。
+
+### 9.2 断言口径（新增用例必须遵循）
+
+1. **不 assert 具体数值**：电量、温度、位置因车而异，只记录采样；
+2. **空 `str` / 空 `bytes` 合法**（如 `getExtra()==''`）；
+3. **`-1` 等语义值合法**（如 `Soh=-1` 表示无效）；
+4. **读不到（`None`）记为「前置不满足」跳过，而不是失败**；
+5. **仿真特例**：仿真未加载对应插件时 RPC 报「方法未注册」可跳过；
+   实车上同类失败**必须**算失败。
+
+跳过原因分三类，报告里分开展示：「未迁移/未配置」、「前置不满足」、「未启用」。
+
+### 9.3 新增用例
+
+复制 `tests/unit/test_battery.py` 改名，在 `tests/report.py` 的 `CATEGORY_BY_FILE`
+加映射，然后用 `run_getter` 写类型/范围断言。需要参数校验类断言的参考
+`tests/unit/test_laser.py`；3.6 专属行为用 `skipif(IS_RBK35)` 区分版本。
+
+目录与完整说明见 `tests/README.md`。
+
+## 10. 排障 Skill（`.skills/`）
+
+仓库内置了一套面向 AI agent（也适用人工）的排障手册与脚本，用于定位
+“脚本写了但没生效”“任务卡住”“收不到消息”这类问题。它不是库，不参与运行时，
+但**排查偶发问题时比翻代码快得多**。
+
+### 10.1 目录
+
+```text
+.skills/debug-rbk-scripts/
+├── SKILL.md                    # 主入口：triage -> 详细流程 -> 安全红线
+├── README.md                   # 中文快速上手
+├── references/
+│   ├── triage.md               # 时间窗口 + 症状到通道路由（最先读）
+│   ├── tracing.md              # insightd / ptcat / 证据固化
+│   ├── mf-script-rpc.md        # MoveFactory <-> PyIDE <-> syspy RPC 链路
+│   ├── script-debugging.md     # 脚本/电机/fork/容器
+│   ├── fork-channels.md        # 叉车脚本通道映射：症状 -> 通道
+│   ├── message-latency.md      # DI/传感器/消息延迟
+│   ├── standalone-probes.md    # 不经 MF/PyIDE，直接 python3 探测
+│   └── http-api.md             # RBK HTTP OpenAPI MCP 工作流
+└── scripts/
+    ├── rbk-triage.sh           # 时间窗口 -> 具体 ptcat/日志命令（只读）
+    └── collect-rbk-evidence.sh # 归档 trace/日志/taskId 证据
+```
+
+### 10.2 用法
+
+```bash
+# 1) 给一个故障时间窗口，生成排查计划（只读，不改机器人状态）
+.skills/debug-rbk-scripts/scripts/rbk-triage.sh \
+    --at '2026-09-29 13:47:00' --symptom script --task-id 42
+
+# 2) 按计划执行 ptcat / 日志过滤（参考 references/tracing.md）
+
+# 3) 需要留证据时
+.skills/debug-rbk-scripts/scripts/collect-rbk-evidence.sh \
+    --out /tmp/rbk-evidence --task-id 42 --copy-trace
+```
+
+`--symptom` 取值：`script` | `nav` | `loc` | `map` | `device` | `crash` | `latency`。
+
+### 10.3 几条容易踩的结论
+
+这些是本仓库实际踩过的坑，写进了 skill 的安全红线，开发时同样适用：
+
+- **先要时间窗口**：没有具体时间（含时区）就无法有效过滤 trace，排查会悬空。
+- **先证 `Rc`/`Rs` 再谈业务**：用 trace 里的 `Rc`（SDK 发出）与 `Rs`（脚本收到）
+  判断是 SDK 没发、还是脚本没收，别一上来改业务逻辑。
+- **不要在 scripts 目录下跑 python 探测**：`/opt/.data/rbk/resources/scripts` 是
+  symlink 时，`__file__` 解析成物理路径，`param_server` 会抛
+  `ValueError: script path error`；应在其他目录把逻辑路径加进 `sys.path`。
+- **不要 kill 脚本进程**：取消导航走 HTTP `/cancelNavigate`，杀进程不是常规清理手段。
+- **`ss@pyCrashed` 是粘性状态**：不是简单清错误就能恢复，需协调重启 RBK。
+
+发现 skill 里缺通道或流程不对，直接提 PR 修正。
