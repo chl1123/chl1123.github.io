@@ -203,6 +203,12 @@ class ScriptParam:
         if callback is not None:
             ScriptParam.file_callback[script_file] = callback
         self.script_file = script_file
+        # 构造时已带配置变更回调（如 fork.py 这类由基类统一建实例的脚本），
+        # 说明该脚本支持重载配置，直接注册 setScriptParam。
+        # 否则只能靠 setConfigChangeCallBack() 注册，而该方法按调用栈定位实例，
+        # 基类（fork.py）代为调用时拿到的是基类文件路径，匹配不到具体车型脚本的实例。
+        if callback is not None:
+            self._register_script_param_methods("setScriptParam")
 
 
     @classmethod
