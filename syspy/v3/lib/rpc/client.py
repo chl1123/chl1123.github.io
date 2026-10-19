@@ -343,6 +343,42 @@ class BinMsgClient:
                 self._reset_socket()
                 return None
 
+    def get_channel_message(self, channel: str,
+                            timeout_ms: int = _RPC_RECV_TIMEOUT_MS) -> Optional[bytes]:
+        """按 channel 订阅消息（单帧协议）。
+
+        3.6 起设备消息改为 channel 订阅，请求只发一帧 channel 名，
+        不再带 plugin。3.5 后端没有该方法，调用会超时返回 None，
+        所以实现层需按版本选择 channel / topic（见 syspy/v3/protobuf/compat.py）。
+
+        Args:
+            channel (str): channel 名，如 ``/BatteryInfos``。
+            timeout_ms (int): 接收超时（毫秒）。
+
+        Returns:
+            (Optional[bytes]): protobuf 二进制；无消息/超时/异常返回 None。
+        """
+        if not channel:
+            raise ValueError("channel must not be empty")
+        with self._lock:
+            if self._closed or self.socket is None:
+                return None
+            try:
+                self.socket.send(channel.encode("utf-8"))
+            except zmq.ZMQError:
+                self._reset_socket()
+                return None
+
+            events = dict(self.poller.poll(timeout_ms))
+            if self.socket not in events:
+                self._reset_socket()
+                return None
+            try:
+                return self.socket.recv()
+            except zmq.ZMQError:
+                self._reset_socket()
+                return None
+
 
 if __name__ == "__main__":
     # client = RpcClient()

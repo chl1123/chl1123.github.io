@@ -7,7 +7,7 @@ from syspy import RBK_VERSION
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf.message.message_laser_pb2 import msgLaser3D
+        from syspy.v3.protobuf.message.message_laser_pb2 import msgLaser3d as msgLaser3D
     elif RBK_VERSION == 4:
         pass
 
@@ -15,27 +15,33 @@ if TYPE_CHECKING:
 class LaserInterface:
     """激光接口类"""
 
-    def __init__(self, topic=None):
+    def __init__(self, channel=None):
         if RBK_VERSION == 3:
             from syspy.v3.laser import LaserV3
             self.child = LaserV3()
         elif RBK_VERSION == 4:
             from syspy.v4.laser import LaserV4
-            self.child = LaserV4(topic)
+            self.child = LaserV4(channel)
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getData(self, fields: Optional[List[str]] = None, *, topic: str = None) -> dict:
+    def getData(self, fields: Optional[List[str]] = None, *, channel: str = None,
+                device_key: str = None) -> dict:
         """通用获取消息接口
 
         Args:
             fields (Optional[List[str]]): 需要的字段列表。缺省或 None 返回全部字段。
-            topic (str): 指定消息话题。
+            channel (str): 指定消息 channel。
+            device_key (str): 3.6 激光设备 key，缺省时保持原聚合消息读取方式。
 
         Returns:
             (dict): 包含请求字段的字典数据。
         """
-        return self.child.getData(fields, topic=topic)
+        if device_key is None:
+            return self.child.getData(fields, channel=channel)
+        if RBK_VERSION != 3:
+            raise ValueError("device_key is only supported by RBK 3 laser messages")
+        return self.child.getData(fields, channel=channel, device_key=device_key)
 
     def set2DLaserWidth(self, key: str, width: float):
         """设置激光设备宽度
@@ -117,7 +123,7 @@ class Laser3DInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getLasers3d(self) -> Optional[RepeatedCompositeFieldContainer["msgLaser3D"]]:
+    def getLasers3d(self, device_key: str = None) -> Optional[RepeatedCompositeFieldContainer["msgLaser3D"]]:
         """获取所有3D激光数据列表
 
         Returns:
@@ -132,7 +138,7 @@ class Laser3DInterface:
             print(laser3D.is3DLocalization)
         ```
         """
-        return self.child.getLasers3d()
+        return self.child.getLasers3d(device_key=device_key)
 
 
 Laser: LaserInterface = LaserInterface()

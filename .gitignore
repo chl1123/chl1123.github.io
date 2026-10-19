@@ -145,3 +145,8 @@ params/
 deb/
 
 *.zip
+
+# 本地/工具产物
+.pi/
+test-reports/
+.test_deps/

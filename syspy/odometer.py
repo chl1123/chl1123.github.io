@@ -48,7 +48,7 @@ class OdometerInterface(ABC, Message):
         """
         raise RBKVersionError()
 
-    def getMotorInfos(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
+    def getMotorInfos(self, device_key: str = None) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
         """获取电机信息列表
 
         Returns:

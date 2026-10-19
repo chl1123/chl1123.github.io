@@ -9,7 +9,7 @@ from syspy.utils import Coordinate
 
 if TYPE_CHECKING:
     if RBK_VERSION == 3:
-        from syspy.v3.protobuf.message.message_navigation_pb2 import msgMotorCmd
+        from syspy.v3.protobuf.message.message_motorcmd_pb2 import msgMotorCmd
     elif RBK_VERSION == 4:
         pass
 

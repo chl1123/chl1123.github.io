@@ -71,3 +71,11 @@ class msgGnssRefInfo(_message.Message):
     latitude: float
     longitude: float
     def __init__(self, longitude: Optional[float] = ..., latitude: Optional[float] = ..., altitude: Optional[float] = ...) -> None: ...
+
+class msgRtkBaseInfo(_message.Message):
+    __slots__ = ["refInfo", "status"]
+    REFINFO_FIELD_NUMBER: ClassVar[int]
+    STATUS_FIELD_NUMBER: ClassVar[int]
+    refInfo: msgGnssRefInfo
+    status: int
+    def __init__(self, status: Optional[int] = ..., refInfo: Optional[Union[msgGnssRefInfo, Mapping]] = ...) -> None: ...

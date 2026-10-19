@@ -2,15 +2,19 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 from syspy.controller import ControllerInterface
+from syspy.registry.channel import system_sensor
+from .protobuf.compat import channel_or_topic
 if TYPE_CHECKING:
     from .protobuf.message.message_controller_pb2 import msgController
 
+
+@channel_or_topic(topic="rbk.protocol.msgController",
+                  channel=system_sensor.TOPIC_CONTROLLER)
 class ControllerV3(ControllerInterface):
     """控制器类"""
 
     data: msgController = None
 
-    _TOPIC = "rbk.protocol.msgController"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 

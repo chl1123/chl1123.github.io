@@ -44,6 +44,9 @@ class RpcClient:
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "") -> Optional[message.Message]:
         raise NotImplementedError
 
+    def get_channel_message(self, channel: str, model_class: Type[message.Message]) -> Optional[message.Message]:
+        raise NotImplementedError
+
     def call_service(self, plugin: str, method: str, *args, **kwargs) -> Any:
         raise NotImplementedError
 
@@ -70,9 +73,6 @@ class V3RpcClient(RpcClient):
         if V3RpcClient._bin_client is None:
             from ..v3.lib.rpc import client
             V3RpcClient._bin_client = client.BinMsgClient(identity=self._script_id)
-        elif self._script_id:
-            # 单例可能已在拿到 script_id 之前建成（见 RpcClient.rebind_identity），回填身份
-            V3RpcClient._bin_client.set_identity(self._script_id)
         return V3RpcClient._bin_client
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin: str = "RBKSim") -> message.Message:
@@ -95,6 +95,16 @@ class V3RpcClient(RpcClient):
         response = self._impl.get_message(topic, plugin)
         return json_format.Parse(response, model_class(), ignore_unknown_fields=True)
 
+    def get_channel_message(self, channel: str, model_class: Type[message.Message]) -> Optional[message.Message]:
+        bin_data = self._get_bin_client().get_channel_message(channel)
+        if bin_data is None:
+            raise TimeoutError(f"Get channel message timeout/error: {channel}")
+        if not bin_data:
+            return None
+        msg = model_class()
+        msg.ParseFromString(bin_data)
+        return msg
+
     def call_service(self, plugin: str, method: str, *args, **kwargs) -> Any:
         return self._impl.call_service(plugin, method, *args)
 
@@ -108,6 +118,9 @@ class V4RpcClient(RpcClient):
 
     def get_message(self, topic: str, model_class: Type[message.Message], plugin = None) -> message.Message:
         return self.datapool.get(topic, model_class())
+
+    def get_channel_message(self, channel: str, model_class: Type[message.Message]) -> Optional[message.Message]:
+        return self.datapool.get(channel, model_class())
 
     def call_service(self, plugin: str, method: str, *args, **kwargs) -> Any:
         response = self.service.callService(plugin, method, request=kwargs)
@@ -201,7 +214,8 @@ class Service:
         raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 class Message(Service):
-    _TOPIC: str = ""  # 消息订阅主题
+    _TOPIC: str = ""  # [Deprecated] 3.5 遗留的消息订阅主题，仅为尚未 channel 化的插件保留
+    _CHANNEL: str = ""  # 消息订阅 channel（3.6）
     _PLUGIN = "RBKSim"  # 消息发布插件-3.5
     _MODEL_CLASS: Type[message.Message] = None  # 消息模型类
     _UPDATE_INTERVAL: float = 0.05
@@ -215,6 +229,11 @@ class Message(Service):
         self._topic_data: Dict[str, message.Message] = {}  # 存储每个topic的数据
         self._topic_last_update: Dict[str, float] = {}  # 存储每个topic的最后更新时间
 
+    @classmethod
+    def _default_channel(cls) -> str:
+        """默认 channel：优先 ``_CHANNEL``，未 channel 化的插件回落到 ``_TOPIC``。"""
+        return cls._CHANNEL or cls._TOPIC
+
     def initModelClass(self):
         pass
 
@@ -227,6 +246,13 @@ class Message(Service):
         self._UPDATE_INTERVAL = interval
 
     def update(self, topic: str = None) -> bool:
+        """获取最新数据，返回是否更新成功。
+
+        已 channel 化的插件（定义了 ``_CHANNEL``）走 channel 取数；
+        尚未迁移的插件回落到 3.5 的 topic 取数，保持兼容。
+        """
+        if self._CHANNEL:
+            return self.update_channel(topic)
         if self._MODEL_CLASS is None:
             self.initModelClass()
 
@@ -270,6 +296,58 @@ class Message(Service):
                 (time.time() - last_update) > self._UPDATE_INTERVAL
         )
 
+    def update_channel(self, channel: str = None,
+                       model_class: Type[message.Message] = None) -> bool:
+        if self._MODEL_CLASS is None:
+            self.initModelClass()
+        default_channel = self._TOPIC_PREFIX + self._default_channel() + self._TOPIC_SUFFIX
+        if channel is None:
+            channel = default_channel
+        if not channel:
+            raise ValueError("channel must not be empty")
+        model_class = model_class or self._MODEL_CLASS
+        if model_class is None:
+            raise ValueError("model_class is required for channel messages")
+        if not self._requires_update(channel):
+            data = self._topic_data.get(channel)
+            if data is not None and channel == default_channel:
+                self.data = data
+            return bool(data)
+
+        try:
+            data = Service.client().get_channel_message(channel, model_class)
+        except TimeoutError:
+            return False
+        if data is None:
+            return False
+        self._topic_data[channel] = data
+        self._topic_last_update[channel] = time.time()
+        if channel == default_channel:
+            self.data = data
+        return True
+
+    @staticmethod
+    def _message_to_dict(data: message.Message, fields: Optional[List[str]] = None) -> dict:
+        data_dict = json_format.MessageToDict(
+            data,
+            preserving_proto_field_name=True,
+            use_integers_for_enums=True,
+        )
+        if fields:
+            return {field: data_dict[field] for field in fields if field in data_dict}
+        return data_dict
+
+    def get_channel_data(self, channel: str = None,
+                         model_class: Type[message.Message] = None,
+                         fields: Optional[List[str]] = None) -> dict:
+        if channel is None:
+            channel = self._TOPIC_PREFIX + self._default_channel() + self._TOPIC_SUFFIX
+        if self.update_channel(channel, model_class):
+            data = self._topic_data.get(channel)
+            if data:
+                return self._message_to_dict(data, fields)
+        return {}
+
     def getData(self, fields: Optional[List[str]] = None, *, topic: str = None) -> dict:
         """通用获取消息接口
 
@@ -286,14 +364,7 @@ class Message(Service):
             else:
                 data = self._topic_data.get(topic)
             if data:
-                data_dict = json_format.MessageToDict(data, preserving_proto_field_name=True, use_integers_for_enums=True)
-                if fields:
-                    result = {}
-                    for field in fields:
-                        if field in data_dict:
-                            result[field] = data_dict[field]
-                    return result
-                return data_dict
+                return self._message_to_dict(data, fields)
         return {}
 
 

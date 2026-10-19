@@ -7,10 +7,14 @@ from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
+from syspy.registry.channel import navigation
 from ..utils import Coordinate
+from .protobuf.compat import channel_or_topic
 
 if TYPE_CHECKING:
-    from .protobuf.message.message_navigation_pb2 import msgMotorCmd, msgNavSpeed
+    from .protobuf.message.message_navigation_pb2 import msgNavSpeed
+    # msgMotorCmd 在 3.5 位于 message_navigation_pb2、3.6 移到 message_motorcmd_pb2
+    from .protobuf.compat import MotorCmd as msgMotorCmd
     from .protobuf.message.message_movetask_pb2 import msgMoveStatus
 
 
@@ -494,12 +498,13 @@ class NavigationV3(NavigationInterface):
 
 
 @default_plugin("MoveFactory")
+@channel_or_topic(topic="rbk.protocol.msgMoveStatus",
+                  channel=navigation.TOPIC_MOVE_STATUS)
 class NavStatusV3(NavStatusInterface):
     """导航状态类"""
 
     data: msgMoveStatus = None
 
-    _TOPIC = "rbk.protocol.msgMoveStatus"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
 
@@ -565,12 +570,13 @@ class NavStatusV3(NavStatusInterface):
             return self.data.closestTarget
 
 
+@channel_or_topic(topic="rbk.protocol.msgNavSpeed",
+                  channel=navigation.TOPIC_NAV_SPEED)
 class NavSpeedV3(NavSpeedInterface):
     """导航速度类"""
 
     data: msgNavSpeed = None
 
-    _TOPIC = "rbk.protocol.msgNavSpeed"
     _PLUGIN = "MoveFactory"
     _MODEL_CLASS = None
 

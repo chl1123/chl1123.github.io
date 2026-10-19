@@ -7,22 +7,26 @@ class SoundInterface(ABC, Message):
     """音频"""
 
     @classmethod
-    def setSound(cls, name: str, flag: bool) -> None:
+    def setSound(cls, name: str, flag: bool, volume: int = 100) -> None:
         """播放音频
 
         Args:
             name (str): 音频名称。
             flag (bool): 是否循环播放。
+            volume (int): 播放音量，0~100；缺省 100（与插件头文件默认值一致）。
+                **必须显式传给插件**：RPC 按参数个数分发，缺参时插件侧
+                按默认构造得 0，会变成静音播放。
         """
         raise RBKVersionError()
 
     @classmethod
-    def setSoundCount(cls, name: str, count: int) -> None:
+    def setSoundCount(cls, name: str, count: int, volume: int = 100) -> None:
         """播放音频指定次数
 
         Args:
             name (str): 音频名称。
             count (int): 播放次数，需要大于 0。
+            volume (int): 播放音量，0~100；缺省 100（与插件头文件默认值一致）。
         """
         raise RBKVersionError()
 

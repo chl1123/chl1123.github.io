@@ -4,15 +4,19 @@ import json
 from typing import Optional, Dict, List, TYPE_CHECKING
 
 from syspy.loc import LocInterface
+from syspy.registry.channel import localization
+from .protobuf.compat import channel_or_topic
 if TYPE_CHECKING:
     from .protobuf.message.message_localization_pb2 import msgLocalization
 
+
+@channel_or_topic(topic="rbk.protocol.msgLocalization",
+                  channel=localization.TOPIC_LOCALIZATION_INFO)
 class LocV3(LocInterface):
     """定位类"""
 
     data: msgLocalization = None
 
-    _TOPIC = "rbk.protocol.msgLocalization"
     _PLUGIN = "MCLoc"
     _MODEL_CLASS = None
 

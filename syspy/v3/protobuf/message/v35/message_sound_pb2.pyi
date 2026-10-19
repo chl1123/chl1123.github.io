@@ -5,13 +5,15 @@ from typing import ClassVar, Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class msgSound(_message.Message):
-    __slots__ = ["count", "loop", "soundName", "status"]
+    __slots__ = ["count", "loop", "soundName", "status", "volume"]
     COUNT_FIELD_NUMBER: ClassVar[int]
     LOOP_FIELD_NUMBER: ClassVar[int]
     SOUNDNAME_FIELD_NUMBER: ClassVar[int]
     STATUS_FIELD_NUMBER: ClassVar[int]
+    VOLUME_FIELD_NUMBER: ClassVar[int]
     count: int
     loop: bool
     soundName: str
     status: int
-    def __init__(self, status: Optional[int] = ..., soundName: Optional[str] = ..., loop: bool = ..., count: Optional[int] = ...) -> None: ...
+    volume: int
+    def __init__(self, status: Optional[int] = ..., soundName: Optional[str] = ..., loop: bool = ..., count: Optional[int] = ..., volume: Optional[int] = ...) -> None: ...

@@ -5,16 +5,20 @@ from typing import Optional, Tuple, TYPE_CHECKING
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.odometer import OdometerInterface
+from syspy.registry.channel import localization
+from .protobuf.compat import channel_or_topic
 if TYPE_CHECKING:
     from .protobuf.message.message_odometer_pb2 import msgOdometer
     from .protobuf.message.message_motorinfos_pb2 import msgMotorInfo
 
+
+@channel_or_topic(topic="rbk.protocol.msgOdometer",
+                  channel=localization.TOPIC_ODOMETER)
 class OdometerV3(OdometerInterface):
     """里程类"""
 
     data: msgOdometer = None
 
-    _TOPIC = "rbk.protocol.msgOdometer"
     _PLUGIN = "MCLoc"
     _MODEL_CLASS = None
 
@@ -40,6 +44,9 @@ class OdometerV3(OdometerInterface):
         if self.update():
             return self.data.isStop
 
-    def getMotorInfos(self) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
+    def getMotorInfos(self, device_key: str = None) -> Optional[RepeatedCompositeFieldContainer["msgMotorInfo"]]:
+        if device_key is not None:
+            from syspy import Motor
+            return Motor.getMotorInfos(device_key)
         if self.update():
             return self.data.motorInfo

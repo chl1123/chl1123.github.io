@@ -119,12 +119,14 @@ class msgMovePath(_message.Message):
     def __init__(self, skillName: Optional[str] = ..., pose: Optional[Iterable[Union[msgMovePose, Mapping]]] = ..., speed: Optional[Iterable[Union[msgMoveSpeed, Mapping]]] = ..., findPath: bool = ...) -> None: ...
 
 class msgMovePolygon(_message.Message):
-    __slots__ = ["name", "point"]
+    __slots__ = ["mapName", "name", "point"]
+    MAPNAME_FIELD_NUMBER: ClassVar[int]
     NAME_FIELD_NUMBER: ClassVar[int]
     POINT_FIELD_NUMBER: ClassVar[int]
+    mapName: str
     name: str
     point: _containers.RepeatedCompositeFieldContainer[msgMovePolygonPoint]
-    def __init__(self, point: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ..., name: Optional[str] = ...) -> None: ...
+    def __init__(self, point: Optional[Iterable[Union[msgMovePolygonPoint, Mapping]]] = ..., name: Optional[str] = ..., mapName: Optional[str] = ...) -> None: ...
 
 class msgMovePolygonPoint(_message.Message):
     __slots__ = ["angle", "x", "y"]

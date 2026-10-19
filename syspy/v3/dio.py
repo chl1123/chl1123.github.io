@@ -6,18 +6,20 @@ from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.dio import DiInterface, DoInterface
+from syspy.registry.channel import system_sensor
+from .protobuf.compat import channel_or_topic
 
 if TYPE_CHECKING:
     from .protobuf.message.message_io_pb2 import msgDI, msgDINode, msgDO, msgDONode
 
 
 @default_plugin("DSPChassis")
+@channel_or_topic(topic="rbk.protocol.msgDI", channel=system_sensor.TOPIC_DI)
 class DiV3(DiInterface):
     """数字输入类"""
 
     data: msgDI = None
 
-    _TOPIC = "rbk.protocol.msgDI"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 
@@ -55,12 +57,12 @@ class DiV3(DiInterface):
 
 
 @default_plugin("DSPChassis")
+@channel_or_topic(topic="rbk.protocol.msgDO", channel=system_sensor.TOPIC_DO)
 class DoV3(DoInterface):
     """数字输出类"""
 
     data: msgDO = None
 
-    _TOPIC = "rbk.protocol.msgDO"
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 

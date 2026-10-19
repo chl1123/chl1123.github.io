@@ -20,110 +20,110 @@ class BatteryInterface:
         else:
             raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
-    def getPercentage(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getPercentage(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取电池电量百分比
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 电池电量百分比 (SoC)，单位 %。
         """
-        return self.child.getPercentage(topic=topic)
+        return self.child.getPercentage(device_key=device_key)
 
-    def getChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getChargeCurrent(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取充电电流
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 充电电流，单位 A。
         """
-        return self.child.getChargeCurrent(topic=topic)
+        return self.child.getChargeCurrent(device_key=device_key)
 
-    def getChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getChargeVoltage(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取充电电压
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 充电电压，单位 V。
         """
-        return self.child.getChargeVoltage(topic=topic)
+        return self.child.getChargeVoltage(device_key=device_key)
 
-    def getIsCharging(self, *, topic: str = "Battery-000") -> Optional[bool]:
+    def getIsCharging(self, *, device_key: str = "Battery-000") -> Optional[bool]:
         """获取是否正在充电状态
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[bool]): True 表示正在充电，False 表示未充电。
         """
-        return self.child.getIsCharging(topic=topic)
+        return self.child.getIsCharging(device_key=device_key)
 
-    def getTemperature(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getTemperature(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取电池温度
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 电池温度，单位 ℃。
         """
-        return self.child.getTemperature(topic=topic)
+        return self.child.getTemperature(device_key=device_key)
 
-    def getCycle(self, *, topic: str = "Battery-000") -> Optional[int]:
+    def getCycle(self, *, device_key: str = "Battery-000") -> Optional[int]:
         """获取电池循环次数
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[int]): 电池循环次数，单位 次。
         """
-        return self.child.getCycle(topic=topic)
+        return self.child.getCycle(device_key=device_key)
 
-    def getMaxChargeCurrent(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getMaxChargeCurrent(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取最大充电电流
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 最大充电电流，单位 A。
         """
-        return self.child.getMaxChargeCurrent(topic=topic)
+        return self.child.getMaxChargeCurrent(device_key=device_key)
 
-    def getMaxChargeVoltage(self, *, topic: str = "Battery-000") -> Optional[float]:
+    def getMaxChargeVoltage(self, *, device_key: str = "Battery-000") -> Optional[float]:
         """获取最大充电电压
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[float]): 最大充电电压，单位 V。
         """
-        return self.child.getMaxChargeVoltage(topic=topic)
+        return self.child.getMaxChargeVoltage(device_key=device_key)
 
-    def getExtra(self, *, topic: str = "Battery-000") -> Optional[str]:
+    def getExtra(self, *, device_key: str = "Battery-000") -> Optional[str]:
         """获取额外信息
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[str]): 额外信息字符串。
         """
-        return self.child.getExtra(topic=topic)
+        return self.child.getExtra(device_key=device_key)
 
-    def getIsManuallyConnected(self, *, topic: str = "Battery-000") -> Optional[bool]:
+    def getIsManuallyConnected(self, *, device_key: str = "Battery-000") -> Optional[bool]:
         """获取是否手动连接状态
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[bool]): True 表示手动连接，False 表示非手动连接。
@@ -131,24 +131,24 @@ class BatteryInterface:
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
         """
-        return self.child.getIsManuallyConnected(topic=topic)
+        return self.child.getIsManuallyConnected(device_key=device_key)
 
-    def getUserData(self, *, topic: str = "Battery-000") -> Optional[bytes]:
+    def getUserData(self, *, device_key: str = "Battery-000") -> Optional[bytes]:
         """获取用户数据
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[bytes]): 用户自定义字段字节流。
         """
-        return self.child.getUserData(topic=topic)
+        return self.child.getUserData(device_key=device_key)
 
-    def getSoh(self, *, topic: str = "Battery-000") -> Optional[int]:
+    def getSoh(self, *, device_key: str = "Battery-000") -> Optional[int]:
         """获取电池健康度
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[int]): 电池健康度 (SOH)，单位 %；-1 表示无效。
@@ -156,41 +156,41 @@ class BatteryInterface:
         Compatibility:
             该接口仅在 RBK 版本 3 中可用。
         """
-        return self.child.getSoh(topic=topic)
+        return self.child.getSoh(device_key=device_key)
 
-    def publish(self, battery_info: "msgBattery", *, topic: str = "Battery-000") -> int:
+    def publish(self, battery_info: "msgBattery", *, device_key: str = "Battery-000") -> int:
         """发布电池信息
 
         Args:
             battery_info ("msgBattery"): 待发布的电池 proto 消息。
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (int): -1: 发布失败; 0: 发布成功。
         """
-        return self.child.publish(battery_info, topic=topic)
+        return self.child.publish(battery_info, device_key=device_key)
 
-    def getCanPort(self, *, topic: str = "Battery-000") -> str:
+    def getCanPort(self, *, device_key: str = "Battery-000") -> str:
         """获取CAN端口
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (str): CAN 端口名称。
         """
-        return self.child.getCanPort(topic=topic)
+        return self.child.getCanPort(device_key=device_key)
 
-    def getBaudrate(self, *, topic: str = "Battery-000") -> Optional[int]:
+    def getBaudrate(self, *, device_key: str = "Battery-000") -> Optional[int]:
         """获取CAN波特率
 
         Args:
-            topic (str): 电池设备话题名，缺省为 ``"Battery-000"``。
+            device_key (str): 电池设备 key，缺省为 ``"Battery-000"``。
 
         Returns:
             (Optional[int]): CAN 波特率，单位 bit/s。
         """
-        return self.child.getBaudrate(topic=topic)
+        return self.child.getBaudrate(device_key=device_key)
 
 
 Battery: BatteryInterface = BatteryInterface()

@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 from syspy.core.rbk_rpc import call_service, default_plugin
 from syspy.map import MapData, MapInterface, MapPointData, MapSiteData
+from syspy.registry.channel import smap
 from syspy.utils import Coordinate
 
 
@@ -92,9 +93,23 @@ _MAP_LIST_SPECS = {
 }
 
 
+from .protobuf.compat import channel_or_topic
+
+
 @default_plugin("MoveFactory")
+@channel_or_topic(topic="rbk.protocol.msgMap", channel=smap.TOPIC_MAP_2D)
 class MapV3(MapInterface):
-    _TOPIC = "rbk.protocol.msgMap"
+    """地图类。
+
+    数据来源分两路：
+    - 当前地图消息（mapName / externalDeviceList 等）：读 3.6 channel
+      ``/SMAP/Map2D``（3.6 已不再提供 3.5 的 ``rbk.protocol.msgMap`` topic）；
+    - 地图上的特殊点位（advanced* / charger / bins / policies ...）：从本地
+      ``maps/<mapName>/0.smap`` 解析，不走消息。
+
+    之所以点位不走消息：消息里只有「当前地图」的数据，而梯控等脚本需要读取
+    跨楼层（非当前地图）的点位，只能从各自的 0.smap 文件取。
+    """
     _PLUGIN = "BlockMapLoader"
     _MODEL_CLASS = None
     _TOPOLOGY_PATH = "/opt/.data/rbk/resources/maps/workspace_topology.json"
@@ -106,8 +121,21 @@ class MapV3(MapInterface):
 
             cls._MODEL_CLASS = msgMap
 
-    def getCurrentMapName(self) -> str:
+    def _update_map_data(self) -> bool:
+        """拉取当前地图消息（3.6 channel ``/SMAP/Map2D`` / 3.5 topic ``rbk.protocol.msgMap``）。
+
+        返回是否拿到数据；拿到时 self.data 为最新消息。用 ``update()`` 而不是
+        直接 ``update_channel()``：前者会按版本自动选 channel 或 topic
+        （见 protobuf/compat.py 的 channel_or_topic）。
+        """
         if not self.update():
+            return False
+        if self.data is None:
+            return False
+        return True
+
+    def getCurrentMapName(self) -> str:
+        if not self._update_map_data():
             return ""
         return str(getattr(getattr(self.data, "header", None), "mapName", ""))
 
@@ -320,7 +348,7 @@ class MapV3(MapInterface):
         return result
 
     def _get_site_data_list(self) -> List[MapSiteData]:
-        if not self.update():
+        if not self._update_map_data():
             return []
         map_name = self.getCurrentMapName()
         workspace = self.getCurrentWorkspace()
