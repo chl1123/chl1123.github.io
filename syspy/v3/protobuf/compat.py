@@ -12,8 +12,7 @@ pb2 包本身已经按版本二选一装载（见 ``protobuf/message/__init__.py
 ============================  ==========================  ==========================
 msgMotorCmd                   message_navigation_pb2        message_motorcmd_pb2
 msgLaser3d / msgLaser3D       message_laser_pb2 的 msgLaser3D   message_laser_pb2 的 msgLaser3d
-msgAllLasers3D                message_laser_pb2 有           已删除（用 msgAllLasers）
-msgAutogate / autogateList    message_map_pb2 有             已删除
+msgAllLasers3D                message_laser_pb2 有           无（改用聚合消息 msgAllLasers）
 msgLocalTagLocalization       字段较少（distanceNotFindTag 等）  字段号整体前移
 ============================  ==========================  ==========================
 
@@ -32,7 +31,7 @@ msgLocalTagLocalization       字段较少（distanceNotFindTag 等）  字段�
 
 from __future__ import annotations
 
-from syspy.config import RBK_FULL_VERSION
+from syspy.config import IS_RBK_VERSION_35
 
 __all__ = [
     "RBK_MESSAGE_VERSION",
@@ -41,28 +40,19 @@ __all__ = [
     "Laser3d",
     "AllLasers3d",
     "LaserMessage",
-    "MapMessage",
-    "has_autogate",
     "channel_or_topic",
 ]
 
 
-def _parse_version(full_version: str) -> tuple:
-    """解析 ``"3.5.4.0210"`` -> ``(3, 5)``；解析失败返回 ``(3, 6)``。"""
-    parts = (full_version or "").split(".")
-    try:
-        return int(parts[0]), int(parts[1])
-    except (IndexError, ValueError):
-        return 3, 6
+#: 消息层的版本标签，``"3.5"`` 或 ``"3.6"``。
+RBK_MESSAGE_VERSION = "3.5" if IS_RBK_VERSION_35 else "3.6"
 
-
-_MAJOR, _MINOR = _parse_version(RBK_FULL_VERSION)
-
-#: 消息层适配的版本标签，``"3.5"`` 或 ``"3.6"``。
-RBK_MESSAGE_VERSION = "3.5" if (_MAJOR == 3 and _MINOR <= 5) else "3.6"
-
-#: 是否运行在 RBK 3.5 上。
-IS_RBK35 = RBK_MESSAGE_VERSION == "3.5"
+#: 是否运行在 RBK 3.5 上（订阅方式为 topic）。
+#: 版本判断统一放在 ``syspy.config``，这里只是转出，保持模块内调用简洁。
+IS_RBK35 = IS_RBK_VERSION_35
+#: 是否运行在 RBK 3.5 上（订阅方式为 topic）。
+#: 版本判断统一放在 ``syspy.config``，这里只是转出，保持模块内调用简洁。
+IS_RBK35 = IS_RBK_VERSION_35
 
 
 # --------------------------------------------------------------------------
@@ -86,15 +76,6 @@ if IS_RBK35:
 else:
     from .message.message_laser_pb2 import msgLaser3d as Laser3d
     AllLasers3d = None  # 3.6 已删除，调用方需回退到 msgAllLasers
-
-
-# --------------------------------------------------------------------------
-# 地图消息：msgAutogate / msgMap.autogateList 在 3.6 被删除
-# --------------------------------------------------------------------------
-from .message import message_map_pb2 as MapMessage
-
-#: 3.6 起 ``msgMap`` 不再有 ``autogateList``；调用方用它判断是否需要降级。
-has_autogate = IS_RBK35 and hasattr(MapMessage.msgMap(), "autogateList")
 
 
 # --------------------------------------------------------------------------

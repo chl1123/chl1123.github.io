@@ -3,6 +3,7 @@ from collections.abc import Callable
 from functools import wraps
 
 from syspy import RBK_VERSION
+from syspy.config import IS_RBK_VERSION_36
 import json
 from google.protobuf import message
 from google.protobuf import json_format
@@ -214,8 +215,13 @@ class Service:
         raise ValueError(f"Unsupported RBK version: {RBK_VERSION}")
 
 class Message(Service):
-    _TOPIC: str = ""  # [Deprecated] 3.5 遗留的消息订阅主题，仅为尚未 channel 化的插件保留
-    _CHANNEL: str = ""  # 消息订阅 channel（3.6）
+    # 订阅路径按版本二选一，由 @channel_or_topic 在类定义时填好：
+    #   RBK 3.5 -> _TOPIC 有值、_CHANNEL 为空；
+    #   RBK 3.6 -> _CHANNEL 有值、_TOPIC 为空。
+    # 二者不是“新旧”关系，也互不回落：具体走哪一个由当前版本决定，
+    # update() 只认当前版本那个非空字段。
+    _TOPIC: str = ""  # 消息订阅 topic（RBK 3.5）
+    _CHANNEL: str = ""  # 消息订阅 channel（RBK 3.6）
     _PLUGIN = "RBKSim"  # 消息发布插件-3.5
     _MODEL_CLASS: Type[message.Message] = None  # 消息模型类
     _UPDATE_INTERVAL: float = 0.05
@@ -225,13 +231,13 @@ class Message(Service):
     def __init__(self, topic_prefix: str = "", topic_suffix: str = ""):
         self._TOPIC_PREFIX = topic_prefix
         self._TOPIC_SUFFIX = topic_suffix
-        # 为每个topic维护独立的数据和更新时间
-        self._topic_data: Dict[str, message.Message] = {}  # 存储每个topic的数据
-        self._topic_last_update: Dict[str, float] = {}  # 存储每个topic的最后更新时间
+        # 为每个订阅路径维护独立的数据和更新时间
+        self._topic_data: Dict[str, message.Message] = {}  # 存储每个订阅路径的数据
+        self._topic_last_update: Dict[str, float] = {}  # 存储每个订阅路径的最后更新时间
 
     @classmethod
-    def _default_channel(cls) -> str:
-        """默认 channel：优先 ``_CHANNEL``，未 channel 化的插件回落到 ``_TOPIC``。"""
+    def _subscribe_path(cls) -> str:
+        """当前版本使用的订阅路径：3.5 为 ``_TOPIC``，3.6 为 ``_CHANNEL``。"""
         return cls._CHANNEL or cls._TOPIC
 
     def initModelClass(self):
@@ -248,15 +254,17 @@ class Message(Service):
     def update(self, topic: str = None) -> bool:
         """获取最新数据，返回是否更新成功。
 
-        已 channel 化的插件（定义了 ``_CHANNEL``）走 channel 取数；
-        尚未迁移的插件回落到 3.5 的 topic 取数，保持兼容。
+        按当前版本选择订阅方式：RBK 3.6 走 channel（``_CHANNEL``），
+        RBK 3.5 走 topic（``_TOPIC``）。实现层的 getter 统一调本方法，
+        不要直接调 ``update_channel()``，否则在 3.5 上会因 ``_CHANNEL``
+        为空而失败。
         """
-        if self._CHANNEL:
+        if IS_RBK_VERSION_36:
             return self.update_channel(topic)
+
         if self._MODEL_CLASS is None:
             self.initModelClass()
 
-        """获取最新数据，返回是否更新成功"""
         full_topic = self._TOPIC_PREFIX + (topic or self._TOPIC) + self._TOPIC_SUFFIX
         if not self._requires_update(topic):
             if topic is None:
@@ -271,7 +279,7 @@ class Message(Service):
             )
             if not data:
                 return False
-            # 为该topic存储数据和更新时间
+            # 为该订阅路径存储数据和更新时间
             if topic is None:
                 self.data = data
                 self._last_update = time.time()
@@ -300,7 +308,7 @@ class Message(Service):
                        model_class: Type[message.Message] = None) -> bool:
         if self._MODEL_CLASS is None:
             self.initModelClass()
-        default_channel = self._TOPIC_PREFIX + self._default_channel() + self._TOPIC_SUFFIX
+        default_channel = self._TOPIC_PREFIX + self._subscribe_path() + self._TOPIC_SUFFIX
         if channel is None:
             channel = default_channel
         if not channel:
@@ -341,7 +349,7 @@ class Message(Service):
                          model_class: Type[message.Message] = None,
                          fields: Optional[List[str]] = None) -> dict:
         if channel is None:
-            channel = self._TOPIC_PREFIX + self._default_channel() + self._TOPIC_SUFFIX
+            channel = self._TOPIC_PREFIX + self._subscribe_path() + self._TOPIC_SUFFIX
         if self.update_channel(channel, model_class):
             data = self._topic_data.get(channel)
             if data:

@@ -66,5 +66,48 @@ def read_simulation_from_file(default: bool = False) -> bool:
 RBK_VERSION, RBK_FULL_VERSION = read_rbk_version_from_file(MAX_RETRIES, RETRY_INTERVAL)
 RBK_SIMULATION = read_simulation_from_file(False)
 os.environ["RBK_SIMULATION"] = "1" if RBK_SIMULATION else "0"
+
+
+def parse_rbk_version(full_version: str) -> Tuple[int, int, int, int]:
+    """把完整版本号拆成 ``product_version.h`` 里的四段。
+
+    ``PRODUCT_FULL_VERSION`` 形如 ``"3.6.0.0030"``，对应
+    ``MAJOR`` / ``MINOR`` / ``PATCH`` / ``BUILD``。缺段或含非数字后缀
+    （如构建机上的 ``"3.5.4.0051tmp"``）的段按 0 处理。
+
+    Args:
+        full_version (str): 如 ``"3.5.4.0210"``、``"3.6.0.0033"``。
+
+    Returns:
+        (Tuple[int, int, int, int]): ``(major, minor, patch, build)``。
+    """
+    parts = (full_version or "").split(".")
+    digits = []
+    for part in parts[:4]:
+        # 只取前导数字，容忍 "0051tmp" 这类构建后缀
+        head = ""
+        for ch in part:
+            if not ch.isdigit():
+                break
+            head += ch
+        digits.append(int(head) if head else 0)
+    while len(digits) < 4:
+        digits.append(0)
+    return tuple(digits)  # type: ignore[return-value]
+
+
+RBK_VERSION_MAJOR, RBK_VERSION_MINOR, RBK_VERSION_PATCH, RBK_VERSION_BUILD = \
+    parse_rbk_version(RBK_FULL_VERSION)
+
+#: 当前运行环境是否为 RBK 3.5。
+#:
+#: 这两个版本在“订阅方式”上不同：3.5 用 topic， 3.6 改用 channel。
+#: 订阅路径、消息装载等需要分支的地方统一用这个标志，
+#: 不要在各自的实现模块里重新判版本。
+IS_RBK_VERSION_35 = RBK_VERSION_MAJOR == 3 and RBK_VERSION_MINOR <= 5
+
+#: 当前运行环境是否为 RBK 3.6。
+IS_RBK_VERSION_36 = RBK_VERSION_MAJOR == 3 and RBK_VERSION_MINOR >= 6
+
 print(f"[syspy] RBK_VERSION={RBK_VERSION}, RBK_FULL_VERSION={RBK_FULL_VERSION}, "
       f"RBK_SIMULATION={RBK_SIMULATION}")

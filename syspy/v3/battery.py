@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 from google.protobuf.json_format import MessageToJson
-from syspy.config import RBK_FULL_VERSION
+from syspy.config import IS_RBK_VERSION_35
 from syspy.core.rbk_rpc import default_plugin, Message
 from syspy.registry.channel import device
 if TYPE_CHECKING:
@@ -10,20 +10,8 @@ if TYPE_CHECKING:
 
 DEFAULT_BATTERY_KEY = "Battery-000"
 
-
-def _is_rbk35() -> bool:
-    """是否运行在 RBK 3.5 上（3.5 无 channel，且没有 msgBatteryInfos）。"""
-    parts = (RBK_FULL_VERSION or "").split(".")
-    try:
-        return int(parts[0]) == 3 and int(parts[1]) <= 5
-    except (IndexError, ValueError):
-        return False
-
-
-IS_RBK35 = _is_rbk35()
-
-#: RBK 3.5 的电池 topic。3.5.4 起与 3.6 共用同一份 ``msgBatteryInfos``
-#: （多电池），只是传输方式不同：3.5 走 topic，3.6 走 channel。
+# RBK 3.5 的电池 topic。3.5.4 起与 3.6 共用同一份 ``msgBatteryInfos``
+# （多电池），只是传输方式不同：3.5 走 topic，3.6 走 channel。
 TOPIC_BATTERY_INFOS = "rbk.protocol.msgBatteryInfos"
 
 
@@ -48,8 +36,8 @@ class BatteryV3(Message):
 
     data: msgBatteryInfos = None
 
-    _CHANNEL = "" if IS_RBK35 else device.TOPIC_BATTERY  # '/BatteryInfos'（不是 /BatteryInfo/）
-    _TOPIC = TOPIC_BATTERY_INFOS if IS_RBK35 else ""
+    _CHANNEL = "" if IS_RBK_VERSION_35 else device.TOPIC_BATTERY  # '/BatteryInfos'（不是 /BatteryInfo/）
+    _TOPIC = TOPIC_BATTERY_INFOS if IS_RBK_VERSION_35 else ""
     _PLUGIN = "DSPChassis"
     _MODEL_CLASS = None
 
@@ -61,7 +49,7 @@ class BatteryV3(Message):
 
     def _get_battery_infos(self) -> Optional["msgBatteryInfos"]:
         """读电池汇总消息（3.5 topic / 3.6 channel），读不到返回 None。"""
-        if IS_RBK35:
+        if IS_RBK_VERSION_35:
             if self.update():
                 return self.data
             return None
