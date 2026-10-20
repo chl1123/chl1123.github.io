@@ -30,7 +30,7 @@
 - `ForkActionQueue` 继承 `syspy/lib/action_task.py` 的 `ActionTask`，已具备 `taskBuild` / `taskExtend` / `actionStateChanged` / `taskFinished` / `taskFailed` 协议能力，并已向 `fork.taskActions` 通道落盘。
 - `ActionBase` 能自动生成 `actionParameters` 摘要，可选覆写 `result_description()`。
 - `OperationFlow` 已将 operation 的批次推进从车型逻辑中抽出。
-- `Fork.period_run()` 已按固定周期写 `fork.task` / `fork.motor` 数值快照，并经 `self.*_trace_channel` 属性下发，通道名可被车型覆写。
+- `Fork.period_run()` 已按固定周期写数值快照，并经 `self.*_trace_channel` 属性下发，通道名可被车型覆写。现状：状态上报写 `fork.report`，电机快照写 `fork.motor`。
 - 多数电机动作具备 `_trace_state()`，可用于动作级状态快照。
 - `RunMotorByPosition` 已维护动作开始时间、当前位置、目标位置、到位检查和复位逻辑。
 - `elevator.py` 已落地结构化策略通道 `elevator.policy`，可作为跨车型先例。
@@ -91,7 +91,8 @@
 | --- | --- | --- | --- |
 | `fork` | 事件 | 脚本生命周期、阶段切换、任务级决策 | 否 |
 | `fork.taskActions` | 事件协议 | Action 队列 `taskBuild` / `taskExtend` / `actionStateChanged` / `taskFinished` / `taskFailed` | 否 |
-| `fork.task` | 数值 | 任务级数值快照 | 是 |
+| `fork.task` | 事件 + 数值 | 任务流程上下文：当前动作名与动作状态 | 是 |
+| `fork.report` | 数值 | 周期状态上报：脚本/动作状态、动作索引与总数、自动标志。**仅任务进行中写入** | 是 |
 | `fork.motor` | 事件 + 数值 | 电机命令、到位、停止、超时、货叉机构事件和状态快照 | 数值高频 |
 | `fork.nav` | 事件 + 数值 | 导航/路径启动、目标、到达、接触 DI、避障和导航状态 | 数值可高频 |
 | `fork.policy` | 事件 | 策略下发、覆盖、恢复、清除，以及策略值与默认值的差异 | 否 |
@@ -110,9 +111,11 @@
 | 裸通道调用（8 处） | **已补齐 `name`** | `fork.rec` / `fork.err` / `fork.nav` |
 | `fork.motor` 的 `forkHeightInPlace` | **已删除**，统一用 `forkInPlace`（`reportInfo` 的对外字段不受影响） | `forkInPlace` |
 
-现有 `fork.task` / `fork.motor` 的业务消费者需要兼容旧字段，字段替换采用双写过渡，至少保留一个完整版本周期。禁止新代码使用默认裸通道 `log`、动态 `name` 或 `Trace.chart()`。
+`fork.motor` 的业务消费者需要兼容旧字段，字段替换采用双写过渡，至少保留一个完整版本周期。禁止新代码使用默认裸通道 `log`、动态 `name` 或 `Trace.chart()`。
 
-**已决定保留**：`fork.task` 快照的 `scriptStatus` / `actionStatus` / `actionIndex` / `actionCount`（下游表单与看板仍在消费）。
+**字段保留，通道迁移**：`scriptStatus` / `actionStatus` / `actionIndex` / `actionCount` / `forkAutoFlag` 字段仍然保留（下游表单与看板仍在消费），但写入通道由 `fork.task` 迁至 `fork.report`，与任务流程日志分离。`fork.task` 只保留 `scriptTaskLen` / `scriptCurrentAction` / `scriptCurrentActionStatus`。
+
+**下游迁移注意**：仍按 `fork.task` 读取上述 5 个状态字段的看板需要改读 `fork.report`。`fork.task` 中不再出现这些字段。
 
 ### 3.2 载荷体积与完整数据
 
@@ -395,26 +398,30 @@
 
 `fork.motor` 快照统一使用 `forkInPlace`（`forkHeightInPlace` 已删除）。`forkDirection` 无方向时用固定字符串 `idle`，不使用 `None`。
 
-#### 7.2.1 落盘策略：变化触发 + 心跳
+#### 7.2.1 落盘策略：变化触发 + 心跳 + 终态停写
 
-`fork.task` 与 `fork.motor` 都是**高频数值快照**，早期实现每 tick 无条件落盘。实车实测（401s）表明绝大多数是重复值：
+`fork.report`、`fork.task` 与 `fork.motor` 都是**高频数值快照**，早期实现每 tick 无条件落盘。实车实测（401s）表明绝大多数是重复值：
 
 | 通道 | 条数 | 唯一值 | 重复率 |
 | --- | --- | --- | --- |
 | `fork.motor` | 2781 | 100 | 96% |
-| `fork.task` | 645 | 40 | 94% |
+| `fork.task`（现 `fork.report`） | 645 | 40 | 94% |
 
 逐字段变化率更能说明问题（`fork.motor`）：`forkHeight` 3.2%、`forkSpeed` 3.7%、`forkMileage` 2.3%，而 `forkInPlace` / `minSafeHeight` 全程不变。
 
-因此两个通道统一改为：**值变化时落盘，另设心跳上限**。心跳必须保留，否则货叉长时间静止时下游看板收不到存活信号。
+因此统一改为：**值变化时落盘，另设心跳上限**。心跳必须保留，否则货叉长时间静止时下游看板收不到存活信号。
 
 实现：`Fork._snapshot_due(name, key)`（`fork.py`），每个写入点用独立 `name` 维护 `{上次键, 上次时间}`。
 
-- `_task`：`period_run` 的任务状态快照
-- `_task_actions`：`_execute_actions` 的动作队列快照（与 `_task` 字段不同，字段更多）
-- `_motor`：`period_run` 的货叉电机快照
+- `_report`：`period_run` 的周期状态上报（写 `fork.report`）
+- `_task_actions`：`_execute_actions` 的任务流程上下文（写 `fork.task`）
+- `_motor`：`period_run` 的货叉电机快照（写 `fork.motor`）
 
 三个写入点共用同一 helper，但 `name` 不同、互不干扰。心跳间隔 `_SNAPSHOT_HEARTBEAT_SEC = 5.0`。
+
+**终态停写**：`fork.report` 只在 `_task_is_terminal()` 为假时写入。脚本状态为 `FINISHED`（3）或 `FAILED`（4）后立即停止上报，避免任务已结束、图表上的动作却持续到时间轴末尾，甚至跨到下一个任务。下一个任务启动时状态从终态变为 `RUNNING`，键值变化会自然恢复上报（`_snapshot_due` 初始键为 `None`，首个 tick 必落盘），无需额外重置。
+
+`fork.motor` 不做终态停写：货叉高度等物理量在任务结束后仍可能变化（如收尾升降），且其载荷不含任务状态字段，不影响图表对任务边界的判断。
 
 基于实车 401s 日志回放预估效果：
 
@@ -422,8 +429,10 @@
 | --- | --- | --- | --- |
 | `fork.motor` 快照 | 792 KB | 48 KB | 94% |
 | `fork.task`（`_execute_actions`） | 136 KB | 10 KB | 93% |
-| `fork.task`（`period_run` 心跳） | 11 KB | 9 KB | 24% |
+| `fork.report`（`period_run` 心跳） | 11 KB | 9 KB | 24% |
 | **合计** | **939 KB** | **66 KB** | **93%** |
+
+终态停写还会额外减少尾部记录：原实现中任务结束后仍会按心跳持续上报，直到下一个任务覆盖状态。
 
 注意：`forkMoving` / `forkDirection` 由本次 tick 的 `delta` 推导，货叉静止时天然不变，因此“值变化触发”语义上等同于“运动时密集、静止时靠心跳”。
 
@@ -659,16 +668,21 @@ ptcat -b "$B" -e "$E" -g 'rbk\.script\.utils_rpc' -n '^fork' -c log trace.pft.zs
 | 通道 | 类型 | 能回答什么 | 何时写入 |
 | --- | --- | --- | --- |
 | `fork` | 事件 | 脚本是否启动、参数是否收到、是否失败/取消 | 生命周期每次变化 |
-| `fork.task` | 数值快照 | 任务级状态：`scriptStatus`、`actionStatus`、`actionIndex`、`actionCount`、当前动作 | 值变化 + 5 s 心跳 |
+| `fork.task` | 事件 + 数值 | 任务流程上下文：`scriptTaskLen`、当前动作名与动作状态 | 流程变化 + 去重 |
+| `fork.report` | 数值快照 | 周期状态上报：`scriptStatus`、`actionStatus`、`actionIndex`、`actionCount`、`forkAutoFlag` | 值变化 + 5 s 心跳，**终态即停** |
 | `fork.taskActions` | 事件协议 | 动作队列：`taskBuild`、`actionStateChanged`、`taskFinished`、`taskFailed`（含 `failedAt`） | 队列/动作状态变化 |
-| `fork.motor` | 事件 + 数值 | 电机命令、到位、失败、货叉高度/方向/速度/里程 | 值变化 + 5 s 心跳 |
+| `fork.motor` | 事件 + 数值 | 电机命令、到位、失败、货叉高度/方向/速度/里程 | 值变化 + 5 s 心跳（**终态后仍按心跳写入**）|
 | `fork.nav` | 事件 | 路径下发、目标解析、终段进入、碰撞设备、路点 | 每个导航动作 |
 | `fork.policy` | 事件 | 避障策略改了哪些键、`before`/`after`、`resetPath` | 策略值真正变化时 |
 | `fork.rec` | 事件 | 识别区域、进度、孔位、目标计算、接受/拒绝 | 每次识别尝试 |
 | `fork.cfg` | 事件 | 配置加载、设备模型、叉尖激光、扣取区域 | 每次配置加载 |
 | `fork.err` | 事件 | `errorCode` + `reason`：超时、DI 触发、解析失败 | 出错时 |
 
-两个数值通道（`fork.task` / `fork.motor`）**没有 `event` 字段**，且按值去重。叉子静止时记录稀疏是正常现象，不是日志故障。
+两个数值通道（`fork.report` / `fork.motor`）**没有 `event` 字段**，且按值去重。叉子静止时记录稀疏是正常现象，不是日志故障。
+
+`fork.report` 在脚本进入 `FINISHED` / `FAILED` 后**立即停止写入**，因此报告曲线会在任务结束处截断，而不是延伸到时间轴末尾或跨到下一个任务。这是预期行为；任务终态本身由 `fork` 通道的 `scriptFinished` / `scriptFailed` 事件表达。
+
+`fork.motor` **不做**终态停写：货叉高度在任务收尾阶段仍可能变化（下降、收回），且其载荷不含任务状态字段，不影响图表对任务边界的判断。代价是任务结束到下次启动的空闲期内，仍会按 5 s 心跳写入（实车回放：93 s 空闲约 19 条）。排查时按时间窗口截取即可；该行为已知，不是日志故障。
 
 ### 12.3 第一步：按 taskId 圈出任务
 

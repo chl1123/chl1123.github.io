@@ -52,7 +52,8 @@ def _config():
 # 所有叉车日志必须使用固定通道，不得拼接 taskId / actionId / 时间戳。
 # ----------------------------------------------------------------------------
 CH_FORK = MOD                        # fork       脚本生命周期、阶段切换、任务级决策
-CH_TASK = f"{MOD}.task"              # fork.task  任务级数值快照（高频）
+CH_TASK = f"{MOD}.task"              # fork.task  任务流程与动作队列上下文（事件）
+CH_REPORT = f"{MOD}.report"          # fork.report 周期状态上报（数值快照，仅任务进行中）
 CH_ACTIONS = f"{MOD}.taskActions"    # fork.taskActions Action 队列协议（由 ActionTask 写）
 CH_MOTOR = f"{MOD}.motor"            # fork.motor 电机事件与货叉数值（高频）
 CH_NAV = f"{MOD}.nav"                # fork.nav   导航事件与状态
@@ -439,7 +440,7 @@ def normalize_motor_operation(motor_type):
     return motor_type, ""
 
 
-def apply_tcp_target(target_pos, tcp_name, *, enabled=True, log_name="fork.task"):
+def apply_tcp_target(target_pos, tcp_name, *, enabled=True, log_name="fork.nav"):
     if not enabled or not tcp_name:
         return target_pos
 
@@ -536,7 +537,7 @@ def apply_module_lateral_offset(world_pos):
     _trace_log(
         f"side fork lateral offset: module_y={getattr(cfg, 'module_y', 0.0)}, "
         f"{world_pos} -> {shifted}",
-        name="fork.task",
+        name="fork.nav",
     )
     return shifted
 
@@ -600,7 +601,7 @@ def apply_module_hold_dir(args, world_pos) -> None:
         f"side fork holdDir={hold_dir:.3f}deg for target:{world_pos}, "
         f"moduleYaw:{getattr(cfg, 'module_yaw', 0.0)}deg, "
         f"pickDirection:{getattr(cfg, 'module_pick_direction', '')}",
-        name="fork.task",
+        name="fork.nav",
     )
 
 
@@ -668,7 +669,7 @@ def enable_falling_down_detect(ctx) -> bool:
         return False
 
     ctx._falling_down_detect_enabled = True
-    Trace.log("FallingDown detect enabled", name=f"{MOD}.task")
+    Trace.log("FallingDown detect enabled", name="fork.cfg")
     return True
 
 
@@ -732,7 +733,7 @@ def ensure_recfile(ctx) -> bool:
     return False
 
 
-def load_recognition_assets(ctx, *, log_name="fork.task") -> bool:
+def load_recognition_assets(ctx, *, log_name="fork.rec") -> bool:
     if not ctx.recfile:
         return True
 
@@ -2493,7 +2494,7 @@ class GoPathWithContactDi(ActionBase):
             args = {}
             Trace.log(
                 f"side fork forces goPath for lateral approach, original method:{method}",
-                name="fork.task",
+                name="fork.nav",
             )
         self.di_trigger_time = 1
         self.set_policy = False
@@ -2758,7 +2759,7 @@ class GoPathWithContactDi(ActionBase):
         self.target_pos = self.final_world_pos
         Trace.log(
             f"staged reach path aligned by {reason}, start extend reach motors",
-            name="fork.task",
+            name="fork.nav",
         )
 
     def _build_bezier_back_action(self, world_pos, back_dist, args):
@@ -2871,7 +2872,7 @@ class GoPathWithContactDi(ActionBase):
             self.policy["navigation.collisionDetection.detectionDevice"] = collision_device_str
             Trace.log(
                 f"enabled unload fork-tip collision devices:{collision_device_str}",
-                name="fork.task",
+                name="fork.policy",
             )
 
     def _load_collision_devices(self) -> List[str]:
@@ -2928,7 +2929,7 @@ class GoPathWithContactDi(ActionBase):
         self.policy["navigation.collisionDetection.detectionDevice"] = current_collision_device_str
         Trace.log(
             f"shielded collision devices, new collision device:{current_collision_device_str}",
-            name="fork.task",
+            name="fork.policy",
         )
 
     def _apply_navigation_collision_device_shielding(self, collision_devices: List[str]) -> None:
@@ -2946,7 +2947,7 @@ class GoPathWithContactDi(ActionBase):
         self.policy["navigation.collisionDetection.collisionDevice"] = collision_device_str
         Trace.log(
             f"shielded navigation collision devices:{collision_devices}, remaining:{collision_device_str}",
-            name="fork.task",
+            name="fork.policy",
         )
 
     def _load_fork_root_collision_models(self) -> Optional[List[Dict[str, Any]]]:
@@ -3101,12 +3102,12 @@ class GoPathWithContactDi(ActionBase):
                 ))
                 Trace.log(
                     f"apply fork root collision model policy: models={fork_root_collision_models}",
-                    name="fork.task",
+                    name="fork.policy",
                 )
             else:
                 Trace.log(
                     "recognition file has no collision model; remove fork root lasers from collision devices",
-                    name="fork.task",
+                    name="fork.policy",
                 )
 
         # PickFork 的识别文件将碰撞设备单独列在 collisionDevice；初始化阶段从
@@ -3135,7 +3136,7 @@ class GoPathWithContactDi(ActionBase):
         unload_stop_dist = RobotParam.getConfig("navigation", "obstacleStop.obsStopUnload.obsStopDist")
         Trace.log(
             f"policy :{self.policy},current_collision_device_change:{current_collision_device_change}, cur_unload_stop_dist:{unload_stop_dist}",
-            name="fork.task",
+            name="fork.policy",
         )
         return True
 
@@ -3157,7 +3158,7 @@ class GoPathWithContactDi(ActionBase):
         Trace.log(
             f"fork tip di sensors:{_config().fork_tip_di_sensors}, "
             f"fork_tip_di_ids:{self.fork_tip_di_ids}, operation_type:{self.operation_type}",
-            name="fork.task",
+            name="fork.cfg",
         )
         if not self._configure_initial_policy():
             back_action = getattr(self, "back_action", None)
@@ -4289,7 +4290,7 @@ class RunReachMotorsByPosition(ActionBase):
                 self.position_motor_names.append(motor_name)
         Trace.log(
             f"reach motors:{self.motor_names}, targets:{self.target_positions}, speed:{self.max_speed}",
-            name="fork.task",
+            name="fork.motor",
         )
         return True
 
@@ -4390,7 +4391,7 @@ def _init_fork_motor_action(action, min_safe_height=0.0):
         action._collision_device = [_config().fork_root_2D_lasers]
         Trace.log(
             f"x_list:{action._collision_x},y_list:{action._collision_y},collision device:{action._collision_device}",
-            name="fork.task",
+            name="fork.policy",
         )
 
 
@@ -4416,7 +4417,7 @@ def _fork_check_back_laser_collision(action):
     if 0 < action.min_safe_height <= action.cur_fork_height:
         Trace.log(
             f"fork moving, height:{action.cur_fork_height} >= min_safe_height:{action.min_safe_height}, skip back laser collision detection",
-            name="fork.task",
+            name="fork.motor",
         )
         return
     Navigation.collisionDetection(action._collision_device, action._collision_x, action._collision_y)
@@ -4700,7 +4701,7 @@ class MoveChassisByY(ActionBase):
                 f"cur pos shift:{cur_position},target:{cur_position + self.y}",
                 output_console=True,
                 output_time=True,
-                name="fork.task",
+                name="fork.motor",
                 debug=True,
             )
             chassis_x_args = {

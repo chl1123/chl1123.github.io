@@ -144,6 +144,7 @@ from standard.fork_utils import (
     CH_CFG,
     CH_ERR,
     CH_REC,
+    CH_REPORT,
     CH_TASK,
     ForkActionQueue,
     GoLiveRec,
@@ -1739,6 +1740,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     # during the initial load approach only.
     use_recfile_collision_policy = False
     task_trace_channel = f"{MOD}.task"
+    report_trace_channel = f"{MOD}.report"
     motor_trace_channel = f"{MOD}.motor"
 
     def _snapshot_due(self, name: str, key: tuple) -> bool:
@@ -1966,7 +1968,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         run_db.put(self.key_today_up_mileage, self.today_up)
         run_db.put(self.key_today_down_mileage, self.today_down)
         run_db.put(self.key_today_date, self.today_date)
-        Trace.log(f"fork daily mileage reset: date={today}", name="fork.task")
+        Trace.log(f"fork daily mileage reset: date={today}", name="fork.cfg")
 
     def _reset_extra_task_state(self):
         pass
@@ -2127,12 +2129,19 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self.start_loc = [] # 放到load unload是不是更好
         self.report_info = {}
         self._reset_operation_runtime_state()
-        self.task_trace_payload = {
+        # fork.report：周期状态上报（脚本/动作状态、索引、自动标志）。
+        self.report_trace_payload = {
             "scriptStatus": int(self.script_status),
             "actionStatus": int(self.action_status),
             "actionIndex": int(self.action_id),
             "actionCount": int(self.action_task.total),
             "forkAutoFlag": False,
+        }
+        # fork.task：任务流程上下文（当前动作名与状态），不重复承载状态快照。
+        self.task_trace_payload = {
+            "scriptTaskLen": int(self.action_task.total),
+            "scriptCurrentAction": "",
+            "scriptCurrentActionStatus": 0,
         }
         self.motor_trace_payload = {
             "forkHeight": 0.0,
@@ -2426,7 +2435,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 self._skip_next_nav_fork_height = False
                 Trace.log(
                     f"skip fork travel height on first navigation after script action, task_id={task_id}",
-                    name="fork.task",
+                    name="fork.motor",
                 )
                 return
 
@@ -2437,7 +2446,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             if abs(current - target) <= 0.02:
                 Trace.log(
                     f"fork travel height already in place, current={current}, target={target}, task_id={task_id}",
-                    name="fork.task",
+                    name="fork.motor",
                 )
                 return
             self.fork_height_in_place = False
@@ -2449,7 +2458,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             )
             Trace.log(
                 f"start fork travel height while navigating, current={current}, target={target}, task_id={task_id}",
-                name="fork.task",
+                name="fork.motor",
             )
 
         action = self._nav_fork_height_action
@@ -2457,7 +2466,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             return
         action.run(self)
         if action.action_status == ActionStatus.FINISHED:
-            Trace.log(f"fork travel height finished, task_id={task_id}", name="fork.task")
+            Trace.log(f"fork travel height finished, task_id={task_id}", name="fork.motor")
             self._nav_fork_height_action = None
             self.fork_height_in_place = True
         elif action.action_status == ActionStatus.FAILED:
@@ -2654,7 +2663,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
     def modbus(self):
         # modbus解析器
         trigger_data = NetProtocol.getModbusData("4x", 200, 1)
-        Trace.log(f"modbus trigger 4x[200]:{trigger_data}", name="fork.task")
+        Trace.log(f"modbus trigger 4x[200]:{trigger_data}", name="fork.motor")
         try:
             motor_registers = {
                 203: "lift",
@@ -2667,7 +2676,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 signal = parseModbus(signal_data, "int16")
                 Trace.log(
                     f"modbus motor 4x[{address}]:{signal_data}, signal:{signal}",
-                    name="fork.task",
+                    name="fork.motor",
                 )
                 if signal not in (-2, -1, 1, 2):
                     continue
@@ -2700,7 +2709,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             data = parseModbus(modbus_data, "float")
             Trace.log(
                 f"modbus target 4x[201:203]:{modbus_data}, parsed height:{data}",
-                name="fork.task",
+                name="fork.motor",
             )
             return {"operation": "forkHeight", "height": data}
         finally:
@@ -2816,7 +2825,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             return True
         return self._resolve_motor_info(motor_type) is not None
 
-    def _init_start_loc_from_source(self, r_loc, *, log_name="fork.task"):
+    def _init_start_loc_from_source(self, r_loc, *, log_name="fork.nav"):
         source_pos = self.get_station_pos("sourceName")[0]
         Trace.log(f"source_pos:{source_pos},recfile:{self.recfile}", name=log_name)
         self.start_loc = r_loc if source_pos[3] == -1 else source_pos
@@ -2978,7 +2987,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             f"rec_world_pos:{rec_world_pos}, robotResult:{rec_robot_pos}",
             output_console=True,
             output_time=True,
-            name="fork.task",
+            name="fork.rec",
         )
         if check_tilt and not validate_recognition_tilt(self, rec_result_dict):
             return None
@@ -2986,7 +2995,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             rec_world_pos,
             "move/defaultTcp",
             enabled=ConfigParams.enableTcp,
-            log_name="fork.task",
+            log_name="fork.rec",
         )
         if not validate_recognition_result_against_target(self, rec_world_pos):
             return None
@@ -3047,7 +3056,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             Trace.log(
                 f"recognition readjust count:{self.recognition_readjust_count}, "
                 f"lateral:{lateral_error}m, yaw:{angle_error_deg}deg, converged:{converged}",
-                name="fork.task",
+                name="fork.rec",
             )
             if converged:
                 return resolved
@@ -3266,8 +3275,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
 
             # 识别完成，就地读结果并校验
             self.check_di = is_enabled(self.rec_info.get("enableCargoContactDI"))
-            Trace.log(f"add task list {format_action(rec_action)},id {self.action_id}", output_console=True,
-                      output_time=True, name="fork.task")
+            # 动作入队的记录由 fork.taskActions 的 taskBuild 事件提供，此处不再重复打印。
             resolved = yield from self._run_recognition_readjust(
                 rec_action,
                 self._create_load_recognition_action,
@@ -3297,7 +3305,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 method,
                 args,
             )
-            Trace.log(f"method:{method}", name="fork.task")
+            Trace.log(f"method:{method}", name="fork.nav")
             self.deferred_leave_loc_actions = self._build_leave_loc_followup_actions(
                 allow_same_path_return=self.recognition_readjust_count == 0,
             )
@@ -3345,7 +3353,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         self._init_start_loc_from_source(r_loc)
         target_pos, tcp_name = self.get_station_pos("targetName")
         self.target_pos = target_pos
-        Trace.log(f"target_pos: {target_pos}", name="fork.task")
+        Trace.log(f"target_pos: {target_pos}", name="fork.nav")
         self._on_unload_actions_build()
 
         unload_guard = self._build_unload_guard_actions()
@@ -3371,14 +3379,13 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             yield self._build_unload_entry_batch(rec_action)
 
             # 卸货识别完成，就地读结果并校验
-            Trace.log(f"add unload task list {format_action(rec_action)},id {self.action_id}", output_console=True,
-                      output_time=True, name="fork.task")
+            # 动作入队的记录由 fork.taskActions 的 taskBuild 事件提供，此处不再重复打印。
             _, _, rec_world_pos, rec_robot_pos = self._resolve_load_recognition_pose(rec_action)
             Trace.log(f"rec_world_pos: {rec_world_pos},robotResult:{rec_robot_pos}", output_console=True,
-                      output_time=True, name="fork.task")
+                      output_time=True, name="fork.rec")
             tcp_enabled = bool(ConfigParams.enableTcp)
             rec_world_pos = apply_tcp_target(
-                rec_world_pos, "move/defaultTcp", enabled=tcp_enabled, log_name="fork.task")
+                rec_world_pos, "move/defaultTcp", enabled=tcp_enabled, log_name="fork.rec")
             if not validate_recognition_result_against_target(self, rec_world_pos):
                 return
             method, args = build_path_adjust_plan(
@@ -3387,7 +3394,7 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                 adjust_dist=ConfigParams.aheadDist,
                 enabled=tcp_enabled,
             )
-            Trace.log(f"method:{method}", name="fork.task")
+            Trace.log(f"method:{method}", name="fork.nav")
             self.deferred_leave_loc_actions = self._build_leave_loc_followup_actions(
                 allow_same_path_return=tcp_enabled,
             )
@@ -3472,7 +3479,8 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
                         f"execute action {format_action(failed_action)} failed!",
                     )
 
-        # script 状态已并入 fork.task，不再保留独立通道（见 docs/guide/spec/fork_logging.md §3.1）
+        # fork.task 只承载任务流程上下文（当前动作名与状态）；
+        # 脚本/动作状态快照已迁至 fork.report（见 docs/guide/spec/fork_logging.md §3.1）。
         task_snapshot = self.task_trace_payload
         task_snapshot["scriptTaskLen"] = int(self.action_task.total)
         task_snapshot["scriptCurrentAction"] = (
@@ -3481,17 +3489,25 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         task_snapshot["scriptCurrentActionStatus"] = (
             int(self.current_action.action_status) if self.current_action else 0
         )
-        # 同一快照也会被 period_run 写；此处复用同一套去重，避免动作状态机推进时重复落盘。
+        # 动作状态机推进时去重，避免同一流程状态重复落盘。
         if self._snapshot_due("_task_actions", (
-            task_snapshot["scriptStatus"],
-            task_snapshot["actionStatus"],
-            task_snapshot["actionIndex"],
-            task_snapshot["actionCount"],
-            task_snapshot["forkAutoFlag"],
             task_snapshot["scriptTaskLen"],
             task_snapshot["scriptCurrentAction"],
             task_snapshot["scriptCurrentActionStatus"],
         )):
+            """
+            @NameZh @fork.task 叉车任务流程
+            @NameEn @fork.task fork task flow
+            @KeyZh @scriptTaskLen 动作队列总长
+            @KeyEn @scriptTaskLen action queue length
+            @NumberType @scriptTaskLen
+            @KeyZh @scriptCurrentAction 当前动作名
+            @KeyEn @scriptCurrentAction current action name
+            @StringType @scriptCurrentAction
+            @KeyZh @scriptCurrentActionStatus 当前动作状态
+            @KeyEn @scriptCurrentActionStatus current action status
+            @NumberType @scriptCurrentActionStatus
+            """
             Trace.log(task_snapshot, output_console=False, name=self.task_trace_channel)
 
     def motor_jog_or_move(self, motor_type):
@@ -3806,42 +3822,47 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
         Module.reportInfo(report_info)
 
         # 高频时序通道复用固定 payload，避免每 tick 临时构造 dict / 动态通道名。
-        task_trace_payload = self.task_trace_payload
-        task_trace_payload["scriptStatus"] = int(self.script_status)
-        task_trace_payload["actionStatus"] = int(self.action_status)
-        task_trace_payload["actionIndex"] = int(self.action_id)
-        task_trace_payload["actionCount"] = int(self.action_task.total)
-        task_trace_payload["forkAutoFlag"] = bool(fork_auto_flag)
-        # fork.task 是任务级状态快照：状态未变时重复落盘无信息量，改为变化触发
-        # （带心跳）。写入点与字段说明见 §7.2。
-        task_snapshot_key = (
-            task_trace_payload["scriptStatus"],
-            task_trace_payload["actionStatus"],
-            task_trace_payload["actionIndex"],
-            task_trace_payload["actionCount"],
-            task_trace_payload["forkAutoFlag"],
-        )
-        if self._snapshot_due("_task", task_snapshot_key):
-            """
-            @NameZh @fork.task 叉车任务执行状态
-            @NameEn @fork.task fork task execution status
-            @KeyZh @scriptStatus 脚本状态
-            @KeyEn @scriptStatus script status
-            @NumberType @scriptStatus
-            @KeyZh @actionStatus 动作状态
-            @KeyEn @actionStatus action status
-            @NumberType @actionStatus
-            @KeyZh @actionIndex 当前动作索引
-            @KeyEn @actionIndex current action index
-            @NumberType @actionIndex
-            @KeyZh @actionCount 动作总数
-            @KeyEn @actionCount total action count
-            @NumberType @actionCount
-            @KeyZh @forkAutoFlag 是否自动控制
-            @KeyEn @forkAutoFlag fork auto flag
-            @BooleanType @forkAutoFlag
-            """
-            Trace.log(task_trace_payload, output_console=False, name=self.task_trace_channel)
+        report_trace_payload = self.report_trace_payload
+        report_trace_payload["scriptStatus"] = int(self.script_status)
+        report_trace_payload["actionStatus"] = int(self.action_status)
+        report_trace_payload["actionIndex"] = int(self.action_id)
+        report_trace_payload["actionCount"] = int(self.action_task.total)
+        report_trace_payload["forkAutoFlag"] = bool(fork_auto_flag)
+        # 周期状态上报走独立的 fork.report 通道，与任务流程日志（fork.task）分离，
+        # 避免排查时被高频快照淹没。变化触发 + 心跳，见 §7.2。
+        #
+        # 终态（FINISHED / FAILED）后不再上报：否则任务已结束，图表上的动作仍会
+        # 持续到时间轴末尾，甚至跨到下一个任务。心跳恢复由下一次任务启动时的
+        # 状态变化自然触发（初始 key 为 None，首个 tick 必落盘）。
+        if not self._task_is_terminal():
+            report_snapshot_key = (
+                report_trace_payload["scriptStatus"],
+                report_trace_payload["actionStatus"],
+                report_trace_payload["actionIndex"],
+                report_trace_payload["actionCount"],
+                report_trace_payload["forkAutoFlag"],
+            )
+            if self._snapshot_due("_report", report_snapshot_key):
+                """
+                @NameZh @fork.report 叉车周期状态上报
+                @NameEn @fork.report fork periodic status report
+                @KeyZh @scriptStatus 脚本状态
+                @KeyEn @scriptStatus script status
+                @NumberType @scriptStatus
+                @KeyZh @actionStatus 动作状态
+                @KeyEn @actionStatus action status
+                @NumberType @actionStatus
+                @KeyZh @actionIndex 当前动作索引
+                @KeyEn @actionIndex current action index
+                @NumberType @actionIndex
+                @KeyZh @actionCount 动作总数
+                @KeyEn @actionCount total action count
+                @NumberType @actionCount
+                @KeyZh @forkAutoFlag 是否自动控制
+                @KeyEn @forkAutoFlag fork auto flag
+                @BooleanType @forkAutoFlag
+                """
+                Trace.log(report_trace_payload, output_console=False, name=self.report_trace_channel)
 
         motor_trace_payload = self.motor_trace_payload
         motor_trace_payload["forkHeight"] = float(fork_height)
@@ -3872,44 +3893,44 @@ class Fork(ModuleBase): #todo: 各种_build_*_actions 缺乏层级关系，不�
             motor_trace_payload["forkMileageDown"],
             motor_trace_payload["minSafeHeight"],
         )
-        """
-        @NameZh @fork.motor 叉车货叉电机状态
-        @NameEn @fork.motor fork motor status
-        @KeyZh @forkHeight 当前货叉高度
-        @KeyEn @forkHeight current fork height
-        @NumberType @forkHeight
-        @Unit @forkHeight m
-        @KeyZh @forkInPlace 货叉是否到位
-        @KeyEn @forkInPlace fork in place
-        @BooleanType @forkInPlace
-        @KeyZh @forkMoving 货叉是否运动中
-        @KeyEn @forkMoving whether fork is moving
-        @BooleanType @forkMoving
-        @KeyZh @forkDirection 货叉运动方向（up/down/idle）
-        @KeyEn @forkDirection fork movement direction
-        @StringType @forkDirection
-        @KeyZh @forkSpeed 货叉速度
-        @KeyEn @forkSpeed fork speed
-        @NumberType @forkSpeed
-        @Unit @forkSpeed m/s
-        @KeyZh @forkMileage 货叉总里程
-        @KeyEn @forkMileage total fork mileage
-        @NumberType @forkMileage
-        @Unit @forkMileage m
-        @KeyZh @forkMileageUp 货叉上升里程
-        @KeyEn @forkMileageUp fork upward mileage
-        @NumberType @forkMileageUp
-        @Unit @forkMileageUp m
-        @KeyZh @forkMileageDown 货叉下降里程
-        @KeyEn @forkMileageDown fork downward mileage
-        @NumberType @forkMileageDown
-        @Unit @forkMileageDown m
-        @KeyZh @minSafeHeight 最小安全高度
-        @KeyEn @minSafeHeight minimum safe height
-        @NumberType @minSafeHeight
-        @Unit @minSafeHeight m
-        """
         if self._snapshot_due("_motor", motor_snapshot_key):
+            """
+            @NameZh @fork.motor 叉车货叉电机状态
+            @NameEn @fork.motor fork motor status
+            @KeyZh @forkHeight 当前货叉高度
+            @KeyEn @forkHeight current fork height
+            @NumberType @forkHeight
+            @Unit @forkHeight m
+            @KeyZh @forkInPlace 货叉是否到位
+            @KeyEn @forkInPlace fork in place
+            @BooleanType @forkInPlace
+            @KeyZh @forkMoving 货叉是否运动中
+            @KeyEn @forkMoving whether fork is moving
+            @BooleanType @forkMoving
+            @KeyZh @forkDirection 货叉运动方向（up/down/idle）
+            @KeyEn @forkDirection fork movement direction
+            @StringType @forkDirection
+            @KeyZh @forkSpeed 货叉速度
+            @KeyEn @forkSpeed fork speed
+            @NumberType @forkSpeed
+            @Unit @forkSpeed m/s
+            @KeyZh @forkMileage 货叉总里程
+            @KeyEn @forkMileage total fork mileage
+            @NumberType @forkMileage
+            @Unit @forkMileage m
+            @KeyZh @forkMileageUp 货叉上升里程
+            @KeyEn @forkMileageUp fork upward mileage
+            @NumberType @forkMileageUp
+            @Unit @forkMileageUp m
+            @KeyZh @forkMileageDown 货叉下降里程
+            @KeyEn @forkMileageDown fork downward mileage
+            @NumberType @forkMileageDown
+            @Unit @forkMileageDown m
+            @KeyZh @minSafeHeight 最小安全高度
+            @KeyEn @minSafeHeight minimum safe height
+            @NumberType @minSafeHeight
+            @Unit @minSafeHeight m
+            """
             Trace.log(motor_trace_payload, output_console=False, name=self.motor_trace_channel)
         # 写modbus寄存器
         modbus_list_fork_height = float_to_modbus_poll_regs(fork_height)
@@ -4078,7 +4099,7 @@ class HeavyFork(Fork):
         r_loc = get_r_loc()
         self._init_start_loc_from_source(r_loc)
         self.target_pos, tcp_name = self.get_station_pos("targetName")
-        Trace.log(f"target_pos: {self.target_pos}", output_console=True, output_time=True, name="fork.task")
+        Trace.log(f"target_pos: {self.target_pos}", output_console=True, output_time=True, name="fork.nav")
 
         self.recfile = self.recfile or "default.srec"
         if not load_recognition_assets(self):
@@ -4144,7 +4165,7 @@ class HeavyFork(Fork):
                 method,
                 args,
             )
-            Trace.log(f"method:{method}", name="fork.task")
+            Trace.log(f"method:{method}", name="fork.nav")
 
             # 2) 进叉到识别高度 + 识别料笼；对齐不足则 MoveChassisByY 微调后复识别
             yield self._build_cage_stack_post_pallet_recognition_actions(rec_world_pos, method, args, cage_rec)
@@ -4152,7 +4173,7 @@ class HeavyFork(Fork):
         while True:
             robot2pos = self.get_robot2target_pos(cage_rec.results_list)
             Trace.log(f"robot2pos: {robot2pos},yaw: {math.degrees(robot2pos[2])}",
-                      output_console=True, output_time=True, name="fork.task")
+                      output_console=True, output_time=True, name="fork.rec")
             if self._is_invalid_cage_target_pose(robot2pos):
                 self.set_status(ScriptStatus.FAILED)
                 return
@@ -4160,7 +4181,7 @@ class HeavyFork(Fork):
                 Navigation.setTaskError("CageTooFar", "cage too far")
                 self.set_status(ScriptStatus.FAILED)
                 return
-            Trace.log(f"cage_count:{self.cage_count}", output_console=True, output_time=True, name="fork.task")
+            Trace.log(f"cage_count:{self.cage_count}", output_console=True, output_time=True, name="fork.nav")
             if self._is_cage_alignment_complete(robot2pos) or self.cage_count >= 1:
                 break
             self.cage_count += 1
@@ -4274,7 +4295,7 @@ class HeavyFork(Fork):
             f"top_mid_offset:{top_mid_offset}, "
             f"bottom_mid_offset:{bottom_mid_offset}, "
             f"top2bottom_pos:{robot2target}",
-            name="fork.task"
+            name="fork.rec"
         )
 
         return robot2target
