@@ -281,16 +281,16 @@ def add_weight_config(builder):
         builder.TYPE(ParamType.ARRAY)
         with builder.CHILDREN():
             with builder.CHILD(
-                key="weightCan",
-                name=_TR("Weight CAN"),
+                key="canPort",
+                name=_TR("CAN 端口"),
                 desc=_TR("CAN device connected to the weight scale"),
             ):
                 builder.TYPE(ParamType.BIND_TYPE)
                 builder.BINDTYPE(BindType.Device.CAN)
             for key, name, default, param_type in (
-                ("weightNodeId", "CAN Node ID", 0x0A, ParamType.INT),
-                ("weightSampleCount", "Sample Count", 3, ParamType.INT),
-                ("weightSampleInterval", "Sample Interval", 0.1, ParamType.FLOAT),
+                ("canID", "CAN ID", 0x0A, ParamType.INT),
+                # ("weightSampleCount", "Sample Count", 3, ParamType.INT),
+                # ("weightSampleInterval", "Sample Interval", 0.1, ParamType.FLOAT),
                 ("maxWeight", "Max Weight", 1000.0, ParamType.FLOAT),
             ):
                 with builder.CHILD(key=key, name=_TR(name), desc=_TR(name)):
