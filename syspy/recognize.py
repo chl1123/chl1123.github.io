@@ -47,9 +47,9 @@ class RecognizeInterface(ABC, Service):
 
         Args:
             deviceKey (str): 检测设备的key。
-            x (float): 区域中心点 x 坐标（车体坐标系），单位 m。
-            y (float): 区域中心点 y 坐标（车体坐标系），单位 m。
-            theta (float): 区域角度，单位 rad。
+            x (float): 区域中心点 x 坐标（世界坐标系），单位 m。
+            y (float): 区域中心点 y 坐标（世界坐标系），单位 m。
+            theta (float): 区域角度（世界坐标系），单位 rad。
             obs_area_min_height (float): 检测区域为长方体，检测区域最低高度，单位 m。
             obs_area_max_height (float): 检测区域最高高度，单位 m。
             obs_area_length (float): 检测区域长度，单位 m。

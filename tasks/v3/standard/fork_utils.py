@@ -3777,9 +3777,9 @@ class LocDetectGoods(ActionBase):
         )
         Recognize.recTargetObs(
             cfg.locDetect3dDevice,
-            self.target_in_robot[0],
-            self.target_in_robot[1],
-            self.target_in_robot[2],
+            self.target[0],
+            self.target[1],
+            self.target[2],
             cfg.obsAreaMinHeight,
             cfg.obsAreaMaxHeight,
             cfg.obsAreaLength,
@@ -3795,6 +3795,7 @@ class LocDetectGoods(ActionBase):
             self._start_detection()
         elif self.rec_status == 2:
             self.detect_result = Recognize.getRecResults()
+            Trace.log(f"loc detect raw result={self.detect_result}", name="fork.rec")
             self._finish_detection(self._result_has_goods(self.detect_result))
         elif self.rec_status in (-1, 3):
             self.attempts += 1
