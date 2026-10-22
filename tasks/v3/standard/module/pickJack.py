@@ -1827,44 +1827,25 @@ class Jack(ModuleBase):
 
         if goods_angle is not None:
             # 3a. 使用上视PGV角度旋转货物模型
-            cos_a = math.cos(goods_angle)
-            sin_a = math.sin(goods_angle)
-
-            def _rotate_by_angle(pt):
-                if isinstance(pt, dict):
-                    x, y = pt["x"], pt["y"]
-                    return {"x": x * cos_a - y * sin_a, "y": x * sin_a + y * cos_a}
-                x, y = pt[0], pt[1]
-                return [x * cos_a - y * sin_a, x * sin_a + y * cos_a]
-
-            shape = [_rotate_by_angle(pt) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
-
+            angle = math.degrees(goods_angle)
             Trace.log(f"bindContainer ok angle={math.degrees(goods_angle):.1f}deg "
                       f"container={container_id} goods={goods_name} "
                       f"shape_points={len(shape)} recfile={shape_recfile}", name=MOD)
         else:
-            # 3b. 根据插入方向旋转货物模型（固定方向）
-            # D: 0°不旋转  A: 顺时针90°  B: 180°  C: 逆时针90°
-            def _rotate_pt(pt, dir_):
-                if dir_ == "D":  # 0°: (x, y) -> (x, y)
-                    if isinstance(pt, dict):  return {"x": pt["x"], "y": pt["y"]}
-                    return [pt[0], pt[1]]
-                elif dir_ == "A":  # 顺时针90°: (x, y) -> (y, -x)
-                    if isinstance(pt, dict):  return {"x": pt["y"], "y": -pt["x"]}
-                    return [pt[1], -pt[0]]
-                elif dir_ == "B":  # 180°: (x, y) -> (-x, -y)
-                    if isinstance(pt, dict):  return {"x": -pt["x"], "y": -pt["y"]}
-                    return [-pt[0], -pt[1]]
-                else:  # C: 逆时针90°: (x, y) -> (-y, x)
-                    if isinstance(pt, dict):  return {"x": -pt["y"], "y": pt["x"]}
-                    return [-pt[1], pt[0]]
-
-            shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
+            if insert_dir == "D":
+                angle = 0
+            elif insert_dir == "A":
+                angle = 90
+            elif insert_dir == "B":
+                angle = 180
+            else:
+                angle = -90
             Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
-                      f"shape_points={len(shape)} recfile={shape_recfile}", name=MOD)
+                      f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
+
+        Navigation.setGoodsPolyShape(shape, shape_recfile, angle)
 
         # pickJack 无 spin 电机，goodsAngleInSpin 使用默认值 0.0。
-        Navigation.setGoodsPolyShape(shape, shape_recfile, 0.0)
         return bound
 
     def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
