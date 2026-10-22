@@ -1785,31 +1785,45 @@ class Jack(ModuleBase):
             self.status = ScriptStatus.FINISHED
 
     def bindContainer(self, container_id: str, goods_name: str, desc: str,
-                      insert_dir: str = "D", goods_angle: float = None,
-                      recfile: str = None) -> bool:
+                      recognitionFile: str = None, recognitionSide: str = "B",
+                      goods_angle: float = None, recfile: str = None) -> bool:
         """
         重写 bindContainer：绑定容器并设置货物多边形形状。
-        goods_angle: 上视PGV读取的货架在机器人坐标系下的角度（弧度），优先于 insert_dir。
+
+        recognitionFile: 上层传入的识别文件名（如 xxx.srec），缺省回退到 recfile / self.recfile。
+        recognitionSide: 识别面 A/B/C/D，缺省回退到任务插入方向。
+        goods_angle: 上视PGV读取的货架在机器人坐标系下的角度（弧度），优先于识别面。
         recfile: 读取 goodsShape 用的识别文件；多货架尺寸场景需传入命中的文件，
                  缺省回退到 self.recfile（单货架尺寸场景）。
+        返回容器是否绑定成功；缺少货物形状时只跳过形状下发，不影响绑定结果。
         """
-        # 1. 绑定容器
-        Container.bindContainer(container_id, goods_name, desc)
+        # 1. 识别文件与识别面：上层回调传入优先，其次传入的命中文件 / 任务识别文件
+        shape_recfile = recognitionFile or recfile or getattr(self, "recfile", None) or "default.srec"
+        if isinstance(shape_recfile, str) and shape_recfile.startswith("recognition/"):
+            shape_recfile = shape_recfile[len("recognition/"):]
+        insert_dir = recognitionSide.upper() if isinstance(recognitionSide, str) else ""
+        if insert_dir not in ("A", "B", "C", "D"):
+            insert_dir = getattr(self, "insert_shelf_dir", None)
+        if insert_dir not in ("A", "B", "C", "D"):
+            insert_dir = "D"
 
-        # 2. 从识别配置中读取货物多边形形状（优先用传入的命中 recfile，回退 self.recfile）
-        shape_recfile = recfile or self.recfile or "default.srec"
-        recognition_goodsParameter_path = f"recognitionObject.shelf.goodsParameter"
+        # 2. 绑定容器（契约：仅当容器不存在时返回 False）
+        bound = Container.bindContainer(container_id, goods_name, desc)
+
+        # 3. 从识别配置中读取货物多边形形状
         goods_shape = RobotParam.getConfig(
             "recognition",
-            f"{recognition_goodsParameter_path}.goodsShape",
-            shape_recfile
+            "recognitionObject.shelf.goodsParameter.goodsShape",
+            shape_recfile,
         )
         if not goods_shape:
-            Trace.log(f"bindContainer goods shape not found recfile={self.recfile}", name=f"{MOD}.err")
-            return False
-
-        shapes = json.loads(goods_shape)
-        shape = shapes[0]["points"]
+            Trace.log(f"bindContainer goods shape not found recfile={shape_recfile}", name=f"{MOD}.err")
+            return bound
+        try:
+            shape = json.loads(goods_shape)[0]["points"]
+        except (ValueError, TypeError, KeyError, IndexError) as e:
+            Trace.log(f"bindContainer invalid goods shape recfile={shape_recfile} error={e}", name=f"{MOD}.err")
+            return bound
 
         if goods_angle is not None:
             # 3a. 使用上视PGV角度旋转货物模型
@@ -1827,7 +1841,7 @@ class Jack(ModuleBase):
 
             Trace.log(f"bindContainer ok angle={math.degrees(goods_angle):.1f}deg "
                       f"container={container_id} goods={goods_name} "
-                      f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
+                      f"shape_points={len(shape)} recfile={shape_recfile}", name=MOD)
         else:
             # 3b. 根据插入方向旋转货物模型（固定方向）
             # D: 0°不旋转  A: 顺时针90°  B: 180°  C: 逆时针90°
@@ -1847,11 +1861,11 @@ class Jack(ModuleBase):
 
             shape = [_rotate_pt(pt, insert_dir) if isinstance(pt, (dict, list, tuple)) else pt for pt in shape]
             Trace.log(f"bindContainer ok dir={insert_dir} container={container_id} goods={goods_name} "
-                      f"shape_points={len(shape)} recfile={self.recfile}", name=MOD)
+                      f"shape_points={len(shape)} recfile={shape_recfile}", name=MOD)
 
         # pickJack 无 spin 电机，goodsAngleInSpin 使用默认值 0.0。
         Navigation.setGoodsPolyShape(shape, shape_recfile, 0.0)
-        return True
+        return bound
 
     def unbindContainer(self, container_id: str = "", goods_name: str = "") -> bool:
         # 货物模型关联的扣除区域建立在机器人坐标系，清货时同步删除（同 counterBalanceFork）
@@ -3995,7 +4009,7 @@ class BindContainer(ActionBase):
         self.is_backwards = is_backwards
 
     def run(self, j: Jack):
-        # 当使用PGV角度时，同时使用 goods_angle 和 insert_dir
+        # 当使用PGV角度时，同时使用 goods_angle 和识别面
         if self.use_pgv_angle:
             goods_angle = j.pgv_goods_angle_robot
             insert_dir = j._get_actual_insert_dir_from_pgv()
@@ -4007,8 +4021,10 @@ class BindContainer(ActionBase):
                 _opposite = {'A': 'C', 'B': 'D', 'C': 'A', 'D': 'B'}
                 insert_dir = _opposite.get(insert_dir, insert_dir)
 
+        # bindContainer 的识别面走关键字参数，避免与 goods_angle 位置参数混淆
         ok = j.bindContainer(self.container_id, self.goods_name, self.recfile or "default.srec",
-                             insert_dir, goods_angle=goods_angle, recfile=self.recfile)
+                             recognitionSide=insert_dir, goods_angle=goods_angle,
+                             recfile=self.recfile)
         if not ok:
             Trace.log(f"BindContainer failed recfile={self.recfile}", name=f"{MOD}.err")
         self.action_status = ActionStatus.FINISHED
