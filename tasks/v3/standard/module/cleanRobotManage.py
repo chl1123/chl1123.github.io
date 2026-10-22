@@ -52,6 +52,7 @@ from syspy import (
     NavSpeed,
     Map,
     LevelDB,
+    _TR,
 )
 
 from syspy.lib.robot import RobotParam
@@ -65,14 +66,14 @@ class Trace:
     file_error_logged = False
 
     @staticmethod
-    def log(message):
+    def log(message, name="cleanRobotManage"):
         if getattr(globals().get("ConfigParams"), "addTime", False):
             message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}"
-        RbkTrace.log(message)
+        RbkTrace.log(message, name=name)
         Trace._write_file(message)
 
     @staticmethod
-    def debug(message):
+    def debug(message, name="cleanRobotManage"):
         """仅在开启日志落盘时记录高频调试信息，避免刷屏。"""
         if not getattr(globals().get("ConfigParams"), "logWrite", False):
             return
@@ -88,7 +89,8 @@ class Trace:
                     log_file.write(f"{message}\n")
             except Exception as exc:
                 if not Trace.file_error_logged:
-                    RbkTrace.log(f"Failed to write log file {Trace.LOG_FILE}: {exc}")
+                    RbkTrace.log(f"Failed to write log file {Trace.LOG_FILE}: {exc}",
+                                 name="cleanRobotManage.err")
                     Trace.file_error_logged = True
 
 
@@ -98,18 +100,18 @@ param_loader = ScriptParam(__file__)
 
 # 添加动作
 for action_name in [
-    "WashStart",
-    "WashEnd",
-    "MechanismOpen",
-    "MechanismClose",
-    "DustStart",
-    "DustEnd",
-    "Charge",
-    "AddWater",
-    "RunCleanPath",
-    "RunCleanPathAndWashStart",
-    "CancelCleanPath",
-    "ResetCleanPath",
+    "washStart",
+    "washEnd",
+    "mechanismOpen",
+    "mechanismClose",
+    "dustStart",
+    "dustEnd",
+    "charge",
+    "addWater",
+    "runCleanPath",
+    "runCleanPathAndWashStart",
+    "cancelCleanPath",
+    "resetCleanPath",
 ]:
     param_loader.addAction(
         action_name=action_name,
@@ -152,53 +154,53 @@ class ConfigParams:
         with builder.GROUPS():
             with builder.GROUP(
                     key="generalConfig",
-                    name="通用配置",
-                    desc="脚本运行模式和通用参数"
+                    name=_TR('GENERAL CONFIGURATION'),
+                    desc=_TR('This group contains general script mode and shared parameters.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     with builder.CHILD(
                             key="isDebug",
-                            name="isDebug",
-                            desc="调试模式：启动后立即尝试发送一次定时清洁运单",
+                            name=_TR('IS DEBUG'),
+                            desc=_TR('When enabled, the script immediately attempts to send one scheduled cleaning order.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
                             key="isTrue",
-                            name="isTrue",
-                            desc="仿真模式：接管原 isDebug 的仿真行为",
+                            name=_TR('SIMULATION MODE'),
+                            desc=_TR('When enabled, the script runs in simulation mode.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
-                            key="simulation_charge_enabled",
-                            name="simulation_charge_enabled",
-                            desc="是否启用仿真充电流程",
+                            key="simulationChargeEnabled",
+                            name=_TR('SIMULATION CHARGE ENABLED'),
+                            desc=_TR('When enabled, the robot simulates the charging process.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
                             key="addTime",
-                            name="addTime",
-                            desc="日志是否添加年月日时分秒",
+                            name=_TR('ADD TIME PREFIX'),
+                            desc=_TR('When enabled, each log entry includes the date and time.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
                             key="logWrite",
-                            name="logWrite",
-                            desc="是否将日志写入/home文件",
+                            name=_TR('WRITE LOG FILE'),
+                            desc=_TR('When enabled, logs are also written to a file under /home.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
-                    with builder.CHILD(key="timeout", name="timeout", desc="脚本运行超时时间"):
+                    with builder.CHILD(key="timeout", name=_TR('TIMEOUT'), desc=_TR('The maximum execution time for one script task is specified here.')):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(120.0, min_value=0.000, max_value=999)
                         builder.UNIT("s")
@@ -206,180 +208,180 @@ class ConfigParams:
 
             with builder.GROUP(
                     key="m4Config",
-                    name="M4调度配置",
-                    desc="M4调度连接、场景和机器人参数"
+                    name=_TR('M4 DISPATCH CONFIGURATION'),
+                    desc=_TR('This group contains connection, scene, and robot settings for the M4 dispatch system.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
-                    with builder.CHILD(key="scene_id", name="scene_id", desc="M4 场景 ID"):
+                    with builder.CHILD(key="sceneId", name=_TR('SCENE ID'), desc=_TR('This is the scene ID used to create orders in the M4 dispatch system.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("69FBE6C4F8A8853F8874E107")
 
-                    with builder.CHILD(key="robot_name", name="robot_name", desc="机器人名称"):
+                    with builder.CHILD(key="robotName", name=_TR('ROBOT NAME'), desc=_TR('This is the robot name registered in the M4 dispatch system.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("AMB-01")
                     
-                    with builder.CHILD(key="m4_app_id", name="m4_app_id", desc="M4 应用 ID"):
+                    with builder.CHILD(key="m4AppId", name=_TR('M4 APP ID'), desc=_TR('This is the application ID used to authenticate with M4.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("test")
 
-                    with builder.CHILD(key="m4_app_key", name="m4_app_key", desc="M4 应用密钥"):
+                    with builder.CHILD(key="m4AppKey", name=_TR('M4 APP KEY'), desc=_TR('This is the application key used to authenticate with M4.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("test")
 
-                    with builder.CHILD(key="ip", name="ip", desc="M4调度系统IP地址"):
+                    with builder.CHILD(key="ip", name=_TR('M4 SYSTEM IP'), desc=_TR('This is the IP address of the M4 dispatch system.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("172.16.86.151")
 
-                    with builder.CHILD(key="m4_port", name="m4_port", desc="M4调度系统端口"):
+                    with builder.CHILD(key="m4Port", name=_TR('M4 SYSTEM PORT'), desc=_TR('This is the port of the M4 dispatch system.')):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(5800, min_value=1, max_value=65535)
 
-                    with builder.CHILD(key="charging_site", name="charging_site", desc="充电站点"):
+                    with builder.CHILD(key="chargingSite", name=_TR('CHARGING SITE'), desc=_TR('This is the charging station used when the robot needs to charge.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("AP20100")
 
             with builder.GROUP(
                     key="monitorConfig",
-                    name="电量与水位配置",
-                    desc="电量、水位阈值和水位监测参数"
+                    name=_TR('BATTERY AND WATER LEVEL CONFIGURATION'),
+                    desc=_TR('This group contains battery, clean water, and waste water monitoring parameters.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
-                    with builder.CHILD(key="low_battery_soc", name="low_battery_soc", desc="低电量阈值"):
+                    with builder.CHILD(key="lowBatterySoc", name=_TR('LOW BATTERY SOC'), desc=_TR('The robot stops cleaning and charges when the battery state of charge falls below this value.')):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.2)
                         builder.SINGLESTEP(0.01)
 
-                    with builder.CHILD(key="high_battery_soc", name="high_battery_soc", desc="高电量恢复阈值"):
+                    with builder.CHILD(key="highBatterySoc", name=_TR('HIGH BATTERY SOC'), desc=_TR('An interrupted cleaning task may resume when the battery state of charge rises above this value.')):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.9)
                         builder.SINGLESTEP(0.01)
 
-                    with builder.CHILD(key="hmi_period", name="hmi_period", desc="车载屏轮询周期"):
+                    with builder.CHILD(key="hmiPeriod", name=_TR('HMI POLL PERIOD'), desc=_TR('This is the polling period for the onboard HMI.')):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.UNIT("s")
                         builder.SINGLESTEP(0.1)
 
                     with builder.CHILD(
-                            key="min_clean_water_level",
-                            name="min_clean_water_level",
-                            desc="清水液位最小值，达到此值机器人停止工作去加水",
+                            key="minCleanWaterLevel",
+                            name=_TR('MINIMUM CLEAN WATER LEVEL'),
+                            desc=_TR('The robot stops cleaning and refills when the clean water level falls below this value.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(0.001)
 
                     with builder.CHILD(
-                            key="max_clean_water_level",
-                            name="max_clean_water_level",
-                            desc="清水液位最大值，达到此值机器人停止加水",
+                            key="maxCleanWaterLevel",
+                            name=_TR('MAXIMUM CLEAN WATER LEVEL'),
+                            desc=_TR('Refilling stops when the clean water level rises above this value.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(95.0)
                         builder.SINGLESTEP(0.001)
 
                     with builder.CHILD(
-                            key="min_waste_water_level",
-                            name="min_waste_water_level",
-                            desc="污水液位最小值，达到此值机器人停止排污",
+                            key="minWasteWaterLevel",
+                            name=_TR('MINIMUM WASTE WATER LEVEL'),
+                            desc=_TR('Draining stops when the waste water level falls below this value.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
                         builder.SINGLESTEP(0.001)
 
                     with builder.CHILD(
-                            key="max_waste_water_level",
-                            name="max_waste_water_level",
-                            desc="污水液位最大值，达到此值机器人停止工作去排污",
+                            key="maxWasteWaterLevel",
+                            name=_TR('MAXIMUM WASTE WATER LEVEL'),
+                            desc=_TR('The robot stops cleaning and drains when the waste water level rises above this value.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(90.0)
                         builder.SINGLESTEP(0.001)
 
-                    with builder.CHILD(key="add_water_do", name="add_water_do", desc="加水DO"):
+                    with builder.CHILD(key="addWaterDo", name=_TR('ADD WATER DO'), desc=_TR('This digital output opens the clean water refill valve.')):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("DO-004")
 
             with builder.GROUP(
                     key="mechanismConfig",
-                    name="清洁机构配置",
-                    desc="清洁机构行程、功率和动作延时"
+                    name=_TR('CLEANING MECHANISM CONFIGURATION'),
+                    desc=_TR('This group contains cleaning mechanism stroke, motor power, and action delay parameters.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     with builder.CHILD(
-                            key="push_rod_length",
-                            name="push_rod_length",
-                            desc="刷盘推杆行程, 取值: 70-100, 刷盘下降的高度,参数可缺省",
+                            key="pushRodLength",
+                            name=_TR('PUSH ROD LENGTH'),
+                            desc=_TR('This is the brush push rod length from 70 to 100, used as the brush lowering height.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(75)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="brush_power", name="brush_power", desc="刷盘电机默认功率"):
+                    with builder.CHILD(key="brushPower", name=_TR('BRUSH POWER'), desc=_TR('This is the default power of the brush motor.')):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(67)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="suck_power", name="suck_power", desc="吸风电机默认功率"):
+                    with builder.CHILD(key="suckPower", name=_TR('SUCTION POWER'), desc=_TR('This is the default power of the suction motor.')):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(50)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="jet_power", name="jet_power", desc="喷水泵电机默认功率"):
+                    with builder.CHILD(key="jetPower", name=_TR('JET PUMP POWER'), desc=_TR('This is the default power of the water jet pump.')):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(20)
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
-                            key="elevator_before_jet_power",
-                            name="elevator_before_jet_power",
-                            desc="电梯前一个清洁区域的最大喷水功率，最大为5",
+                            key="elevatorBeforeJetPower",
+                            name=_TR('ELEVATOR BEFORE JET POWER'),
+                            desc=_TR('This is the maximum jet power for the cleaning area before an elevator, up to 5.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(5)
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
-                            key="auto_adjust_power",
-                            name="auto_adjust_power",
-                            desc="是否启动电机功率自动调节模式, 1: 启动， 0: 不启动",
+                            key="autoAdjustPower",
+                            name=_TR('AUTOMATIC POWER ADJUSTMENT'),
+                            desc=_TR('Set this value to 1 to adjust motor power automatically according to vehicle speed. Set it to 0 to disable automatic adjustment.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(1)
                         builder.SINGLESTEP(1)
 
-                    with builder.CHILD(key="add_water_delay_time", name="add_water_delay_time", desc="加水延时关闭时间"):
+                    with builder.CHILD(key="addWaterDelayTime", name=_TR('ADD WATER DELAY TIME'), desc=_TR('This is the delay before the clean water refill output is switched off.')):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(1.0)
 
                     with builder.CHILD(
-                            key="close_jet_delay_time",
-                            name="close_jet_delay_time",
-                            desc="关闭喷水电机后延时停止清洁工作的时间",
+                            key="closeJetDelayTime",
+                            name=_TR('CLOSE JET DELAY TIME'),
+                            desc=_TR('This is the delay before cleaning stops after the water jet pump is switched off.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(5.0)
                         builder.SINGLESTEP(1.0)
 
                     with builder.CHILD(
-                            key="mop_lift_areas",
-                            name="mop_lift_areas",
-                            desc="清扫结束后需要升吸趴的区域，格式：[[入口1,出口1],[入口2,出口2]]",
+                            key="mopLiftAreas",
+                            name=_TR('MOP LIFT AREAS'),
+                            desc=_TR('These are the areas where the mop must be lifted after cleaning, formatted as entrance and exit pairs.'),
                     ):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("[]")
 
                     with builder.CHILD(
-                            key="mechanism_close_delay_time",
-                            name="mechanism_close_delay_time",
-                            desc="非电梯区域清扫结束后机构关闭延时时间，0表示按原逻辑关闭",
+                            key="mechanismCloseDelayTime",
+                            name=_TR('MECHANISM CLOSE DELAY TIME'),
+                            desc=_TR('This is the delay before the mechanism closes in a non-elevator area. Set it to 0 to keep the original timing.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.0)
@@ -387,34 +389,34 @@ class ConfigParams:
 
             with builder.GROUP(
                     key="speedConfig",
-                    name="速度功率配置",
-                    desc="根据车辆速度调整清洁机构功率的阈值"
+                    name=_TR('SPEED AND POWER CONFIGURATION'),
+                    desc=_TR('This group contains thresholds for adjusting cleaning power according to vehicle speed.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     with builder.CHILD(
-                            key="high_mode_x_speed",
-                            name="high_mode_x_speed",
-                            desc="x速度大于该值时, 清洁机构以高功率工作",
+                            key="highModeXSpeed",
+                            name=_TR('HIGH MODE SPEED'),
+                            desc=_TR('The cleaning mechanism uses high power above this vehicle speed.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.8)
                         builder.SINGLESTEP(0.1)
 
                     with builder.CHILD(
-                            key="std_mode_x_speed",
-                            name="std_mode_x_speed",
-                            desc="x速度大于该值时, 清洁机构以标准功率工作",
+                            key="stdModeXSpeed",
+                            name=_TR('STANDARD MODE SPEED'),
+                            desc=_TR('The cleaning mechanism uses standard power above this vehicle speed.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.4)
                         builder.SINGLESTEP(0.1)
 
                     with builder.CHILD(
-                            key="stop_x_speed",
-                            name="stop_x_speed",
-                            desc="x速度小于该值时, 清洁机构停止工作",
+                            key="stopXSpeed",
+                            name=_TR('STOP SPEED'),
+                            desc=_TR('The cleaning mechanism stops below this vehicle speed.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.05)
@@ -422,16 +424,16 @@ class ConfigParams:
 
             with builder.GROUP(
                     key="pathConfig",
-                    name="清洁路径配置",
-                    desc="弓字形清洁路径的导航参数"
+                    name=_TR('CLEANING PATH CONFIGURATION'),
+                    desc=_TR('This group contains navigation parameters for the boustrophedon cleaning path.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     with builder.CHILD(
-                            key="boustrophedon_path_max_speed",
-                            name="boustrophedon_path_max_speed",
-                            desc="弓字形路径最大直线速度",
+                            key="boustrophedonPathMaxSpeed",
+                            name=_TR('MAXIMUM PATH SPEED'),
+                            desc=_TR('This is the maximum straight-line speed of the boustrophedon path.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(1.0)
@@ -439,9 +441,9 @@ class ConfigParams:
                         builder.SINGLESTEP(0.1)
 
                     with builder.CHILD(
-                            key="boustrophedon_path_max_rot",
-                            name="boustrophedon_path_max_rot",
-                            desc="弓字形路径最大旋转速度",
+                            key="boustrophedonPathMaxRot",
+                            name=_TR('MAXIMUM PATH ROTATION SPEED'),
+                            desc=_TR('This is the maximum rotation speed of the boustrophedon path.'),
                     ):
                         builder.TYPE(ParamType.FLOAT)
                         builder.DEFAULTVALUE(0.5)
@@ -449,9 +451,9 @@ class ConfigParams:
                         builder.SINGLESTEP(0.1)
 
                     with builder.CHILD(
-                            key="boustrophedon_path_free_bypass",
-                            name="boustrophedon_path_free_bypass",
-                            desc="弓字形路径是否启用绕障",
+                            key="boustrophedonPathFreeBypass",
+                            name=_TR('FREE BYPASS'),
+                            desc=_TR('This value determines whether the boustrophedon path may bypass obstacles.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(0)
@@ -459,43 +461,43 @@ class ConfigParams:
 
             with builder.GROUP(
                     key="scheduleConfig",
-                    name="定时清洁配置",
-                    desc="每日定时清洁任务的触发时间和路线"
+                    name=_TR('SCHEDULED CLEANING CONFIGURATION'),
+                    desc=_TR('This group contains trigger time and route settings for scheduled cleaning tasks.')
             ):
                 builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILDREN():
                     with builder.CHILD(
-                            key="scheduled_clean_enabled",
-                            name="scheduled_clean_enabled",
-                            desc="是否启用每日定时清洁任务",
+                            key="scheduledCleanEnabled",
+                            name=_TR('SCHEDULED CLEANING ENABLED'),
+                            desc=_TR('Whether scheduled cleaning tasks are enabled.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(1)
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
-                            key="scheduled_clean_hour",
-                            name="scheduled_clean_hour",
-                            desc="每日定时清洁任务执行时间（小时，0-23）",
+                            key="scheduledCleanHour",
+                            name=_TR('SCHEDULED CLEANING HOUR'),
+                            desc=_TR('The scheduled cleaning task runs at this hour, from 0 to 23.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(8)
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
-                            key="scheduled_clean_minute",
-                            name="scheduled_clean_minute",
-                            desc="每日定时清洁任务执行时间（分钟，0-59）",
+                            key="scheduledCleanMinute",
+                            name=_TR('SCHEDULED CLEANING MINUTE'),
+                            desc=_TR('The scheduled cleaning task runs at this minute, from 0 to 59.'),
                     ):
                         builder.TYPE(ParamType.INT)
                         builder.DEFAULTVALUE(0)
                         builder.SINGLESTEP(1)
 
                     with builder.CHILD(
-                            key="scheduled_clean_locations",
-                            name="scheduled_clean_locations",
-                            desc="每日定时清洁任务的站点路径，支持一维单路线或二维分段路线",
+                            key="scheduledCleanLocations",
+                            name=_TR('SCHEDULED CLEAN LOCATIONS'),
+                            desc=_TR('This is the station route for scheduled cleaning, supporting one route or multiple route segments.'),
                     ):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE(
@@ -503,16 +505,16 @@ class ConfigParams:
 
                     with builder.CHILD(
                             key="waitInputRoute",
-                            name="Wait Input Route",
-                            desc="启用后不从定时路线配置自动发单，等待输入参数发送路线或区域",
+                            name=_TR('WAIT FOR INPUT ROUTE'),
+                            desc=_TR('When enabled, scheduled routes are not sent automatically and the script waits for a route or area in the task input.'),
                     ):
                         builder.TYPE(ParamType.BOOL)
                         builder.DEFAULTVALUE(False)
 
                     with builder.CHILD(
                             key="cleanAreaRoutes",
-                            name="Clean Area Routes",
-                            desc="清洁区域入口和出口映射，格式：{\"CA1\":[\"入口\",\"出口\"]}",
+                            name=_TR('CLEAN AREA ROUTES'),
+                            desc=_TR('This mapping assigns entrance and exit stations to clean areas, for example {"CA1":["Entrance","Exit"]}.'),
                     ):
                         builder.TYPE(ParamType.STRING)
                         builder.DEFAULTVALUE("{}")
@@ -541,30 +543,30 @@ class ConfigParams:
         cls.logWrite = cls.config.get("logWrite", False)
         Trace.log("Reloading cleanRobotManage config parameters")
         cls.timeout = cls.config.get("timeout")
-        cls.scene_id = cls.config.get("scene_id", "690843857C47EE4EE84D5AB7")
-        cls.robot_name = cls.config.get("robot_name", "300J")
-        cls.charging_site = cls.config.get("charging_site", "AP20100")
-        cls.low_battery_soc = cls.config.get("low_battery_soc", 0.2)
-        cls.high_battery_soc = cls.config.get("high_battery_soc", 0.9)
-        cls.hmi_period = cls.config.get("hmi_period", 1.0)
-        cls.min_clean_water_level = cls.config.get("min_clean_water_level")
-        cls.max_clean_water_level = cls.config.get("max_clean_water_level")
-        cls.min_waste_water_level = cls.config.get("min_waste_water_level")
-        cls.max_waste_water_level = cls.config.get("max_waste_water_level")
-        cls.add_water_do = cls.config.get("add_water_do")
-        cls.push_rod_length = cls.config.get("push_rod_length")
-        cls.brush_power = cls.config.get("brush_power")
-        cls.suck_power = cls.config.get("suck_power")
-        cls.jet_power = cls.config.get("jet_power")
+        cls.scene_id = cls.config.get("sceneId", "690843857C47EE4EE84D5AB7")
+        cls.robot_name = cls.config.get("robotName", "300J")
+        cls.charging_site = cls.config.get("chargingSite", "AP20100")
+        cls.low_battery_soc = cls.config.get("lowBatterySoc", 0.2)
+        cls.high_battery_soc = cls.config.get("highBatterySoc", 0.9)
+        cls.hmi_period = cls.config.get("hmiPeriod", 1.0)
+        cls.min_clean_water_level = cls.config.get("minCleanWaterLevel")
+        cls.max_clean_water_level = cls.config.get("maxCleanWaterLevel")
+        cls.min_waste_water_level = cls.config.get("minWasteWaterLevel")
+        cls.max_waste_water_level = cls.config.get("maxWasteWaterLevel")
+        cls.add_water_do = cls.config.get("addWaterDo")
+        cls.push_rod_length = cls.config.get("pushRodLength")
+        cls.brush_power = cls.config.get("brushPower")
+        cls.suck_power = cls.config.get("suckPower")
+        cls.jet_power = cls.config.get("jetPower")
         cls.elevator_before_jet_power = min(
-            5, max(0, int(cls.config.get("elevator_before_jet_power", 5)))
+            5, max(0, int(cls.config.get("elevatorBeforeJetPower", 5)))
         )
-        cls.auto_adjust_power = cls.config.get("auto_adjust_power")
-        cls.add_water_delay_time = cls.config.get("add_water_delay_time")
-        cls.close_jet_delay_time = cls.config.get("close_jet_delay_time")
-        cls.mechanism_close_delay_time = cls.config.get("mechanism_close_delay_time", 0.0)
+        cls.auto_adjust_power = cls.config.get("autoAdjustPower")
+        cls.add_water_delay_time = cls.config.get("addWaterDelayTime")
+        cls.close_jet_delay_time = cls.config.get("closeJetDelayTime")
+        cls.mechanism_close_delay_time = cls.config.get("mechanismCloseDelayTime", 0.0)
         try:
-            mop_lift_areas = json.loads(cls.config.get("mop_lift_areas", "[]"))
+            mop_lift_areas = json.loads(cls.config.get("mopLiftAreas", "[]"))
             if (not isinstance(mop_lift_areas, list) or
                     not all(isinstance(area, list) and len(area) == 2 and
                             all(isinstance(point, str) for point in area)
@@ -574,15 +576,15 @@ class ConfigParams:
         except (TypeError, json.JSONDecodeError, ValueError) as exc:
             cls.mop_lift_areas = []
             Trace.log(f"Invalid mop_lift_areas config: {exc}; no area will lift the mop")
-        cls.high_mode_x_speed = cls.config.get("high_mode_x_speed")
-        cls.std_mode_x_speed = cls.config.get("std_mode_x_speed")
-        cls.stop_x_speed = cls.config.get("stop_x_speed")
-        cls.boustrophedon_path_max_speed = cls.config.get("boustrophedon_path_max_speed", 1.0)
-        cls.boustrophedon_path_max_rot = cls.config.get("boustrophedon_path_max_rot", 0.5)
-        cls.boustrophedon_path_free_bypass = cls.config.get("boustrophedon_path_free_bypass", 0)
-        cls.scheduled_clean_enabled = cls.config.get("scheduled_clean_enabled", 1)
-        cls.scheduled_clean_hour = cls.config.get("scheduled_clean_hour", 8)
-        cls.scheduled_clean_minute = cls.config.get("scheduled_clean_minute", 0)
+        cls.high_mode_x_speed = cls.config.get("highModeXSpeed")
+        cls.std_mode_x_speed = cls.config.get("stdModeXSpeed")
+        cls.stop_x_speed = cls.config.get("stopXSpeed")
+        cls.boustrophedon_path_max_speed = cls.config.get("boustrophedonPathMaxSpeed", 1.0)
+        cls.boustrophedon_path_max_rot = cls.config.get("boustrophedonPathMaxRot", 0.5)
+        cls.boustrophedon_path_free_bypass = cls.config.get("boustrophedonPathFreeBypass", 0)
+        cls.scheduled_clean_enabled = cls.config.get("scheduledCleanEnabled", 1)
+        cls.scheduled_clean_hour = cls.config.get("scheduledCleanHour", 8)
+        cls.scheduled_clean_minute = cls.config.get("scheduledCleanMinute", 0)
         cls.wait_input_route = bool(cls.config.get("waitInputRoute", False))
         previous_area_routes = getattr(cls, "cleanAreaRoutes", {})
         area_route_config_error = None
@@ -652,7 +654,7 @@ class ConfigParams:
         route_config_error = None
         try:
             scheduled_clean_locations = json.loads(
-                cls.config.get("scheduled_clean_locations", "[]")
+                cls.config.get("scheduledCleanLocations", "[]")
             )
             if scheduled_clean_locations == []:
                 scheduled_clean_routes = []
@@ -692,11 +694,11 @@ class ConfigParams:
             Trace.log(f"Failed to update scheduled clean route error: {exc}")
         cls.isDebug = cls.config.get("isDebug", False)
         cls.isTrue = cls.config.get("isTrue", False)
-        cls.simulation_charge_enabled = cls.config.get("simulation_charge_enabled", False)
-        cls.m4_app_id = cls.config.get("m4_app_id", "test")
-        cls.m4_app_key = cls.config.get("m4_app_key", "test")
+        cls.simulation_charge_enabled = cls.config.get("simulationChargeEnabled", False)
+        cls.m4_app_id = cls.config.get("m4AppId", "test")
+        cls.m4_app_key = cls.config.get("m4AppKey", "test")
         cls.ip = cls.config.get("ip", "172.16.86.151")
-        cls.m4_port = int(cls.config.get("m4_port", 5800))
+        cls.m4_port = int(cls.config.get("m4Port", 5800))
 
         Trace.log(f"Updated cleanRobotManage config: {cls.config}")
 
@@ -851,44 +853,44 @@ class CleanRobotHardware:
 
     def ctrl_suck(self, power=0):
         cmd = MechCmd.SUCK[:12] + hex(power)[2:].zfill(2) + MechCmd.SUCK[14:]
-        Trace.debug(f"[cleanRobotManage] Sending suck cmd:  {cmd}  吸风电机功率: {power}")
+        Trace.debug(f"[cleanRobotManage] Sending suck cmd:  {cmd}  Suction motor power: {power}")
         self.send_cmd(cmd)
 
     def ctrl_brush(self, power=0):
         cmd = MechCmd.BRUSH[:12] + hex(power)[2:].zfill(2) + MechCmd.BRUSH[14:]
-        Trace.debug(f"[cleanRobotManage] Sending brush cmd:  {cmd}  滚刷电机功率: {power}")
+        Trace.debug(f"[cleanRobotManage] Sending brush cmd:  {cmd}  Brush motor power: {power}")
         self.send_cmd(cmd)
 
     def ctrl_jet_pump(self, power=0):
         cmd = MechCmd.JET_PUMP[:12] + hex(power)[2:].zfill(2) + MechCmd.JET_PUMP[14:]
-        Trace.debug(f"[cleanRobotManage] Sending jet pump cmd:  {cmd}  喷水电机功率: {power}")
+        Trace.debug(f"[cleanRobotManage] Sending jet pump cmd:  {cmd}  Water jet pump power: {power}")
         self.send_cmd(cmd)
 
     def ctrl_pod_length(self, power=0):
         cmd = MechCmd.BRUSH_POD_DOWN[:12] + hex(power)[2:].zfill(2) + MechCmd.BRUSH_POD_DOWN[14:]
-        Trace.debug(f"[cleanRobotManage] Sending pod length cmd:  {cmd}  推轮电机功率: {power}")
+        Trace.debug(f"[cleanRobotManage] Sending pod length cmd:  {cmd}  Push rod length: {power}")
         self.send_cmd(cmd)
 
     def ctrl_brush_lift(self, state):
         cmd = MechCmd.BRUSH_LIFT_DOWN if state == MechWorkState.OPEN else MechCmd.BRUSH_LIFT_UP
-        Trace.debug(f"[cleanRobotManage] Sending brush lift cmd:  {cmd}  滚刷升降杆状态: {state}")
+        Trace.debug(f"[cleanRobotManage] Sending brush lift cmd:  {cmd}  Brush lift state: {state}")
         self.send_cmd(cmd)
 
     def ctrl_mop_lift(self, state):
         cmd = MechCmd.MOP_LIFT_DOWN if state == MechWorkState.OPEN else MechCmd.MOP_LIFT_UP
-        Trace.debug(f"[cleanRobotManage] Sending mop lift cmd:  {cmd}  水趴升降杆状态: {state}")
+        Trace.debug(f"[cleanRobotManage] Sending mop lift cmd:  {cmd}  Mop lift state: {state}")
         self.send_cmd(cmd)
 
     def ctrl_clean_valve(self, state):
         """控制清水阀，OPEN表示打开，其他状态表示关闭"""
         cmd = MechCmd.WATER_VALVE_OPEN if state == MechWorkState.OPEN else MechCmd.WATER_VALVE_CLOSE
-        Trace.debug(f"[cleanRobotManage] Sending clean valve cmd:  {cmd}  清水阀状态: {state}")
+        Trace.debug(f"[cleanRobotManage] Sending clean valve cmd:  {cmd}  Clean water valve state: {state}")
         self.send_cmd(cmd)
 
     def ctrl_waste_valve(self, state):
         """控制污水排放球阀，OPEN表示打开，其他状态表示关闭"""
         cmd = MechCmd.BRAIN_BALL_VALVE_OPEN if state == MechWorkState.OPEN else MechCmd.BRAIN_BALL_VALVE_CLOSE
-        Trace.debug(f"[cleanRobotManage] Sending waste valve cmd:  {cmd}  污水排放球阀状态: {state}")
+        Trace.debug(f"[cleanRobotManage] Sending waste valve cmd:  {cmd}  Waste water valve state: {state}")
         self.send_cmd(cmd)
 
     def ctrl_open_all(self, mode):
@@ -1087,7 +1089,7 @@ class CleanRobotMech:
             self.brush_power = int(args.get("brush_power", config_params.brush_power))
             self.suck_power = int(args.get("suck_power", config_params.suck_power))
             self.push_rod_length = int(args.get("push_rod_length", config_params.push_rod_length))
-            if self.operation == "WashStart":
+            if self.operation == "washStart":
                 self.jet_starting = True
                 self.jet_command_power = 0
                 self.water_stopped_for_path_end = False
@@ -1095,21 +1097,21 @@ class CleanRobotMech:
                 self.delay_close_mop_lift = False
                 self.delay_close_brush_sent = False
 
-        if self.operation == "WashStart":
+        if self.operation == "washStart":
             self.wash_start()
-        elif self.operation == "WashEnd":
+        elif self.operation == "washEnd":
             self.wash_end(
                 is_elevator_area=args.get("is_elevator_area", True),
             )
-        elif self.operation == "MechanismOpen":
+        elif self.operation == "mechanismOpen":
             self.wash_start(operation="MechanismOpen")
-        elif self.operation == "MechanismClose":
+        elif self.operation == "mechanismClose":
             self.wash_end(control_water=False, operation="MechanismClose")
-        elif self.operation == "DustStart":
+        elif self.operation == "dustStart":
             self.dust_start()
-        elif self.operation == "DustEnd":
+        elif self.operation == "dustEnd":
             self.dust_end()
-        elif self.operation == "AddWater":
+        elif self.operation == "addWater":
             self.add_water()
         elif self.operation == "CheckInfo":
             self.update_all_info()
@@ -1133,7 +1135,7 @@ class CleanRobotMech:
         task_status = NavStatus.getTaskStatus()
 
         if task_status == 2:
-            if self.operation == "WashStart":
+            if self.operation == "washStart":
                 self.update_power_by_speed()
         elif task_status == 3:
             Trace.log("[cleanRobotManage] Task status 3: Suspend")
@@ -1352,7 +1354,7 @@ class CleanRobotMech:
 
     def wash_water(self):
         """排空水管"""
-        if self.operation == "WashEnd":
+        if self.operation == "washEnd":
             if self.jet_status != MechWorkingStatus.RUNNING:
                 self.hardware.ctrl_jet_pump(self.jet_power)
             if self.clean_valve_status != MechWorkingStatus.RUNNING:
@@ -1741,82 +1743,82 @@ class CleanTaskCheckpoint:
 
 
 class InputParams:
-    builder = ParamBuilder(__file__, desc="Input Params Config")
+    builder = ParamBuilder(__file__, desc=_TR("Script task input parameters."))
 
     with builder.GROUPS():
         # 公共参数:
         pass
 
         # 操作组合参数
-        with builder.GROUP(key="operation", name="Task Operation", desc="Choose an operation for task"):
+        with builder.GROUP(key="operation", name=_TR('TASK OPERATION'), desc=_TR('Choose an operation for the task.')):
             builder.TYPE(ParamType.COMBO_BOX)
 
             with builder.CHILDREN():
-                with builder.CHILD(key="WashStart", name="WashStart", desc="WashStart"):
+                with builder.CHILD(key="washStart", name=_TR('WASH START'), desc=_TR('Start the cleaning mechanism and begin washing.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="WashEnd", name="WashEnd", desc="WashEnd"):
+                with builder.CHILD(key="washEnd", name=_TR('WASH END'), desc=_TR('Stop washing and close the cleaning mechanism.')):
                     builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILD(
-                        key="MechanismOpen",
-                        name="MechanismOpen",
-                        desc="打开清洁机构，不控制喷水",
+                        key="mechanismOpen",
+                        name=_TR('MECHANISM OPEN'),
+                        desc=_TR('Open the cleaning mechanism without controlling the water jet.'),
                 ):
                     builder.TYPE(ParamType.ARRAY)
 
                 with builder.CHILD(
-                        key="MechanismClose",
-                        name="MechanismClose",
-                        desc="关闭清洁机构，不控制喷水",
+                        key="mechanismClose",
+                        name=_TR('MECHANISM CLOSE'),
+                        desc=_TR('Close the cleaning mechanism without controlling the water jet.'),
                 ):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="DustStart", name="DustStart", desc="DustStart"):
+                with builder.CHILD(key="dustStart", name=_TR('DUST START'), desc=_TR('Start the dust collection system.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="DustEnd", name="DustEnd", desc="DustEnd"):
+                with builder.CHILD(key="dustEnd", name=_TR('DUST END'), desc=_TR('Stop the dust collection system.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="Charge", name="Charge", desc="Charge"):
+                with builder.CHILD(key="charge", name=_TR('CHARGE'), desc=_TR('Send the robot to the charging station.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="AddWater", name="AddWater", desc="AddWater"):
+                with builder.CHILD(key="addWater", name=_TR('ADD WATER'), desc=_TR('Send the robot to the water station to refill the clean water tank.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="RunCleanPath", name="RunCleanPath", desc="RunCleanPath"):
+                with builder.CHILD(key="runCleanPath", name=_TR('RUN CLEAN PATH'), desc=_TR('Run the configured boustrophedon cleaning path.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="CancelCleanPath", name="CancelCleanPath", desc="CancelCleanPath"):
+                with builder.CHILD(key="cancelCleanPath", name=_TR('CANCEL CLEAN PATH'), desc=_TR('Cancel the running cleaning path and save a resume checkpoint.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="ResetCleanPath", name="ResetCleanPath", desc="ResetCleanPath"):
+                with builder.CHILD(key="resetCleanPath", name=_TR('RESET CLEAN PATH'), desc=_TR('Clear the cleaning path resume checkpoint.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="SetTask", name="SetTask", desc="SetTask"):
+                with builder.CHILD(key="setTask", name=_TR('SET TASK'), desc=_TR('Send the configured cleaning task.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="SendOrders", name="SendOrders", desc="SendOrders"):
+                with builder.CHILD(key="sendOrders", name=_TR('SEND ORDERS'), desc=_TR('Send a clean order for the selected route or areas.')):
                     builder.TYPE(ParamType.ARRAY)
                     with builder.CHILDREN():
-                        with builder.CHILD(key="areas", name="areas", desc="清洁区域列表，例如 [\"CA1\",\"CA2\"]"):
+                        with builder.CHILD(key="areas", name=_TR('AREAS'), desc=_TR('Provide a list of clean areas, for example ["CA1", "CA2"].')):
                             builder.TYPE(ParamType.ARRAY)
                             builder.REQUIRED(True)
 
-                with builder.CHILD(key="SendContinueOrders", name="SendContinueOrders", desc="SendContinueOrders"):
+                with builder.CHILD(key="sendContinueOrders", name=_TR('SEND CONTINUE ORDERS'), desc=_TR('Send a continuation order from the last checkpoint.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="CancelOrder", name="CancelOrder", desc="CancelOrder"):
+                with builder.CHILD(key="cancelOrder", name=_TR('CANCEL ORDER'), desc=_TR('Cancel the current clean order and clear its resume checkpoint.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="SendChargeOrder", name="SendChargeOrder",
-                                   desc="发送充电运单（中断当前清洁任务）"):
+                with builder.CHILD(key="sendChargeOrder", name=_TR('SEND CHARGE ORDER'),
+                                   desc=_TR('Send a charging order and interrupt the current cleaning task.')):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="SendWaterOrder", name="SendWaterOrder", desc="发送换水运单（中断当前清洁任务）"):
+                with builder.CHILD(key="sendWaterOrder", name=_TR("SEND WATER ORDER"), desc=_TR("Send a water refill order and interrupt the current cleaning task.")):
                     builder.TYPE(ParamType.ARRAY)
 
-                with builder.CHILD(key="RunCleanPathAndWashStart", name="RunCleanPathAndWashStart", desc="RunCleanPathAndWashStart"):
+                with builder.CHILD(key="runCleanPathAndWashStart", name=_TR("RUN CLEAN PATH AND WASH START"), desc=_TR("Run the cleaning path and start washing at the same time.")):
                     builder.TYPE(ParamType.ARRAY)
 
 
@@ -2645,17 +2647,17 @@ class CleanRobotManage:
 
         self._update_path_context(args)
 
-        if op == "RunCleanPathAndWashStart":
+        if op == "runCleanPathAndWashStart":
             if isFirstRun:
                 Trace.log(f"[cleanRobotManage] First go clean path and wash start, validated_params={args}")
             self._handle_run_clean_path_and_wash(args, is_wash=True)
-        elif op == "RunCleanPath":
+        elif op == "runCleanPath":
             if isFirstRun:
                 Trace.log(f"[cleanRobotManage] First go clean path, validated_params={args}")
             self._handle_run_clean_path_and_wash(args, is_wash=False)
-        elif op == "AddWater":
+        elif op == "addWater":
             self._handle_add_water()
-        elif op in ("MechanismOpen", "MechanismClose"):
+        elif op in ("mechanismOpen", "mechanismClose"):
             if config_params.isTrue:
                 Trace.log(f"[cleanRobotManage] {op} is unavailable in simulation mode")
                 Module.setStatus(ScriptStatus.FAILED)
@@ -2663,13 +2665,13 @@ class CleanRobotManage:
             mech_status = self.call_mech(op)
             if mech_status in (ScriptStatus.FINISHED, ScriptStatus.FAILED):
                 Module.setStatus(mech_status)
-        elif op == "CancelCleanPath":
+        elif op == "cancelCleanPath":
             Trace.log(f"[cleanRobotManage] run() operation={op}, args={args}")
             self._handle_cancel_clean_path('water_change')
-        elif op == "ResetCleanPath":
+        elif op == "resetCleanPath":
             Trace.log(f"[cleanRobotManage] run() operation={op}, args={args}")
             self._handle_reset_clean_path()
-        elif op == "SendOrders":
+        elif op == "sendOrders":
             self._handle_send_orders(args)
         else:
             if isFirstRun:
@@ -3248,7 +3250,7 @@ class CleanRobotManage:
         if push_rod_length is None:
             push_rod_length = config_params.push_rod_length
 
-        if operation == "WashStart" and self.mech.delay_close_mechanisms:
+        if operation == "washStart" and self.mech.delay_close_mechanisms:
             self.mech.delay_close_mechanisms = False
             self.mech.delay_close_mop_lift = False
             self.mech.delay_close_brush_sent = False
@@ -3319,7 +3321,7 @@ class CleanRobotManage:
         pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
         if pre_state != self.boustrophedon_path_state:
-            Trace.log(f"[cleanRobotManage] run_clean_path：goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
+            Trace.log(f"[cleanRobotManage] run_clean_path: goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
 
         # 清除startPos，避免重复使用
         if self.current_start_pos:
@@ -3404,7 +3406,7 @@ class CleanRobotManage:
         pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
         if pre_state != self.boustrophedon_path_state:
-            Trace.log(f"[cleanRobotManage] run_clean_path_and_wash：goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
+            Trace.log(f"[cleanRobotManage] run_clean_path_and_wash: goBoustrophedonPath status changed from {pre_state} to {self.boustrophedon_path_state}")
     
         # 清除startPos，避免重复使用
         if self.current_start_pos:
@@ -3486,7 +3488,7 @@ class CleanRobotManage:
         pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
         if pre_state != self.boustrophedon_path_state:
-            Trace.log(f"[cleanRobotManage] run_cross_path：goCrossArea status changed from {pre_state} to {self.boustrophedon_path_state}")
+            Trace.log(f"[cleanRobotManage] run_cross_path: goCrossArea status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -3551,7 +3553,7 @@ class CleanRobotManage:
         pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
         if pre_state != self.boustrophedon_path_state:
-            Trace.log(f"[cleanRobotManage] run_exit_path：goExitPoint status changed from {pre_state} to {self.boustrophedon_path_state}")
+            Trace.log(f"[cleanRobotManage] run_exit_path: goExitPoint status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -3612,7 +3614,7 @@ class CleanRobotManage:
         pre_state = self.boustrophedon_path_state
         self.boustrophedon_path_state = BoustrophedonPathState(status_value)
         if pre_state != self.boustrophedon_path_state:
-            Trace.log(f"[cleanRobotManage] run_remaining_path：goRemainingPath status changed from {pre_state} to {self.boustrophedon_path_state}")
+            Trace.log(f"[cleanRobotManage] run_remaining_path: goRemainingPath status changed from {pre_state} to {self.boustrophedon_path_state}")
         # 处理状态
         if self.boustrophedon_path_state in (BoustrophedonPathState.INIT, BoustrophedonPathState.RUNNING):
             return
@@ -3901,13 +3903,13 @@ def main():
 
     1. 按区域发送清洁运单（区域入口和出口由 clean_area_routes 配置提供）:
     {
-        "operation": "SendOrders",
+        "operation": "sendOrders",
         "areas": ["CA1", "CA2"]
     }
 
     2. 发送充电运单:
     {
-        "operation": "SendOrders",
+        "operation": "sendOrders",
         "order_type": "charge",
         "robot_name": "SVJ-01",
         "priority": 90
@@ -3915,7 +3917,7 @@ def main():
 
     3. 发送换水运单:
     {
-        "operation": "SendOrders",
+        "operation": "sendOrders",
         "order_type": "water",
         "robot_name": "SVJ-01",
         "priority": 90
@@ -3936,7 +3938,7 @@ def main():
 
     1. 续传运单（自动计算剩余站点）:
     {
-        "operation": "SendContinueOrders",
+        "operation": "sendContinueOrders",
         "robot_name": "SVJ-01",
         "priority": 90
     }
@@ -4090,7 +4092,7 @@ def main():
                     validated_params = param_loader.loadInput(input_params)
                     if isFirstRun:
                         isFirstRun = False
-                        Trace.log(f"[cleanRobotManage] First run, Parameter validation passed，validated_params={validated_params}")
+                        Trace.log(f"[cleanRobotManage] First run, Parameter validation passed, validated_params={validated_params}")
                         mgr.run(validated_params,True)
                     else:
                         mgr.run(validated_params,False)

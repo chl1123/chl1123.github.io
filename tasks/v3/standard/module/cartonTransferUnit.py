@@ -1422,11 +1422,11 @@ class FingerAction(BaseAction):
                 self.agv.timeout_deferred_stretch_obstacle = False
                 self.overlimit_alarm = False
                 self.overlimit_count = 0
-                Trace.log("超限光电障碍物已消除，自动清除告警，继续合指抓取", name=f"{MOD}.motor")
+                Trace.log("overlimit photoelectric obstacle cleared, alarm cleared, continue gripping", name=f"{MOD}.motor")
         if time.time() - self.start_time > ConfigParams.finger_timeout:
             while True:
                 if self.count < self.maxTry:
-                    Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指", name=f"{MOD}.motor")
+                    Trace.log(f"finger attempt {self.count}: {'open' if self.pos == 1 else 'close'}", name=f"{MOD}.motor")
                     self._stop_finger()
                     time.sleep(0.05)
                     self.start_time = time.time()
@@ -1446,7 +1446,7 @@ class FingerAction(BaseAction):
                         self._motor_started = False
                         self.start_time = time.time()
                         return
-                    Trace.log(f"第{self.count}次尝试{'打开' if self.pos == 1 else '关闭'}手指失败", name=f"{MOD}.motor")
+                    Trace.log(f"finger attempt {self.count} failed: {'open' if self.pos == 1 else 'close'}", name=f"{MOD}.err")
                     Navigation.setTaskError("FingerTimeout", _TR(f"Finger control timeout. Check if finger is stuck or photoelectric sensor works"))
                     self._stop_finger()
                     self.action_status = ActionStatus.FAILED
@@ -1485,7 +1485,7 @@ class FingerAction(BaseAction):
         if left_reached and right_reached:
             Navigation.clearTaskError("FingerTimeout")
             Navigation.clearTaskError("StretchLengthExceeded")
-            Trace.log(f"手指{'打开' if self.pos == 1 else '关闭'}成功", name=f"{MOD}.motor")
+            Trace.log(f"finger {'open' if self.pos == 1 else 'close'} succeeded", name=f"{MOD}.motor")
             self.action_status = ActionStatus.FINISHED
 
     def _begin_finger_zero(self,reach):
@@ -1935,7 +1935,7 @@ class RecBoxCheckAction(BaseAction):
                 # 关闭持续识别时保留原有异常恢复流程。
                 self.agv.shelf_occupied = True
                 self.fail_reason = "shelf occupied"
-                Trace.log("rec_box check: 检测到货架已有货物，触发异常恢复", name=f"{MOD}.action")
+                Trace.log("rec_box check: goods detected on shelf, start the recovery queue", name=f"{MOD}.action")
                 self.action_status = ActionStatus.FAILED
             else:
                 self.agv.shelf_occupied = False
@@ -2332,7 +2332,7 @@ class ContainerRobot(ModuleBase):
                         _clear_pending_fork_store()
             else:
                 Navigation.setTaskError("GoodsCheckDiError", _TR(f"goodsCheckDi not configured properly in script parameters！"))
-                Trace.log(f"请在脚本参数中正确配置 goodsCheckDi 参数！", name=f"{MOD}.err")
+                Trace.log("goodsCheckDi is not configured properly in script parameters", name=f"{MOD}.err")
                 self.status = ScriptStatus.FINISHED
 
             self.start_time = time.time()
@@ -2971,7 +2971,7 @@ class ContainerRobot(ModuleBase):
                 self.cur_c = self.search_operable_container(
                     'load', excluded=[pending_container] if pending_container else []
                 )
-            Trace.log(f"load begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
+            Trace.log(f"load begin: {self.containers}", name=f"{MOD}.action")
             if self.cur_c is None:
                 if self.first_full:
                     self.cur_c="999"
@@ -3223,7 +3223,7 @@ class ContainerRobot(ModuleBase):
                 Navigation.setTaskError("GoodsNotFound", _TR(f"Goods {self.goods_id} not found in backpack, cannot unload! Verify task and backpack data!"))
                 self.status = ScriptStatus.FAILED
                 return
-            Trace.log(f"unload begin: {json.dumps(self.containers)}", name=f"{MOD}.action")
+            Trace.log(f"unload begin: {self.containers}", name=f"{MOD}.action")
 
         pending_actions = []
         pending_budget = 0.0
@@ -3537,7 +3537,7 @@ class ContainerRobot(ModuleBase):
                 (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
             )
             if calib_retry:
-                Trace.log("标零失败检测：电机已停止但calib未完成，重置标志位重新下发", name=f"{MOD}.motor")
+                Trace.log("calibration stalled: motor stopped but calib not finished, reset and send again", name=f"{MOD}.err")
                 self.set_lift_motor_calib = False
                 self.set_rotate_motor_calib = False
                 self.set_stretch_motor_calib = False
@@ -3931,44 +3931,44 @@ class ContainerRobot(ModuleBase):
             self.event_safe_move_check = False
 
     def modbus(self):
-        debug_print("modbus___________ 读取Modbus数据")
+        debug_print("modbus read data")
         args = {}
         op_data = NetProtocol.getModbusData("4x", 201, 1)
         if op_data:
             operation_code = parseModbus(op_data, 'uint16')
-            debug_print(f"   操作码: {operation_code}")
+            debug_print(f"operation code: {operation_code}")
             if operation_code == 1:
                 args["operation"] = "load"
                 height_data = NetProtocol.getModbusData("4x", 202, 2)
                 if len(height_data) >= 2:
                     height = parseModbus(height_data, 'float')
-                    debug_print(f"   读取高度参数寄存器值: [{height_data[0]}, {height_data[1]}]")
-                    debug_print(f"   解析后高度值: {height:.4f}m")
+                    debug_print(f"height register: [{height_data[0]}, {height_data[1]}]")
+                    debug_print(f"parsed height: {height:.4f} m")
                     args["height"] = max(0.0, min(0.06, height))
-                    debug_print(f"   设置高度: {args['height']:.4f}m")
+                    debug_print(f"height set: {args['height']:.4f} m")
             elif operation_code == 2:
                 args["operation"] = "unload"
             elif operation_code == 3:
                 args["operation"] = "spin"
-                debug_print("读取浮点型参数:")
+                debug_print("read float parameter")
                 angle_data = NetProtocol.getModbusData("4x", 202, 1)
                 if angle_data:
                     angle_raw = parseModbus(angle_data, 'int16')
                     args["spinAngle"] = angle_raw / 100.0
-                    debug_print(f"   设置角度: {args['spinAngle']:.2f}度")
+                    debug_print(f"spin angle set: {args['spinAngle']:.2f} deg")
                 else:
                     args["spinAngle"] = 90.0
-                    debug_print("   使用默认角度")
+                    debug_print("use default spin angle")
             elif operation_code == 4:
                 args["operation"] = "getCurrentPathProperty"
-                debug_print("读取字符串参数:")
+                debug_print("read string parameter")
                 str_data = NetProtocol.getModbusData("4x", 202, 4)
                 if str_data:
                     device_name = parseModbus(str_data, 'string', 0, len(str_data))
                     if device_name:
                         args["device"] = device_name
-                        debug_print(f"   设备名称: {device_name}")
-            debug_print(f"   操作类型: {args.get('operation', 'unknown')}")
+                        debug_print(f"device name: {device_name}")
+            debug_print(f"operation type: {args.get('operation', 'unknown')}")
         return args
 
 
@@ -4286,8 +4286,8 @@ class RecAdjust(BaseAction):
         # 编码不匹配
         self.code_check_fail += 1
         Trace.log(
-            f"货物编码不匹配({self.code_check_fail}/{ConfigParams.max_code_check_fail}), "
-            f"任务下发: {agv.goods_id}, 识别: {rec_code}", name=f"{MOD}.rec")
+            f"goods code mismatch ({self.code_check_fail}/{ConfigParams.max_code_check_fail}), "
+            f"task command: {agv.goods_id}, recognized: {rec_code}", name=f"{MOD}.rec")
         if self.code_check_fail >= ConfigParams.max_code_check_fail:
             Navigation.setTaskError("GoodsCodeMismatch", _TR(
                 f"Goods code mismatch between task command {agv.goods_id} and recognized code {rec_code}"))
@@ -4347,7 +4347,7 @@ def main():
                 Motor.setMotorPosition(ConfigParams.stretch_motor_name, 0,
                                        ConfigParams.stretch_motor_speed)
                 robot.emc_recover_last_command_time = time.time()
-                Trace.log("急停已解除，手指打开，伸缩电机归零", name=f"{MOD}.motor")
+                Trace.log("emergency stop released, fingers opened, stretch motor zeroing", name=f"{MOD}.motor")
         safe_move_check_active = (
             robot.startup_zero_pending or robot.event_safe_move_check
         )
