@@ -1,6 +1,3 @@
-      
-      
-
 # -*- coding: utf-8 -*-
 # @Date: 2026/9/20
 # @Author: sunjingan
@@ -39,6 +36,7 @@ AUTO_PRE_POSITION_SETTLE_TIME = 1.0
 AUTO_PRE_FINGER_BUDGET = 3.0
 AUTO_PRE_DI_BUDGET = 0.1
 TIMEOUT_RECOVERY_TIMEOUT = 15.0
+CALIB_RETRY_DELAY = 1.0
 
 in_load_or_unload = None
 
@@ -2135,6 +2133,13 @@ class ContainerRobot(ModuleBase):
         self.set_stretch_motor_calib = False
         self.set_rotate_motor_calib = False
         self.motor_calib_state = False
+        self._calib_round_started = False
+        self._calib_current_cycle = None
+        self._calib_command_cycle = {"lift": None, "stretch": None, "rotate": None}
+        self._calib_command_time = {"lift": None, "stretch": None, "rotate": None}
+        self._calib_seen_not_done = {"lift": False, "stretch": False, "rotate": False}
+        self._calib_completed = {"lift": False, "stretch": False, "rotate": False}
+        self._force_calib_started = False
         self.motor_calib_info = {}
         self.enable_motor = False
         self.enable_motor_time = time.time()
@@ -2233,12 +2238,20 @@ class ContainerRobot(ModuleBase):
         self.current_action = None
         self.operation_init = False
         self.first_full = True
+        self.set_force_calib = False
+        self._force_calib_started = False
+        if not self.motor_calib_state:
+            self._reset_calib_round()
 
     def init_args(self, args):
         """初始化任务参数"""
         self.script_args = args or Module.getTaskArgs()
         if args:
             self.operation = self.script_args.get("operation", None)
+            if self.operation == "calib":
+                self._reset_calib_round()
+                self.set_force_calib = False
+                self._force_calib_started = True
             self.auto_pre_enabled = Module.getAutoPre()
             self.auto_pre_stage = Module.getTaskParams("stage", 2)
             if self.auto_pre_enabled and self.operation not in ("load", "unload"):
@@ -2453,7 +2466,9 @@ class ContainerRobot(ModuleBase):
                     _TR(f"Please configure goods_check_di parameter properly in script parameters!"))
                 self.status = ScriptStatus.FINISHED
 
-            if self.enable_motor and not self.motor_calib_state:
+            if self.enable_motor and self.operation == "calib":
+                self.force_calib()
+            elif self.enable_motor and not self.motor_calib_state:
                 self.motor_calib()
 
             timeout = ConfigParams.timeout
@@ -2486,15 +2501,14 @@ class ContainerRobot(ModuleBase):
 
         if (self.motor_calib_state
                 and self.status == ScriptStatus.RUNNING
-                and not self.timeout_recovery_active):
+                and not self.timeout_recovery_active
+                and self.operation != "calib"):
             if self.operation is not None and self.operation != 'none':
                 if not check_debug_task(self.operation):
                     self.status = ScriptStatus.FAILED
                     return self.status
                 if self.operation == "zero":
                     self._build_zero_actions()
-                elif self.operation == "calib":
-                    self.force_calib()
                 elif self.operation == "zeroWithLift":
                     self.lift_height = min(self.lift_real_pos, self.lift_height)
                     self._build_zero_actions(self.lift_height)
@@ -3515,65 +3529,114 @@ class ContainerRobot(ModuleBase):
 
 
 
+    def _reset_calib_round(self):
+        """开始新一轮标零，清除上一轮命令和状态变化的记录。"""
+        self._calib_round_started = True
+        self._calib_current_cycle = None
+        self.calib_step = [False] * 3
+        self.motor_calib_state = False
+        for axis in ("lift", "stretch", "rotate"):
+            setattr(self, f"set_{axis}_motor_calib", False)
+            self._calib_command_cycle[axis] = None
+            self._calib_command_time[axis] = None
+            self._calib_seen_not_done[axis] = False
+            self._calib_completed[axis] = False
+
+    def _send_motor_calib(self, axis, source):
+        """每次下发（含重试）后，必须重新观察该轴的非 2 -> 2。"""
+        motor_name = getattr(ConfigParams, f"{axis}_motor_name")
+        self._calib_seen_not_done[axis] = False
+        self._calib_completed[axis] = False
+        self.calib_step[("stretch", "lift", "rotate").index(axis)] = False
+        self.motor_calib_state = False
+        setattr(self, f"set_{axis}_motor_calib", False)
+        Motor.motorCalib(motor_name)
+        self._calib_command_cycle[axis] = self._calib_current_cycle
+        self._calib_command_time[axis] = time.time()
+        setattr(self, f"set_{axis}_motor_calib", True)
+        Trace.log(
+            {
+                "event": "calibCommandSent",
+                "motor": motor_name,
+                "axis": axis,
+                "source": source,
+                "odoCycle": self._calib_current_cycle,
+            },
+            output_time=True,
+            name=f"{MOD}.calib",
+        )
+
     def motor_calib(self):
+        if not self._calib_round_started:
+            self._reset_calib_round()
         self.get_motor_calib_state()
-        if not self.motor_calib_state:
-            if not self.calib_step[0]:
-                if not self.set_stretch_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                    Motor.motorCalib(ConfigParams.stretch_motor_name)
-                    self.set_stretch_motor_calib = True
-            elif self.calib_step[0] and not self.calib_step[1]:
-                if not self.set_lift_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                    Motor.motorCalib(ConfigParams.lift_motor_name)
-                    self.set_lift_motor_calib = True
-            elif self.calib_step[1] and not self.calib_step[2]:
-                if not self.set_rotate_motor_calib and self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop:
-                    Motor.motorCalib(ConfigParams.rotate_motor_name)
-                    self.set_rotate_motor_calib = True
+        if self.motor_calib_state or self.set_force_calib:
+            return
+        if not (self.lift_motor_stop and self.rotate_motor_stop and self.stretch_motor_stop):
+            return
 
-            calib_retry = (
-                (self.set_stretch_motor_calib and self.stretch_motor_stop and self.stretch_motor_calib != 2) or
-                (self.set_lift_motor_calib and self.lift_motor_stop and self.lift_motor_calib != 2) or
-                (self.set_rotate_motor_calib and self.rotate_motor_stop and self.rotate_motor_calib != 2)
-            )
-            if calib_retry:
-                Trace.log("calibration stalled: motor stopped but calib not finished, reset and send again", name=f"{MOD}.err")
-                self.set_lift_motor_calib = False
-                self.set_rotate_motor_calib = False
-                self.set_stretch_motor_calib = False
+        # 自动标零仍按伸缩、升降、旋转顺序执行，旧的 2 不得跳过命令。
+        for axis in ("stretch", "lift", "rotate"):
+            if self._calib_completed[axis]:
+                continue
+            if not getattr(self, f"set_{axis}_motor_calib"):
+                self._send_motor_calib(axis, "auto")
+            elif (self._calib_seen_not_done[axis]
+                    and getattr(self, f"{axis}_motor_calib") == 0
+                    and time.time() - self._calib_command_time[axis] >= CALIB_RETRY_DELAY):
+                # calib=1 即使 stop=True 也仍在标零，不要反复重发打断本轮。
+                self._send_motor_calib(axis, "auto_retry")
+            break
 
-            if self.stretch_motor_calib == 2:
-                self.calib_step[0] = True
-            if self.lift_motor_calib == 2:
-                self.calib_step[1] = True
-            if self.rotate_motor_calib == 2:
-                self.calib_step[2] = True
     def get_motor_calib_state(self):
         odo_data = Odometer.getData()
-        if odo_data.get("motorInfo", None):
-            motor_info = odo_data["motorInfo"]
-            self.report_info["motorInfo"] = motor_info
-            for m_f in motor_info:
-                if m_f["key"] == ConfigParams.lift_motor_name:
-                    self.lift_motor_calib = m_f.get("calib", None)
-                    self.lift_motor_stop = m_f.get("stop", None)
-                if m_f["key"] == ConfigParams.stretch_motor_name:
-                    self.stretch_motor_calib = m_f.get("calib", None)
-                    self.stretch_motor_stop = m_f.get("stop", None)
-                if m_f["key"] == ConfigParams.rotate_motor_name:
-                    self.rotate_motor_calib = m_f.get("calib", None)
-                    self.rotate_motor_stop = m_f.get("stop", None)
-        self.motor_calib_state = (
-                self.lift_motor_calib == 2 and self.stretch_motor_calib == 2 and self.rotate_motor_calib == 2)
+        self.report_info["motorInfo"] = odo_data.get("motorInfo", [])
+        # getData 的字典会省略 protobuf 默认值 calib=0、stop=False；
+        # 使用本次读取对应的原始消息，读取失败时不沿用旧的原始消息。
+        odo = Odometer.data if odo_data else None
+        motor_info = {motor.key: motor for motor in odo.motorInfo} if odo is not None else {}
+        self._calib_current_cycle = odo.cycle if odo is not None else None
+        for axis in ("lift", "stretch", "rotate"):
+            motor_name = getattr(ConfigParams, f"{axis}_motor_name")
+            motor = motor_info.get(motor_name)
+            calib = int(motor.calib) if motor is not None else None
+            setattr(self, f"{axis}_motor_calib", calib)
+            setattr(self, f"{axis}_motor_stop", bool(motor.stop) if motor is not None else None)
+            # 同一里程周期可能仍是下发前的缓存；缺失电机也不算非完成状态。
+            if (motor is None
+                    or not getattr(self, f"set_{axis}_motor_calib")
+                    or self._calib_current_cycle == self._calib_command_cycle[axis]):
+                continue
+            if calib != 2 and not self._calib_seen_not_done[axis]:
+                self._calib_seen_not_done[axis] = True
+                Trace.log(
+                    {"event": "calibNonDoneSeen", "motor": motor_name, "axis": axis,
+                     "calib": calib, "odoCycle": self._calib_current_cycle},
+                    output_time=True,
+                    name=f"{MOD}.calib",
+                )
+            elif calib == 2 and self._calib_seen_not_done[axis] and not self._calib_completed[axis]:
+                self._calib_completed[axis] = True
+                Trace.log(
+                    {"event": "calibAxisCompleted", "motor": motor_name, "axis": axis,
+                     "calib": calib, "odoCycle": self._calib_current_cycle},
+                    output_time=True,
+                    name=f"{MOD}.calib",
+                )
+        self.calib_step = [self._calib_completed[axis] for axis in ("stretch", "lift", "rotate")]
+        self.motor_calib_state = all(self.calib_step)
 
     def force_calib(self):
-        if Timer.delay(3):
-            if not self.set_force_calib:
-                self.set_force_calib = True
-                Motor.motorCalib(ConfigParams.lift_motor_name)
-                Motor.motorCalib(ConfigParams.stretch_motor_name)
-                Motor.motorCalib(ConfigParams.rotate_motor_name)
-                self.motor_calib_state = False
+        if not self._force_calib_started:
+            self._reset_calib_round()
+            self.set_force_calib = False
+            self._force_calib_started = True
+        self.get_motor_calib_state()
+        if not self.set_force_calib and Timer.delay(3):
+            for axis in ("lift", "stretch", "rotate"):
+                self._send_motor_calib(axis, "force")
+            self.set_force_calib = True
+            return
         if self.set_force_calib and self.motor_calib_state:
             self.status = ScriptStatus.FINISHED
 
