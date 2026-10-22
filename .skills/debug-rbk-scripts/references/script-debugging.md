@@ -79,10 +79,27 @@ When comparing them, record values before submission, during the task, at termin
 - If temporarily restoring old behavior to reproduce a regression, record the exact diff, reproduce, collect logs, then restore the fixed behavior before validation.
 - Report skipped and failed rounds honestly. A defect that blocks the second half of a load/unload cycle is still a reproduced round, not a passing cycle.
 
+### Fork flow harness (`tests/fork_flow.py`)
+
+The flow harness lives on the `mazj` branch (`tests/fork_flow.py` +
+`tests/fork_flow/<group>/<case>.json` + `tests/fork_sim_inject.py`). It is **not** on
+`release`, so on a release checkout copy it in first, or run it from a `mazj` worktree.
+Its dependencies (`requests`, `urllib3<2` for the image's Python 3.8) are not installed
+in the robot image either — put them on `PYTHONPATH` from `/tmp`, do not `pip install`
+into the image:
+
+```bash
+# from a mazj checkout
+git show mazj:tests/fork_flow.py > /opt/.data/rbk/resources/scripts/tests/fork_flow.py
+git archive mazj tests/fork_flow | tar -x -C /opt/.data/rbk/resources/scripts
+git show mazj:tests/fork_sim_inject.py > /opt/.data/rbk/resources/scripts/tests/fork_sim_inject.py
+```
+
 Example Type E fork flow:
 
 ```bash
-sudo env PYTHONPATH=/opt/.data/rbk/resources/scripts \
+cd /tmp && sudo env \
+  PYTHONPATH=/opt/.data/rbk/resources/scripts/.test_deps:/opt/.data/rbk/resources/scripts \
   python3 /opt/.data/rbk/resources/scripts/tests/fork_flow.py \
   --case type_e_load_lift_no_target \
   --case type_e_unload_lift_no_target \

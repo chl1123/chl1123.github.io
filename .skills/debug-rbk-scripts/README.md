@@ -38,6 +38,9 @@ references/
   message-latency.md          # DI/传感器/消息延迟测量
   standalone-probes.md        # 不经 MF/PyIDE，用 python3 直接跑脚本探测
   http-api.md                 # RBK HTTP OpenAPI MCP 工作流
+  pyide-console.md            # PyIDE 脚本实时控制台日志（21006 WebSocket）
+  rms-cli.md                  # rms-cli：服务/日志包/机器人信息/性能采集（与 8081 互补）
+  simulation-mode.md          # 仿真环境专有陷阱：电机漂移、抬叉停底盘、hasGoods 脱钩…
 scripts/
   rbk-triage.sh               # 由时间窗口生成 ptcat/日志命令
   collect-rbk-evidence.sh     # 固化可交付证据包
@@ -56,6 +59,9 @@ agents/openai.yaml            # skill 元信息
 | 电机、DI/DO、传感器、电池 | `rbk.device.DSPChassis` |
 | RBK 整体崩溃 | `syslog` |
 | 脚本进程崩溃 | `logs/ide/*.log` → `logs/scripts/*.log` |
+| 脚本自己打印了什么（`Trace.log` 控制台输出） | PyIDE WebSocket `ws://<robot>:21006/api/v1/ws/pythonConsole?taskId=<脚本名>`，见 [`references/pyide-console.md`](references/pyide-console.md) |
+| 服务生命周期 / 日志包 / 机器人信息 / 性能采集 | `rms-cli`（`/opt/data/rms/bin/rms-cli`，Web `:8080`），见 [`references/rms-cli.md`](references/rms-cli.md) |
+| 状态 `RUNNING` 但车不动（仿真） | [`references/simulation-mode.md`](references/simulation-mode.md) |
 | 单独验证脚本/syspy 改动 | 用 `python3` 直连 RBK，见 [`references/standalone-probes.md`](references/standalone-probes.md) |
 
 权威通道表随 SDK 发布为 `trace.cfg`。位置因机器而异，请用查找而非写死路径：
@@ -70,7 +76,11 @@ find "$HOME" /opt /srv /data -maxdepth 8 -name trace.cfg 2>/dev/null | head
 ## 关键路径
 
 ```text
-Trace:       /opt/.data/diagnosis/rbk/trace/event/rbk+common_*.pft.zst
+Trace:       以 insightd `/config` 的 outpath 为准
+             /opt/.data/diagnosis/rbk/trace/event/rbk+common_*.pft.zst   (裸机器人)
+             /usr/local/etc/.SeerRobotics/rbk/diagnosis/log/trace/…     (3.5.4 容器实测)
+ptcat:       insightd 同目录（/usr/share/perfetto-trace/x86_64/ptcat），通常不在 PATH
+rms-cli:     /opt/data/rms/bin/rms-cli
 Report:      /opt/.data/diagnosis/rbk/trace/event/rbk+report.jsonl
 PyIDE 日志:  /opt/.data/diagnosis/rbk/logs/ide/ide_*.log
 脚本日志:    /opt/.data/diagnosis/rbk/logs/scripts/<name>_*.log

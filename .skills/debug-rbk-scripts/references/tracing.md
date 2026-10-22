@@ -57,6 +57,50 @@ systemctl show-environment | rg '^INSIGHTD'
 curl -sS --max-time 3 http://127.0.0.1:8019/config
 ```
 
+## insightd Is Not Always Running (check this first)
+
+`insightd.service` is `disabled` on some images. A robot reboot or a container restart
+leaves it `inactive` and the trace directory keeps only **old** files, which looks like
+"tracing produced nothing" when in fact nothing was written.
+
+The write path also depends on `INSIGHTD_OUTPATH`; observed values:
+
+| `INSIGHTD_OUTPATH` | where the segments land |
+| --- | --- |
+| `/opt/.data/diagnosis/rbk/trace/event/` (bare robot) | `/opt/.data/diagnosis/rbk/trace/event/rbk+common_*.pft.zst` |
+| `/usr/local/etc/.SeerRobotics/rbk/diagnosis/log/trace/` (observed in a 3.5.4 container) | `/usr/local/etc/.SeerRobotics/rbk/diagnosis/log/trace/rbk+common_*.pft.zst` |
+
+So: **trust `/config`'s `outpath`, not the README path**, and confirm the file is growing
+(`ls -lt` twice) before blaming the trace.
+
+```bash
+systemctl is-active insightd || systemctl start insightd
+# on images where systemctl is not yours to use:
+/opt/data/rms/bin/rms-cli cmd service insightd --action restart   # see rms-cli.md
+sleep 5
+curl -sS --max-time 3 http://127.0.0.1:8019/config        # read outpath
+ls -lt $(curl -sS http://127.0.0.1:8019/config | jq -r .outpath) | head
+```
+
+Observed on a 3.5.4 simulation container: `runner.common.store-on-the-fly: Yes`,
+`always-store: Yes`, segment rolls every ~15 min; `/sync` forces one in ~5 s.
+
+## `ptcat` Location
+
+`ptcat` sits next to the daemon and is usually **not** on `PATH`:
+
+```bash
+PT=/usr/share/perfetto-trace/x86_64/ptcat   # same dir as insightd/perfetto
+$PT -c stat -g 'rbk.nav' "$T"               # list channel names first, then filter
+```
+
+List `-c stat` names before guessing at `-n` patterns: MoveFactory publishes
+`AutoPreDispatch`, `AutoPreETAStart`, `AutoPreETABreakdown`, `AutoPreStartAction`,
+`AutoPreETAResult`, `AutoPreETASegmentResult`, `AutoPreStatus`,
+`AutoPreFormalScriptStatus`, `AutoPreContextLost`, `3066TaskCheck`, `moveTask`,
+`TaskStatusPackage`, and `setTaskError` — these are the events that show *why* a
+segment started, stopped, or was rejected.
+
 ## Immediate Finalization
 
 Use the query server instead of restarting services or sending guessed signals:

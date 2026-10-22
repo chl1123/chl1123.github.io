@@ -48,6 +48,9 @@ Full detail and examples in [references/triage.md](references/triage.md).
 | Map load / switch | `rbk.loc.BlockMapLoader` / `changeMap` |
 | Motors, DI/DO, sensors, battery | `rbk.device.DSPChassis` (`motorInfo`, `messageDI`, ...) |
 | Whole-RBK crash | `syslog` |
+| **Script's own stdout/print (`Trace.log` with console output)** | PyIDE WebSocket `ws://<robot>:21006/api/v1/ws/pythonConsole?taskId=<script name>` — see [references/pyide-console.md](references/pyide-console.md) |
+| Service lifecycle, log bundle, robot identity, perf capture | `rms-cli` — see [references/rms-cli.md](references/rms-cli.md) |
+| Nothing moves / gone quiet, but status looks `RUNNING` (simulation) | [references/simulation-mode.md](references/simulation-mode.md) |
 | Script process crash | `logs/ide/*.log`, then `logs/scripts/*.log` |
 
 Authoritative per-version channel catalog: resolve `trace.cfg` under the local SDK
@@ -65,11 +68,14 @@ discovery command). If it is unavailable, ask the reporter for their SDK path or
 5. Prove RBK is healthy before attributing a failure to Python code. Read [references/script-debugging.md](references/script-debugging.md) for known startup, motor, fork-runtime, and cargo-state failure modes.
 6. For missing task arguments, `get_task`/`update_cmd` gaps, PyIDE routing, status-report loss, or an MF action stuck in `RUNNING`, read [references/mf-script-rpc.md](references/mf-script-rpc.md). Locate the first missing hop before assigning ownership. Use `Rc` vs `Rs` to prove what the SDK sent versus what the script received.
 7. Consult the HTTP OpenAPI MCP before constructing or changing an RBK request. Read [references/http-api.md](references/http-api.md) for the MCP workflow and verified endpoint patterns.
+7b. Split **behaviour** from **environment**: RBK behaviour comes from the HTTP API (8081); service lifecycle, log bundles, robot identity, OTA, and perf capture come from `rms-cli` (`../rms/bin/rms-cli`, web UI `:8080`). Read [references/rms-cli.md](references/rms-cli.md). `rms-cli robot status` is a good independent witness snapshot next to any HTTP poll.
 8. Reproduce with a unique task ID through an existing flow test where possible. Poll the exact task ID, not merely the latest global status.
 9. Cancel a running navigation through HTTP `/cancelNavigate`. Do not kill the persistent Python script process.
 10. During iterative debugging, read the active trace with `ptcat`. When durable evidence is needed, collect the test report, console output, task IDs, status transitions, and an immediately finalized trace. Read [references/tracing.md](references/tracing.md), or run `scripts/collect-rbk-evidence.sh`.
 11. To isolate a script-side or syspy defect, or to verify a syspy change, run the script directly against the live RBK with plain `python3` instead of going through MF/PyIDE. Read [references/standalone-probes.md](references/standalone-probes.md) first: it covers the `SCRIPTS_DIR` path trap that makes `cd <scripts dir> && python3 x.py` fail on symlinked installations, the minimal probe skeleton, and how to read the resulting channel from the trace.
+11b. To see what the script itself printed **while it runs** (autoPre dispatch, `taskBuild`, `actionStateChanged`, `auto-pre … startAction`), subscribe to the PyIDE console WebSocket *before* submitting the task. Read [references/pyide-console.md](references/pyide-console.md), which also carries a stdlib-only client (robot images often ship Python 3.8 with no `websocket-client`).
 12. For DI, sensor, SDK-message, or ZMQ latency, read [references/message-latency.md](references/message-latency.md). Separate publisher-to-reader visibility, API-call duration, action response, and task cleanup before assigning a cause.
+12b. If `RBK_SIMULATION=True` (container/lab), read [references/simulation-mode.md](references/simulation-mode.md) before blaming code: walk-motor drift stops the chassis, a high `startHeight` freezes it, `Navigation.hasGoods()` and `Container.hasGoods()` can diverge into a sticky `py@ForkHasGoods`, maps can fail to switch, and MF's static ETA model is routinely 8-28 s off the simulated chassis.
 13. For the **fork** script (load/unload, fork height, motor commands, obstacle-stop policy, recognition), read [references/fork-channels.md](references/fork-channels.md). Fork is high-frequency and writes nine fixed channels; that reference maps symptom → channel and lists the correlation fields (`taskId` / `phase` / `actionId`) that join an action across channels.
 14. Restore temporary defect-reproduction patches. Run `py_compile`, `git diff --check`, targeted tests, and a final state query.
 
@@ -110,6 +116,8 @@ Example:
 - Never call `Motor.isMotorReached()` unless the same action lifecycle successfully called `Motor.setMotorPosition()` first. Reset every commanded motor on finish, failure, cancellation, rejection, and timeout.
 - Do not assume `Navigation.hasGoods()` and `Container.hasGoods()` are equivalent. Capture both when diagnosing, but use Container as the logical load/unload lifecycle state.
 - Do not restart RBK, insightd, or traced merely to flush logs. Use insightd `/sync`.
+- Do not assume `insightd` is running: on some installs it is `disabled` and does **not** autostart after a reboot or container restart, so the trace directory silently keeps old files. Check `rms-cli cmd service insightd --action status` (or `systemctl is-active insightd`) and start it explicitly, then confirm a fresh `rbk+common_*.pft.zst` is growing ([references/tracing.md](references/tracing.md)).
+- Do not install PyPI packages into the robot image just to read a WebSocket; the interpreter is often Python 3.8 and current `websocket-client` requires 3.9+. Use the stdlib client from the scripts repo ([references/pyide-console.md](references/pyide-console.md)).
 - Preserve unrelated worktree changes and untracked files.
 - Compare only timestamps from compatible clock domains. Do not subtract `dataNsec` or `perf_counter_ns` from wall-clock trace timestamps.
 - Do not infer parameter loss from an empty `get_task` response alone. Prove whether the task used command-line startup or `update_cmd`, and capture the request at MF, PyIDE, and syspy boundaries.

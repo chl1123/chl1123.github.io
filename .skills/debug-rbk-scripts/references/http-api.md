@@ -92,7 +92,7 @@ curl -sS --max-time 5 -X POST http://127.0.0.1:8081/navigate \
   }'
 ```
 
-Use a unique task ID and retain the exact payload. Existing tests such as `tests/fork_flow.py` and `tests/actions_flow.py` already implement robust submission and polling; prefer them over ad hoc loops.
+Use a unique task ID and retain the exact payload. Existing harnesses `tests/fork_flow.py` (mazj branch) and `tests/actions_flow.py` (release) already implement robust submission and polling; prefer them over ad hoc loops.
 
 ## Cancel Without Killing the Script
 

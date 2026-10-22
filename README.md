@@ -650,13 +650,32 @@ RUN_DANGEROUS=1 ./tests/run_tests.sh
 │   ├── fork-channels.md        # 叉车脚本通道映射：症状 -> 通道
 │   ├── message-latency.md      # DI/传感器/消息延迟
 │   ├── standalone-probes.md    # 不经 MF/PyIDE，直接 python3 探测
+│   ├── pyide-console.md        # PyIDE 实时控制台日志（21006 WebSocket）
+│   ├── rms-cli.md              # rms-cli：服务/日志包/机器人信息/性能采集
+│   ├── simulation-mode.md      # 仿真专有陷阱：电机漂移、抬叉停底盘、hasGoods 脱钩
 │   └── http-api.md             # RBK HTTP OpenAPI MCP 工作流
 └── scripts/
     ├── rbk-triage.sh           # 时间窗口 -> 具体 ptcat/日志命令（只读）
     └── collect-rbk-evidence.sh # 归档 trace/日志/taskId 证据
 ```
 
-### 10.2 用法
+### 10.2 挂到 agent（软链接，推荐）
+
+`.skills/` 下的内容与 `~/.agents/skills/` 是同一套目录结构，可以直接软链，
+避免两份拷贝各自漂移：
+
+```bash
+ln -sfn "$(git rev-parse --show-toplevel)/.skills/debug-rbk-scripts" \
+        "$HOME/.agents/skills/debug-rbk-scripts"
+```
+
+这样仓库里改 skill 就是直接生效，不用再手工同步：
+`git pull` 之后 agent 读到的就是新版本；提交前先 `git status .skills` 确认改了什么。
+
+> 已有旧拷贝时先移开再链，例如
+> `mv ~/.agents/skills/debug-rbk-scripts ~/.agents/skills/debug-rbk-scripts.bak.$(date +%Y%m%d)`。
+
+### 10.3 用法
 
 ```bash
 # 1) 给一个故障时间窗口，生成排查计划（只读，不改机器人状态）
@@ -672,7 +691,7 @@ RUN_DANGEROUS=1 ./tests/run_tests.sh
 
 `--symptom` 取值：`script` | `nav` | `loc` | `map` | `device` | `crash` | `latency`。
 
-### 10.3 几条容易踩的结论
+### 10.4 几条容易踩的结论
 
 这些是本仓库实际踩过的坑，写进了 skill 的安全红线，开发时同样适用：
 
@@ -684,5 +703,14 @@ RUN_DANGEROUS=1 ./tests/run_tests.sh
   `ValueError: script path error`；应在其他目录把逻辑路径加进 `sys.path`。
 - **不要 kill 脚本进程**：取消导航走 HTTP `/cancelNavigate`，杀进程不是常规清理手段。
 - **`ss@pyCrashed` 是粘性状态**：不是简单清错误就能恢复，需协调重启 RBK。
+- **insightd 不会自启**：部分镜像里它是 `disabled`，重启后 trace 目录只剩旧文件，
+  看着像“没采到”。先 `rms-cli cmd service insightd --action status` 确认，写入目录
+  以 `/config` 的 `outpath` 为准（容器实测不在 `resources` 那套路径下）。
+- **脚本自己打印了什么，去 21006 看**：`ws://<robot>:21006/api/v1/ws/pythonConsole?taskId=<脚本名>`，
+  要在下发任务**之前**订阅，否则最前面的 `taskBuild`/`AutoPreSequence` 会丢。
+- **行为走 HTTP 8081，环境走 rms-cli**：`/opt/data/rms/bin/rms-cli` 负责服务启停、
+  日志包、机器人信息、perf 采集；导航/任务状态仍用 HTTP，rms-cli 取消不了导航。
+- **仿真里的“车不动”未必是脚本 bug**：行走电机漂移、抬叉高度过高、
+  `Navigation.hasGoods` 与 `Container.hasGoods` 脱钩都会让底盘失效，只能重启容器。
 
 发现 skill 里缺通道或流程不对，直接提 PR 修正。
