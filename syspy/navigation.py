@@ -14,6 +14,10 @@ if TYPE_CHECKING:
         pass
 
 
+# 设备模型读不到车宽时的兜底值（m）
+DEFAULT_ROBOT_WIDTH = 0.6
+
+
 class NavigationInterface(ABC, Service):
     """导航类"""
 
@@ -1069,6 +1073,24 @@ class NavStatusInterface(ABC, Message):
 
         Returns:
             (int): 转向类型：0=不转/直行；1=左旋；2=右旋；3=原地旋转。
+        """
+        raise RBKVersionError()
+
+    def isLargeAngleTurn(self, v_x: float, v_w: float, threshold_dps: float = 30.0) -> bool:
+        """判断当前运动是否属于大角度转向（用于声光提示等需要克制的场景）
+
+        判据为近似角速度：车体中心角速度加上平移带来的外侧甩动，
+        ``omega = |v_w| + |v_x| * 车宽 / 2``（单位 deg/s），大于等于 ``threshold_dps``
+        视为大角度转向。车宽取自设备模型 ``Model-000.shape.<shape>.width``，
+        读不到时按 0.6m 兜底。
+
+        Args:
+            v_x (float): X 方向速度，单位 m/s。
+            v_w (float): 角速度，单位 rad/s。
+            threshold_dps (float): 大角度转向阈值，单位 deg/s，默认 30；传 0 时总是返回 True。
+
+        Returns:
+            (bool): True 表示大角度转向。
         """
         raise RBKVersionError()
 

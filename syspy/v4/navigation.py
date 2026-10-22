@@ -4,8 +4,14 @@ from typing import Tuple, List, Optional
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, default_plugin, RBKVersionError
+from syspy.lib.robot import RobotParam
 from ..utils import Coordinate
-from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
+from syspy.navigation import (
+    DEFAULT_ROBOT_WIDTH,
+    NavigationInterface,
+    NavStatusInterface,
+    NavSpeedInterface,
+)
 
 
 @default_plugin("Navigation")  # todo RBK4
@@ -404,6 +410,23 @@ class NavStatusV4(NavStatusInterface):
                 """机身原地右旋"""
                 turn = 3
         return turn
+
+    @classmethod
+    def isLargeAngleTurn(cls, v_x: float, v_w: float, threshold_dps: float = 30.0) -> bool:
+        if threshold_dps <= 0.0:
+            return True
+        # 车宽取设备模型 Model-000.shape.<shape>.width，读不到时按 DEFAULT_ROBOT_WIDTH 兜底
+        width = DEFAULT_ROBOT_WIDTH
+        try:
+            shape = RobotParam.getDevice("Model-000", "shape")
+            if shape:
+                device_width = float(RobotParam.getDevice("Model-000", f"shape.{shape}.width") or 0.0)
+                if device_width > 0.0:
+                    width = device_width
+        except Exception:
+            pass
+        omega_dps = math.degrees(abs(v_w) + abs(v_x) * width / 2.0)
+        return omega_dps >= threshold_dps
 
     def getTaskStatus(self) -> Optional["MessageV4_MoveStatus.TaskStatus"]:
         if self.update():

@@ -6,7 +6,13 @@ from typing import Dict, Tuple, List, Optional, TYPE_CHECKING
 from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
 
 from syspy.core.rbk_rpc import call_service, default_plugin
-from syspy.navigation import NavigationInterface, NavStatusInterface, NavSpeedInterface
+from syspy.lib.robot import RobotParam
+from syspy.navigation import (
+    DEFAULT_ROBOT_WIDTH,
+    NavigationInterface,
+    NavStatusInterface,
+    NavSpeedInterface,
+)
 from syspy.registry.channel import navigation
 from ..utils import Coordinate
 from .protobuf.compat import channel_or_topic
@@ -556,6 +562,22 @@ class NavStatusV3(NavStatusInterface):
                 """机身原地右旋"""
                 turn = 3
         return turn
+
+    def isLargeAngleTurn(self, v_x: float, v_w: float, threshold_dps: float = 30.0) -> bool:
+        if threshold_dps <= 0.0:
+            return True
+        # 车宽取设备模型 Model-000.shape.<shape>.width，读不到时按 DEFAULT_ROBOT_WIDTH 兜底
+        width = DEFAULT_ROBOT_WIDTH
+        try:
+            shape = RobotParam.getDevice("Model-000", "shape")
+            if shape:
+                device_width = float(RobotParam.getDevice("Model-000", f"shape.{shape}.width") or 0.0)
+                if device_width > 0.0:
+                    width = device_width
+        except Exception:
+            pass
+        omega_dps = math.degrees(abs(v_w) + abs(v_x) * width / 2.0)
+        return omega_dps >= threshold_dps
 
     def getTaskStatus(self) -> Optional[int]:
         if self.update():
