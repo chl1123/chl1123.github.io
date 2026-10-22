@@ -3127,7 +3127,9 @@ class GoPathWithContactDi(ActionBase):
             self.near_motion_policy[
                 "navigation.collisionDetection.collisionDevice"
             ] = ",".join(initial_navigation_collision_devices)
-        self._apply_policy(self.initial_policy_name, sleep_sec=0.5)
+        # 近货策略下发后不等 0.5 s 再放行路径：autoPre/passThrough 衔接要求
+        # 首个 tick 就下发 goPath，否则底盘会在前置点停车（见 m-7051602751）。
+        self._apply_policy(self.initial_policy_name)
         self.set_policy = True
 
         current_collision_device_change = RobotParam.getConfig(
