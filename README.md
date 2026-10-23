@@ -67,6 +67,16 @@ from syspy import Navigation, Loc, Motor
   `@channel_or_topic(topic=..., channel=...)` 声明两套路径，由 `Message.update()`
   按版本自动分流；因此**写 getter 时统一用 `self.update()`，不要直调
   `self.update_channel()`**，后者在 3.5 上会因 `_CHANNEL` 为空而失败。
+- **电机状态**：3.6 起电机状态改由逐电机 channel `/MotorInfo/<key>` 提供，
+  `msgOdometer.motorInfo` 已计划弃用（MF 侧同一改造见 m-7125718986）。读电机状态统一走
+  `Motor.getMotorInfo(key)` / `Motor.getMotorInfos()`（3.6 读 channel，3.5 内部回落到
+  `msgOdometer.motorInfo`）。老读法 `Odometer.getData()["motorInfo"]` 仍可用：3.6 下由
+  syspy 用 `/MotorInfo` 的数据填充，现有脚本不改也能拿到等价结果。
+  枚举时 `Motor` 与 `DOMotor` 两类设备都要取（`/MotorInfo/<key>` 同时覆盖 DO 电机）。
+  proto 新加了 `msgMotorInfo.controlMode`（m-7140601806），可用 `Motor.getMotorControlMode(key)`
+  读取；未带该字段的版本返回 -1。
+  另注意 3.6 的 `msgMotorCmd` 用 `motorKey`/`motorName` 标识电机、速度在 `*Cmd` oneof 里，
+  与 3.5 的 `key`/`value` 不兼容，`Motor.getMotorSpeed` 已按版本分派。
 
 ```python
 from syspy.v3.protobuf.compat import channel_or_topic

@@ -50,3 +50,19 @@ class OdometerV3(OdometerInterface):
             return Motor.getMotorInfos(device_key)
         if self.update():
             return self.data.motorInfo
+
+    def getData(self, fields=None, *, topic: str = None) -> dict:
+        """里程消息字典（兼容式读取）。
+
+        3.6 下 ``data.motorInfo`` 来源已弃用（改由 ``/MotorInfo/<key>`` 提供），
+        但脚本里仍有 ``Odometer.getData()["motorInfo"]`` 的读法，这里用
+        :meth:`getMotorInfos` 的返回值覆盖该字段，保证老读法拿到的是
+        ``/MotorInfo/<key>`` 的数据而不是空的/过期的 odometer 字段。
+        """
+        data = super().getData(fields, topic=topic)
+        if data and (fields is None or "motorInfo" in fields):
+            motor_infos = self.getMotorInfos() or []
+            data["motorInfo"] = [
+                self._message_to_dict(motor) for motor in motor_infos
+            ]
+        return data
