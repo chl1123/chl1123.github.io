@@ -24,7 +24,7 @@ This installation resolves `/opt/.data/rbk/resources/scripts` to `/mnt/log/3.5/r
 
 ```bash
 sudo env PYTHONPATH=/opt/.data/rbk/resources/scripts \
-  python3 /opt/.data/rbk/resources/scripts/tests/test_example.py TestClass.test_name
+  "$RT" /opt/.data/rbk/resources/scripts/tests/test_example.py TestClass.test_name
 ```
 
 ## Motor Command Lifecycle
@@ -100,7 +100,7 @@ Example Type E fork flow:
 ```bash
 cd /tmp && sudo env \
   PYTHONPATH=/opt/.data/rbk/resources/scripts/.test_deps:/opt/.data/rbk/resources/scripts \
-  python3 /opt/.data/rbk/resources/scripts/tests/fork_flow.py \
+  "$RT" /opt/.data/rbk/resources/scripts/tests/fork_flow.py \
   --case type_e_load_lift_no_target \
   --case type_e_unload_lift_no_target \
   --script tasks/v3/standard/module/robotTypeE.py \

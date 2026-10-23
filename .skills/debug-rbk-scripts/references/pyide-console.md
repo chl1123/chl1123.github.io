@@ -126,7 +126,7 @@ Run it from `/tmp`, never from inside the scripts directory (see the
 `SCRIPTS_DIR` trap in [standalone-probes.md](standalone-probes.md)):
 
 ```bash
-cd /tmp && python3 -c '
+cd /tmp && "$RT" -c '
 import sys; sys.path.insert(0, "/tmp")
 from mini_ws import tail_console
 for line in tail_console("tasks/v3/standard/module/straddleLiftFork.py", 15):

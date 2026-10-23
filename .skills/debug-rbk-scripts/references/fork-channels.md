@@ -115,7 +115,7 @@ A recurring fork failure mode. **They are not equivalent and must both be captur
 
 ```bash
 # Both states, plus the bound container list
-python3 -c "
+"$RT" -c "
 from syspy import Container, Navigation
 print('Navigation.hasGoods:', Navigation.hasGoods())
 print('Container.hasGoods(0):', Container.hasGoods('0'))

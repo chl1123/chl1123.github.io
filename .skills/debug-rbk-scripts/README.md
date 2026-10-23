@@ -36,7 +36,7 @@ references/
   script-debugging.md         # 脚本/电机/fork/容器排查
   fork-channels.md            # 叉车脚本通道映射：症状 -> 通道，关联字段与陷阱
   message-latency.md          # DI/传感器/消息延迟测量
-  standalone-probes.md        # 不经 MF/PyIDE，用 python3 直接跑脚本探测
+  standalone-probes.md        # 不经 MF/PyIDE，用内置运行时直连 RBK 跑脚本探测
   http-api.md                 # RBK HTTP OpenAPI MCP 工作流
   pyide-console.md            # PyIDE 脚本实时控制台日志（21006 WebSocket）
   rms-cli.md                  # rms-cli：服务/日志包/机器人信息/性能采集（与 8081 互补）
@@ -62,7 +62,7 @@ agents/openai.yaml            # skill 元信息
 | 脚本自己打印了什么（`Trace.log` 控制台输出） | PyIDE WebSocket `ws://<robot>:21006/api/v1/ws/pythonConsole?taskId=<脚本名>`，见 [`references/pyide-console.md`](references/pyide-console.md) |
 | 服务生命周期 / 日志包 / 机器人信息 / 性能采集 | `rms-cli`（`/opt/data/rms/bin/rms-cli`，Web `:8080`），见 [`references/rms-cli.md`](references/rms-cli.md) |
 | 状态 `RUNNING` 但车不动（仿真） | [`references/simulation-mode.md`](references/simulation-mode.md) |
-| 单独验证脚本/syspy 改动 | 用 `python3` 直连 RBK，见 [`references/standalone-probes.md`](references/standalone-probes.md) |
+| 单独验证脚本/syspy 改动 | 用内置运行时直连 RBK，见 [`references/standalone-probes.md`](references/standalone-probes.md) |
 
 权威通道表随 SDK 发布为 `trace.cfg`。位置因机器而异，请用查找而非写死路径：
 

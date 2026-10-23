@@ -1,4 +1,4 @@
-# Standalone Probes: `python3` Against a Live RBK
+# Standalone Probes: Run Scripts Against a Live RBK
 
 How to run a script or a few RPC calls directly against a running RBK, without
 MoveFactory or PyIDE. Use this to isolate a script-side defect, to verify a syspy
@@ -7,6 +7,27 @@ change, or to produce a trace with only your own events in it.
 This bypasses the normal dispatch path, so it proves **script/syspy/RPC** behavior
 only. It does not prove MF or PyIDE routing — for that, read
 [mf-script-rpc.md](mf-script-rpc.md).
+
+## Pick the Interpreter First
+
+The script runtime is the **interpreter PyIDE bundles**, not the system `python3`.
+On a controller the system Python version follows the OS release (20.04 -> 3.8,
+22.04 -> 3.10, 24.04 -> 3.12) while the bundled runtime is fixed. Using the wrong
+one produces conclusions that do not hold in production — most visibly, syntax
+such as `match` or `X | Y` annotations runs under 3.10+ and fails on a 3.8 controller.
+
+Resolve it once and use that everywhere below:
+
+```bash
+# Bundled runtime (matches production). Falls back only on PyIDE old enough to
+# have no bundled interpreter, where the system python3 was the runtime.
+RT=/opt/data/pyide/runtime/python/bin/python3
+[ -x "$RT" ] || RT=python3
+"$RT" -V
+```
+
+Every `python3` in this file means `$RT`. Confirm which one you are on before
+concluding anything about a version-dependent failure.
 
 ## Preconditions
 
@@ -32,8 +53,8 @@ fails. Whether it fails depends on **how you start Python**, not on the code:
 
 | Invocation | `__file__` becomes | Result |
 | --- | --- | --- |
-| `cd /opt/.data/rbk/resources/scripts && python3 x.py` | `/mnt/log/...` (cwd resolved through the symlink) | `ValueError: script path error` |
-| `cd /tmp && python3 -c "sys.path.insert(0, '/opt/.data/rbk/resources/scripts')"` | `/opt/.data/...` (literal path kept) | works |
+| `cd /opt/.data/rbk/resources/scripts && $RT x.py` | `/mnt/log/...` (cwd resolved through the symlink) | `ValueError: script path error` |
+| `cd /tmp && $RT -c "sys.path.insert(0, '/opt/.data/rbk/resources/scripts')"` | `/opt/.data/...` (literal path kept) | works |
 
 So: **never `cd` into the scripts directory to run something.** Put the literal
 `/opt/.data/...` path on `sys.path` from elsewhere.
@@ -41,7 +62,7 @@ So: **never `cd` into the scripts directory to run something.** Put the literal
 ```bash
 # Run from anywhere except the scripts directory itself
 cd /tmp
-python3 - <<'PY'
+"$RT" - <<'PY'
 import sys
 sys.path.insert(0, "/opt/.data/rbk/resources/scripts")
 from syspy import Module, NetProtocol
@@ -52,7 +73,7 @@ The same rule applies to running a repository test file:
 
 ```bash
 sudo env PYTHONPATH=/opt/.data/rbk/resources/scripts \
-  python3 /opt/.data/rbk/resources/scripts/tests/test_example.py TestClass.test_name
+  "$RT" /opt/.data/rbk/resources/scripts/tests/test_example.py TestClass.test_name
 ```
 
 ## Minimal Probe
@@ -77,7 +98,7 @@ NetProtocol.getModbusData("3x", 0, 1)                # a real RPC, to exercise t
 Run it and read the output:
 
 ```bash
-cd /tmp && python3 probe.py
+cd /tmp && "$RT" probe.py
 ```
 
 Expected stdout, and what each line proves:
@@ -150,7 +171,7 @@ readlink -f /opt/.data/rbk/resources/scripts   # where the mounted tree really l
 ```
 
 `__pycache__` under the scripts tree can be owned by the container's root when the
-same tree is used from a container, which makes `python3 -m compileall` fail with
+same tree is used from a container, which makes `$RT -m compileall` fail with
 `PermissionError`. Use `ast.parse` for a syntax check in that case, or remove the
 cache from inside the container.
 

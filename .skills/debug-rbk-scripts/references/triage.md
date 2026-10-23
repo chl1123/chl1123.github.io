@@ -227,7 +227,7 @@ such as `rbk.nav.MoveFactory` as present even when absent from the file.
 
 ```bash
 CFG=$(find "$HOME" /opt /srv /data -maxdepth 8 -name trace.cfg 2>/dev/null | head -1)
-python3 - "$CFG" <<'PY'
+"$RT" - "$CFG" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1]))
 for g, chans in d.items():
